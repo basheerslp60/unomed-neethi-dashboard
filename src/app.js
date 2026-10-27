@@ -271,7 +271,7 @@ async function renderTargets(monthReports) {
   const totalsByNetwork=networks.map(network=>{const arr=rows.filter(r=>r.network===network);return {network,target:arr.reduce((s,r)=>s+r.target,0),sales:arr.reduce((s,r)=>s+r.sales,0),patients:arr.reduce((s,r)=>s+r.patients,0),missing:arr.filter(r=>r.missing).length};});
   const groupTarget=rows.reduce((s,r)=>s+r.target,0),groupSales=rows.reduce((s,r)=>s+r.sales,0),groupPatients=rows.reduce((s,r)=>s+r.patients,0);
   window.__managementReportData={rows,groupTarget,groupSales,groupPatients,unomed:networks.find(n=>n==='UNOMED'),neethi:networks.find(n=>n==='NEETHI'),targetMonth};
-  show('executiveSection',true);
+  show('executiveSection', !isStaff);
   const net=(name)=>totalsByNetwork.find(n=>n.network===name)||{sales:0,target:0,patients:0};
   const un=net('UNOMED'), ne=net('NEETHI');
   $('unomedExecSales').textContent=money(un.sales); $('unomedExecMeta').textContent=`${money(un.target)} target · ${un.target?fmtPct(un.sales/un.target*100):'0.0%'} achieved · ${money(Math.max(un.target-un.sales,0))} remaining`;
