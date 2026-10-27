@@ -335,7 +335,7 @@ const remainingCalendarDays=Math.max(1,daysInMonth-now.getDate()+1);
     else if(target && paceRatio>=1){alert='On track';alertClass='alert-green';advice='Maintain current pace';}
     else if(target && paceRatio>=0.85){alert='Needs attention';alertClass='alert-yellow';advice='Review daily follow-up';}
     else if(target){alert='Critical';alertClass='alert-red';advice='Prepare a recovery plan';}
-    return {...b,target,sales,patients:pat,achievement,balance:Math.max(target-sales,0),required:Math.ceil(Math.max(target-sales,0)/remainingCalendarDays),missing:!targetRow,...}
+return {...b,target,sales,patients:pat,achievement,balance:Math.max(target-sales,0),required:Math.ceil(Math.max(target-sales,0)/remainingCalendarDays),missing:!targetRow};
   }).sort((a,b)=>b.achievement-a.achievement || b.sales-a.sales);
   const networks=['UNOMED','NEETHI'];
   const totalsByNetwork=networks.map(network=>{const arr=rows.filter(r=>r.network===network);return {network,target:arr.reduce((s,r)=>s+r.target,0),sales:arr.reduce((s,r)=>s+r.sales,0),patients:arr.reduce((s,r)=>s+r.patients,0),missing:arr.filter(r=>r.missing).length};});
