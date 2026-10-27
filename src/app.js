@@ -48,7 +48,7 @@ if (!ready) {
   $('activityDate').value = today;
 }
 
-function loggedOut() { user=null; profile=null; show('login',true); show('app',false); show('userTools',false); }
+function loggedOut() { user=null; profile=null; show('login',true); show('app',false); show('userTools',false); show('userAccessSection',false); }
 
 async function load(u) {
   if (!db || !u) return;
@@ -67,6 +67,8 @@ async function load(u) {
   show('login',false); show('app',true); show('userTools',true); show('entry',p.role==='branch_staff');
   show('managementReportSection',p.role!=='branch_staff');
   show('complianceSection',p.role!=='branch_staff');
+  // User & Branch Access Management is visible only to the Super Admin.
+  show('userAccessSection',p.role==='admin');
   $('title').textContent=p.role==='branch_staff'?`${branches.find(x=>x.id===p.branch_id)?.branch_name||'Branch'} daily entry`:'Management consolidated report';
   $('subtitle').textContent=p.role==='branch_staff'?'Submit sales for your assigned branch':'Targets and sales totals from reports permitted for your account';
   await loadReports();
