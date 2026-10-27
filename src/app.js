@@ -324,6 +324,7 @@ async function renderTargets(monthReports) {
   const now=new Date();
   const daysInMonth=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
   const elapsedDays=Math.max(1,now.getDate());
+const remainingCalendarDays=Math.max(1,daysInMonth-now.getDate()+1);
   const rows=branches.map(b=>{
     const targetRow=targets.find(t=>t.branch_id===b.id); const target=Number(targetRow?.target_amount||0); const sales=Number(salesByBranch.get(b.id)||0); const pat=Number(patientsByBranch.get(b.id)||0);
     const achievement=target?sales/target*100:0;
@@ -334,7 +335,7 @@ async function renderTargets(monthReports) {
     else if(target && paceRatio>=1){alert='On track';alertClass='alert-green';advice='Maintain current pace';}
     else if(target && paceRatio>=0.85){alert='Needs attention';alertClass='alert-yellow';advice='Review daily follow-up';}
     else if(target){alert='Critical';alertClass='alert-red';advice='Prepare a recovery plan';}
-    return {...b,target,sales,patients:pat,achievement,balance:Math.max(target-sales,0),required:Math.max(target-sales,0)/workingDaysRemaining(),missing:!targetRow,expectedSales,paceRatio,alert,alertClass,advice};
+    return {...b,target,sales,patients:pat,achievement,balance:Math.max(target-sales,0),required:Math.ceil(Math.max(target-sales,0)/remainingCalendarDays),missing:!targetRow,...}
   }).sort((a,b)=>b.achievement-a.achievement || b.sales-a.sales);
   const networks=['UNOMED','NEETHI'];
   const totalsByNetwork=networks.map(network=>{const arr=rows.filter(r=>r.network===network);return {network,target:arr.reduce((s,r)=>s+r.target,0),sales:arr.reduce((s,r)=>s+r.sales,0),patients:arr.reduce((s,r)=>s+r.patients,0),missing:arr.filter(r=>r.missing).length};});
