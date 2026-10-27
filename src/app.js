@@ -510,3 +510,4 @@ async function saveEmployeeTarget(e) {
     await loadEmployeeTargets();
   } catch(err) { employeeMessage('employeeTargetMsg',err.message||'Could not save target. Check target-table permissions and RLS policies.'); }
 }
+
