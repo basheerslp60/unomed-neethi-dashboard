@@ -16,6 +16,7 @@ function money(n) { return new Intl.NumberFormat('en-IN',{style:'currency',curre
 function esc(s) { return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function monthStart(dateString=today) { return `${dateString.slice(0,7)}-01`; }
 function daysLeftInclusive(dateString=today) { const [y,m,d] = dateString.split('-').map(Number); return new Date(y,m,0).getDate() - d + 1; }
+function workingDaysRemaining(dateString=today) { return daysLeftInclusive(dateString); }
 function fmtPct(n) { return `${(Number(n)||0).toFixed(1)}%`; }
 
 if (!ready) {
@@ -298,13 +299,28 @@ async function saveBranchTargets() {
 async function renderTargets(monthReports) {
   const isStaff=profile.role==='branch_staff';
   show('targetSection',!isStaff);
-  if(isStaff) return;
+  show('branchDailyTargetSection',isStaff);
   const targetMonth=monthStart();
-  const {data:targetData,error}=await db.from('branch_monthly_targets').select('branch_id,target_month,target_amount').eq('target_month',targetMonth);
-  if(error) { $('targetRows').innerHTML=`<tr><td colspan="9">${esc(error.message)}</td></tr>`; $('targetMeta').textContent='Could not load monthly targets.'; return; }
+  let targetQuery=db.from('branch_monthly_targets').select('branch_id,target_month,target_amount').eq('target_month',targetMonth);
+  if(isStaff) targetQuery=targetQuery.eq('branch_id',profile.branch_id);
+  const {data:targetData,error}=await targetQuery;
+  if(error) {
+    if(isStaff) { ['branchMonthlyTarget','branchMtdSales','branchBalanceTarget','branchRequiredDaily'].forEach(id=>$(id).textContent='—'); $('branchDailyTargetNote').textContent='Could not load target: '+error.message; }
+    else { $('targetRows').innerHTML=`<tr><td colspan="10">${esc(error.message)}</td></tr>`; $('targetMeta').textContent='Could not load monthly targets.'; }
+    return;
+  }
   targets=targetData||[];
   const salesByBranch=new Map(),patientsByBranch=new Map();
   monthReports.forEach(r=>{salesByBranch.set(r.branch_id,(salesByBranch.get(r.branch_id)||0)+Number(r.total_sales||0));patientsByBranch.set(r.branch_id,(patientsByBranch.get(r.branch_id)||0)+Number(r.patient_count||0));});
+  if(isStaff) {
+    const own=targets.find(t=>String(t.branch_id)===String(profile.branch_id));
+    const target=Number(own?.target_amount||0), sales=Number(salesByBranch.get(profile.branch_id)||0), balance=Math.max(target-sales,0), days=workingDaysRemaining();
+    $('branchMonthlyTarget').textContent=own?money(target):'Not set'; $('branchMtdSales').textContent=money(sales); $('branchBalanceTarget').textContent=own?money(balance):'—'; $('branchRequiredDaily').textContent=own?money(balance/days):'—';
+    $('branchDailyTargetDate').textContent=`${targetMonth.slice(0,7)} · ${days} calendar day(s) remaining, Sundays included`;
+    $('branchDailyTargetNote').textContent=!own?'Your monthly target has not been set. Please contact management.':balance===0?'Monthly target achieved. Maintain your sales performance.':`To reach your target, aim for ${money(balance/days)} per calendar day for the remaining ${days} calendar day(s).`;
+    return;
+  }
+  targets=targetData||[];
   const now=new Date();
   const daysInMonth=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
   const elapsedDays=Math.max(1,now.getDate());
@@ -318,7 +334,7 @@ async function renderTargets(monthReports) {
     else if(target && paceRatio>=1){alert='On track';alertClass='alert-green';advice='Maintain current pace';}
     else if(target && paceRatio>=0.85){alert='Needs attention';alertClass='alert-yellow';advice='Review daily follow-up';}
     else if(target){alert='Critical';alertClass='alert-red';advice='Prepare a recovery plan';}
-    return {...b,target,sales,patients:pat,achievement,balance:Math.max(target-sales,0),required:Math.max(target-sales,0)/Math.max(daysLeftInclusive(),1),missing:!targetRow,expectedSales,paceRatio,alert,alertClass,advice};
+    return {...b,target,sales,patients:pat,achievement,balance:Math.max(target-sales,0),required:Math.max(target-sales,0)/workingDaysRemaining(),missing:!targetRow,expectedSales,paceRatio,alert,alertClass,advice};
   }).sort((a,b)=>b.achievement-a.achievement || b.sales-a.sales);
   const networks=['UNOMED','NEETHI'];
   const totalsByNetwork=networks.map(network=>{const arr=rows.filter(r=>r.network===network);return {network,target:arr.reduce((s,r)=>s+r.target,0),sales:arr.reduce((s,r)=>s+r.sales,0),patients:arr.reduce((s,r)=>s+r.patients,0),missing:arr.filter(r=>r.missing).length};});
@@ -327,8 +343,8 @@ async function renderTargets(monthReports) {
   show('executiveSection', !isStaff);
   const net=(name)=>totalsByNetwork.find(n=>n.network===name)||{sales:0,target:0,patients:0};
   const un=net('UNOMED'), ne=net('NEETHI');
-  $('unomedExecSales').textContent=money(un.sales); $('unomedExecMeta').textContent=`${money(un.target)} target · ${un.target?fmtPct(un.sales/un.target*100):'0.0%'} achieved · ${money(Math.max(un.target-un.sales,0))} remaining`;
-  $('neethiExecSales').textContent=money(ne.sales); $('neethiExecMeta').textContent=`${money(ne.target)} target · ${ne.target?fmtPct(ne.sales/ne.target*100):'0.0%'} achieved · ${money(Math.max(ne.target-ne.sales,0))} remaining`;
+  $('unomedExecSales').textContent=money(un.sales); $('unomedExecMeta').textContent=`${money(un.target)} target · ${un.target?fmtPct(un.sales/un.target*100):'0.0%'} achieved · ${money(Math.max(un.target-un.sales,0))} remaining · ${money(Math.max(un.target-un.sales,0)/workingDaysRemaining())}/calendar day`;
+  $('neethiExecSales').textContent=money(ne.sales); $('neethiExecMeta').textContent=`${money(ne.target)} target · ${ne.target?fmtPct(ne.sales/ne.target*100):'0.0%'} achieved · ${money(Math.max(ne.target-ne.sales,0))} remaining · ${money(Math.max(ne.target-ne.sales,0)/workingDaysRemaining())}/calendar day`;
   $('unomedExecBar').style.width=Math.min(100,un.target?un.sales/un.target*100:0)+'%';
   $('neethiExecBar').style.width=Math.min(100,ne.target?ne.sales/ne.target*100:0)+'%';
   const alertCounts={green:rows.filter(r=>r.alertClass==='alert-green').length,yellow:rows.filter(r=>r.alertClass==='alert-yellow').length,red:rows.filter(r=>r.alertClass==='alert-red').length,none:rows.filter(r=>r.alertClass==='alert-none').length};
@@ -336,7 +352,7 @@ async function renderTargets(monthReports) {
   $('alertSummary').innerHTML=`<div class="alert-chip alert-green">🟢 On track / achieved: ${alertCounts.green}</div><div class="alert-chip alert-yellow">🟡 Needs attention: ${alertCounts.yellow}</div><div class="alert-chip alert-red">🔴 Critical: ${alertCounts.red}</div><div class="alert-chip alert-none">⚪ Missing target: ${alertCounts.none}</div>`;
   $('targetRows').innerHTML=rows.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.branch_name)}${r.missing?' <span class="pill">Target missing</span>':''}</td><td>${esc(r.network)}</td><td><b>${money(r.sales)}</b></td><td>${r.patients.toLocaleString('en-IN')}</td><td>${r.missing?'—':money(r.target)}</td><td>${r.missing?'—':fmtPct(r.achievement)}</td><td>${r.missing?'—':money(r.balance)}</td><td>${r.missing?'—':money(r.required)}</td><td><span class="alert-chip ${r.alertClass}">${esc(r.alert)}</span><small class="alert-advice">${esc(r.advice)}</small></td></tr>`).join('');
   const summary=totalsByNetwork.map(n=>`${n.network}: sales ${money(n.sales)} / target ${money(n.target)} (${n.target?fmtPct(n.sales/n.target*100):'0.0%'} achievement)${n.missing?`; ${n.missing} target(s) missing`:''}`).join(' · ');
-  $('targetMsg').textContent=`${summary} · GROUP: ${money(groupSales)} / ${money(groupTarget)} (${groupTarget?fmtPct(groupSales/groupTarget*100):'0.0%'} achievement), balance ${money(Math.max(groupTarget-groupSales,0))}, required/day ${money(Math.max(groupTarget-groupSales,0)/Math.max(daysLeftInclusive(),1))}. MTD patients: ${groupPatients.toLocaleString('en-IN')}.`;
+  $('targetMsg').textContent=`${summary} · GROUP: ${money(groupSales)} / ${money(groupTarget)} (${groupTarget?fmtPct(groupSales/groupTarget*100):'0.0%'} achievement), balance ${money(Math.max(groupTarget-groupSales,0))}, required/day ${money(Math.max(groupTarget-groupSales,0)/workingDaysRemaining())}. MTD patients: ${groupPatients.toLocaleString('en-IN')}.`;
 }
 
 function renderDailyTrend(monthReports) {
