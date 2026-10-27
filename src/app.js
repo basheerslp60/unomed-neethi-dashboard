@@ -35,6 +35,10 @@ if (!ready) {
   $('complianceDate').addEventListener('change', () => renderCompliance(reports));
   $('copyCompliance').onclick = copyComplianceSummary;
   $('employeeRefresh').onclick = loadEmployeeModule;
+  $('userAccessRefresh').onclick = loadPortalUsers;
+  $('portalUserForm').onsubmit = createPortalUser;
+  $('portalRole').addEventListener('change', updatePortalBranchVisibility);
+
   $('employeeForm').onsubmit = addEmployee;
   $('activityForm').onsubmit = submitEmployeeActivity;
   $('employeeTargetForm').onsubmit = saveEmployeeTarget;
@@ -56,13 +60,109 @@ async function load(u) {
   if(be) { msg('loginMsg',be.message); return; }
   branches=b||[];
   $('who').textContent=p.full_name+' · '+p.role;
+  if (p.role === 'admin') {
+    $('portalBranch').innerHTML = branches.map(b=>`<option value="${b.id}">${esc(b.network)} — ${esc(b.branch_name)}</option>`).join('');
+    updatePortalBranchVisibility();
+  }
   show('login',false); show('app',true); show('userTools',true); show('entry',p.role==='branch_staff');
   show('managementReportSection',p.role!=='branch_staff');
   show('complianceSection',p.role!=='branch_staff');
   $('title').textContent=p.role==='branch_staff'?`${branches.find(x=>x.id===p.branch_id)?.branch_name||'Branch'} daily entry`:'Management consolidated report';
   $('subtitle').textContent=p.role==='branch_staff'?'Submit sales for your assigned branch':'Targets and sales totals from reports permitted for your account';
   await loadReports();
+  if (p.role === 'admin') await loadPortalUsers();
   await loadEmployeeModule();
+}
+
+
+function updatePortalBranchVisibility() {
+  const isStaff = $('portalRole')?.value === 'branch_staff';
+  show('portalBranchWrap', isStaff);
+  $('portalBranch').required = isStaff;
+}
+
+async function callAdminUserFunction(payload) {
+  const { data: sessionData } = await db.auth.getSession();
+  const token = sessionData?.session?.access_token;
+  if (!token) throw new Error('Your session has expired. Sign in again.');
+  const { data, error } = await db.functions.invoke('admin-manage-user', {
+    body: payload,
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (error) {
+    let detail = error.message || 'Request failed.';
+    try {
+      const ctx = error.context;
+      if (ctx && typeof ctx.json === 'function') {
+        const body = await ctx.json();
+        if (body?.error) detail = body.error;
+      }
+    } catch (_) {}
+    throw new Error(detail);
+  }
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+async function createPortalUser(e) {
+  e.preventDefault();
+  if (profile?.role !== 'admin') {
+    msg('portalUserMsg','Only the Super Admin can create accounts.');
+    return;
+  }
+  const role = $('portalRole').value;
+  const payload = {
+    action: 'create',
+    full_name: $('portalFullName').value.trim(),
+    email: $('portalEmail').value.trim().toLowerCase(),
+    password: $('portalPassword').value,
+    role,
+    branch_id: role === 'branch_staff' ? Number($('portalBranch').value) : null
+  };
+  msg('portalUserMsg','Creating account…');
+  try {
+    const result = await callAdminUserFunction(payload);
+    $('portalUserForm').reset();
+    updatePortalBranchVisibility();
+    msg('portalUserMsg',`Account created for ${result.user?.email || payload.email}.`,true);
+    await loadPortalUsers();
+  } catch (err) {
+    msg('portalUserMsg',err.message || 'Could not create account.');
+  }
+}
+
+async function setPortalUserActive(userId, active) {
+  if (profile?.role !== 'admin') return;
+  if (!confirm(`${active ? 'Reactivate' : 'Deactivate'} this portal account?`)) return;
+  try {
+    await callAdminUserFunction({action:'set_active', user_id:userId, active});
+    await loadPortalUsers();
+    msg('portalUserMsg',`Account ${active ? 'reactivated' : 'deactivated'}.`,true);
+  } catch (err) {
+    msg('portalUserMsg',err.message || 'Could not update account.');
+  }
+}
+
+async function loadPortalUsers() {
+  if (profile?.role !== 'admin') return;
+  $('portalUserRows').innerHTML='<tr><td colspan="6">Loading users…</td></tr>';
+  try {
+    const result = await callAdminUserFunction({action:'list'});
+    const rows = result.users || [];
+    $('portalUserRows').innerHTML = rows.map(u => {
+      const branch = u.branch_name ? `${u.network} — ${u.branch_name}` : 'All permitted branches';
+      const action = u.role === 'admin' ? '<span class="pill">Protected admin</span>' :
+        (u.active
+          ? `<button type="button" class="secondary" data-user-id="${esc(u.user_id)}" data-active="false">Deactivate</button>`
+          : `<button type="button" data-user-id="${esc(u.user_id)}" data-active="true">Reactivate</button>`);
+      return `<tr><td>${esc(u.full_name)}</td><td>${esc(u.email || '—')}</td><td>${esc(u.role)}</td><td>${esc(branch)}</td><td><span class="pill">${u.active?'Active':'Inactive'}</span></td><td>${action}</td></tr>`;
+    }).join('') || '<tr><td colspan="6">No portal users found.</td></tr>';
+    $('portalUserRows').querySelectorAll('button[data-user-id]').forEach(btn => {
+      btn.addEventListener('click', () => setPortalUserActive(btn.dataset.userId, btn.dataset.active === 'true'));
+    });
+  } catch (err) {
+    $('portalUserRows').innerHTML=`<tr><td colspan="6">${esc(err.message || 'Could not load users.')}</td></tr>`;
+  }
 }
 
 // Load all reports for the current month in pages, so MTD calculations do not depend on the recent-report limit.
