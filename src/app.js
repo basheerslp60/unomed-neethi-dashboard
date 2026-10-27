@@ -7,6 +7,7 @@ let db, user, profile, branches = [], reports = [], targets = [];
 const now = new Date();
 const today = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0,10);
 $('date').value = today;
+$('branchTargetMonth').value = today.slice(0,7);
 $('packages').innerHTML = names.map((n,i) => `<div class="pkg"><label for="p${i}">${n}</label><input id="p${i}" type="number" min="0" step="1" value="0"></div>`).join('');
 const ready = SUPABASE_URL.startsWith('https://') && !SUPABASE_URL.includes('PASTE_') && SUPABASE_PUBLISHABLE_KEY.startsWith('sb_publishable_') && !SUPABASE_PUBLISHABLE_KEY.includes('PASTE_');
 function msg(id, s, ok=false) { $(id).textContent = s; $(id).style.color = ok ? '#16764a' : '#a21d37'; }
@@ -36,6 +37,9 @@ if (!ready) {
   $('copyCompliance').onclick = copyComplianceSummary;
   $('employeeRefresh').onclick = loadEmployeeModule;
   $('userAccessRefresh').onclick = loadPortalUsers;
+  $('branchTargetMonth').addEventListener('change', loadBranchTargetEditor);
+  $('branchTargetNetwork').addEventListener('change', renderBranchTargetEditorRows);
+  $('saveBranchTargets').onclick = saveBranchTargets;
   $('portalUserForm').onsubmit = createPortalUser;
   $('portalRole').addEventListener('change', updatePortalBranchVisibility);
 
@@ -69,6 +73,8 @@ async function load(u) {
   show('complianceSection',p.role!=='branch_staff');
   // User & Branch Access Management is visible only to the Super Admin.
   show('userAccessSection',p.role==='admin');
+  show('branchTargetAdminSection',p.role==='admin');
+  if(p.role==='admin') await loadBranchTargetEditor();
   $('title').textContent=p.role==='branch_staff'?`${branches.find(x=>x.id===p.branch_id)?.branch_name||'Branch'} daily entry`:'Management consolidated report';
   $('subtitle').textContent=p.role==='branch_staff'?'Submit sales for your assigned branch':'Targets and sales totals from reports permitted for your account';
   await loadReports();
@@ -242,12 +248,59 @@ function copyComplianceSummary() {
   navigator.clipboard.writeText(text).then(()=>{$('complianceMsg').textContent='Compliance summary copied. Paste it into your management group.';}).catch(()=>{$('complianceMsg').textContent='Clipboard access was blocked. Select and copy the summary manually.';});
 }
 
+async function loadBranchTargetEditor() {
+  if (profile?.role !== 'admin') return;
+  const month = $('branchTargetMonth').value;
+  if (!month) return;
+  $('branchTargetAdminRows').innerHTML = '<tr><td colspan="3">Loading targets…</td></tr>';
+  try {
+    const {data, error} = await db.from('branch_monthly_targets').select('branch_id,target_amount,target_month').eq('target_month', month + '-01');
+    if (error) throw error;
+    window.__branchTargetEditorValues = new Map((data||[]).map(x => [String(x.branch_id), Number(x.target_amount||0)]));
+    renderBranchTargetEditorRows();
+  } catch (err) {
+    $('branchTargetAdminRows').innerHTML = `<tr><td colspan="3">${esc(err.message||'Could not load targets')}</td></tr>`;
+    msg('branchTargetAdminMsg', err.message || 'Could not load targets.');
+  }
+}
+function renderBranchTargetEditorRows() {
+  if (profile?.role !== 'admin') return;
+  const network = $('branchTargetNetwork').value;
+  const vals = window.__branchTargetEditorValues || new Map();
+  const list = branches.filter(b => network === 'ALL' || b.network === network).sort((a,b)=>String(a.network).localeCompare(String(b.network))||String(a.branch_name).localeCompare(String(b.branch_name)));
+  $('branchTargetAdminRows').innerHTML = list.map(b => `<tr><td>${esc(b.network)}</td><td>${esc(b.branch_name)}</td><td><input class="branch-target-value" data-branch-id="${esc(b.id)}" type="number" min="0" step="1" value="${Number(vals.get(String(b.id))||0)}" aria-label="${esc(b.branch_name)} monthly target"></td></tr>`).join('');
+  updateBranchTargetTotal();
+  $('branchTargetAdminRows').querySelectorAll('.branch-target-value').forEach(el => el.addEventListener('input', updateBranchTargetTotal));
+}
+function updateBranchTargetTotal() {
+  const total = [...document.querySelectorAll('.branch-target-value')].reduce((s,e)=>s+Math.max(0,Number(e.value)||0),0);
+  $('branchTargetAdminTotal').textContent = 'Visible branches total: ' + money(total);
+}
+async function saveBranchTargets() {
+  if (profile?.role !== 'admin') { msg('branchTargetAdminMsg','Only Super Admin can edit branch targets.'); return; }
+  const month = $('branchTargetMonth').value;
+  if (!month) { msg('branchTargetAdminMsg','Select a month first.'); return; }
+  const rows = [...document.querySelectorAll('.branch-target-value')];
+  if (rows.some(e => !Number.isFinite(Number(e.value)) || Number(e.value)<0)) { msg('branchTargetAdminMsg','Enter valid non-negative target amounts.'); return; }
+  const payload = rows.map(e=>({branch_id:Number(e.dataset.branchId),target_month:month+'-01',target_amount:Number(e.value),updated_by:user.id,updated_at:new Date().toISOString()}));
+  if (!payload.length) { msg('branchTargetAdminMsg','No branches to save.'); return; }
+  $('saveBranchTargets').disabled = true;
+  try {
+    const {error} = await db.from('branch_monthly_targets').upsert(payload,{onConflict:'branch_id,target_month'});
+    if (error) throw error;
+    msg('branchTargetAdminMsg','Monthly targets saved successfully.',true);
+    await loadBranchTargetEditor();
+    await load(user);
+  } catch(err) { msg('branchTargetAdminMsg',err.message||'Could not save targets. Check table permissions.'); }
+  finally { $('saveBranchTargets').disabled = false; }
+}
+
 async function renderTargets(monthReports) {
   const isStaff=profile.role==='branch_staff';
   show('targetSection',!isStaff);
   if(isStaff) return;
   const targetMonth=monthStart();
-  const {data:targetData,error}=await db.from('monthly_targets').select('branch_id,target_month,target_amount').eq('target_month',targetMonth);
+  const {data:targetData,error}=await db.from('branch_monthly_targets').select('branch_id,target_month,target_amount').eq('target_month',targetMonth);
   if(error) { $('targetRows').innerHTML=`<tr><td colspan="9">${esc(error.message)}</td></tr>`; $('targetMeta').textContent='Could not load monthly targets.'; return; }
   targets=targetData||[];
   const salesByBranch=new Map(),patientsByBranch=new Map();
