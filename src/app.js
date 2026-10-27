@@ -15,7 +15,7 @@ function show(id, v) { $(id).classList.toggle('hidden', !v); }
 function money(n) { return new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0}).format(Number(n||0)); }
 function esc(s) { return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function monthStart(dateString=today) { return `${dateString.slice(0,7)}-01`; }
-function daysLeftInclusive(dateString=today) { const [y,m,d] = dateString.split('-').map(Number); return new Date(y,m,0).getDate() - d + 1; }
+function daysLeftInclusive(dateString=today) { const [y,m,d] = dateString.split('-').map(Number); return Math.max(1, new Date(y,m,0).getDate() - d); }
 function workingDaysRemaining(dateString=today) { return daysLeftInclusive(dateString); }
 function fmtPct(n) { return `${(Number(n)||0).toFixed(1)}%`; }
 
@@ -510,4 +510,3 @@ async function saveEmployeeTarget(e) {
     await loadEmployeeTargets();
   } catch(err) { employeeMessage('employeeTargetMsg',err.message||'Could not save target. Check target-table permissions and RLS policies.'); }
 }
-
