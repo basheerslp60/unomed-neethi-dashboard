@@ -330,7 +330,27 @@ const remainingCalendarDays=Math.max(1,daysInMonth-now.getDate()+1);
     const achievement=target?sales/target*100:0;
     const expectedSales=target*elapsedDays/daysInMonth;
     const paceRatio=expectedSales?sales/expectedSales:0;
-   let alert='No target',alertClass='alert-none',advice='Set a monthly target';
+    let alert = 'No target';
+let alertClass = 'alert-none';
+let advice = 'Set a monthly target';
+
+if (target > 0 && sales >= target) {
+  alert = 'Target achieved';
+  alertClass = 'alert-green';
+  advice = 'Maintain service and sales quality';
+} else if (target > 0 && paceRatio >= 1) {
+  alert = 'On track';
+  alertClass = 'alert-green';
+  advice = 'Maintain current pace';
+} else if (target > 0 && paceRatio >= 0.85) {
+  alert = 'Needs attention';
+  alertClass = 'alert-yellow';
+  advice = 'Review daily follow-up';
+} else if (target > 0) {
+  alert = 'Critical';
+  alertClass = 'alert-red';
+  advice = 'Prepare a recovery plan';
+}
 
 if(target > 0 && sales >= target){
   alert='Target achieved';
