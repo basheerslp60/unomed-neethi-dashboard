@@ -39,7 +39,7 @@ if (!ready) {
   $('employeeRefresh').onclick = loadEmployeeModule;
   $('userAccessRefresh').onclick = loadPortalUsers;
   $('branchTargetMonth').addEventListener('change', loadBranchTargetEditor);
-  $('dailySalesRefresh').onclick = loadDailySales;
+  $('dailySalesRefresh').onclick = loadDailyBranchSales;
   $('branchTargetNetwork').addEventListener('change', renderBranchTargetEditorRows);
   $('saveBranchTargets').onclick = saveBranchTargets;
   $('portalUserForm').onsubmit = createPortalUser;
