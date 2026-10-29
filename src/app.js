@@ -215,6 +215,85 @@ async function loadReports() {
   const totals={}; (ps||[]).forEach(x=>totals[x.package_name]=(totals[x.package_name]||0)+Number(x.quantity||0));
   $('packageSummary').innerHTML=Object.entries(totals).filter(x=>x[1]>0).map(x=>`<span class="pill">${esc(x[0])}: ${x[1]}</span> `).join('')||'No package counts recorded.';
 }
+async function loadDailyBranchSales() {
+  const date = $('dailySalesDate').value;
+  const rowsEl = $('dailySalesRows');
+  const summaryEl = $('dailySalesSummary');
+  const msgEl = $('dailySalesMsg');
+
+  if (!date) {
+    msgEl.textContent = 'Please select a date.';
+    return;
+  }
+
+  rowsEl.innerHTML = '<tr><td colspan="5">Loading daily sales...</td></tr>';
+  msgEl.textContent = '';
+
+  const { data, error } = await db
+    .from('daily_reports')
+    .select('branch_id,report_date,total_sales,patient_count,status')
+    .eq('report_date', date);
+
+  if (error) {
+    rowsEl.innerHTML = `<tr><td colspan="5">${esc(error.message)}</td></tr>`;
+    summaryEl.innerHTML = '';
+    msgEl.textContent = 'Could not load daily sales. Check database permissions.';
+    return;
+  }
+
+  const reportRows = data || [];
+  const branchMap = new Map(branches.map(b => [String(b.id), b]));
+  const totals = { sales: 0, patients: 0 };
+
+  const branchRows = branches.map(branch => {
+    const matches = reportRows.filter(
+      r => String(r.branch_id) === String(branch.id)
+    );
+
+    const sales = matches.reduce(
+      (sum, r) => sum + Number(r.total_sales || 0), 0
+    );
+
+    const patients = matches.reduce(
+      (sum, r) => sum + Number(r.patient_count || 0), 0
+    );
+
+    totals.sales += sales;
+    totals.patients += patients;
+
+    return {
+      branch,
+      sales,
+      patients,
+      average: patients ? sales / patients : 0,
+      submitted: matches.length > 0
+    };
+  });
+
+  rowsEl.innerHTML = branchRows.map(r => `
+    <tr>
+      <td>${esc(r.branch.branch_name)}</td>
+      <td>${esc(r.branch.network || '')}</td>
+      <td><strong>${money(r.sales)}</strong></td>
+      <td>${r.patients.toLocaleString('en-IN')}</td>
+      <td>${money(r.average)}</td>
+    </tr>
+  `).join('');
+
+  summaryEl.innerHTML = [
+    ['Total daily sales', money(totals.sales)],
+    ['Total patients', totals.patients.toLocaleString('en-IN')],
+    ['Branches reporting', `${branchRows.filter(r => r.submitted).length}/${branches.length}`]
+  ].map(item => `
+    <div class="stat">
+      <label>${esc(item[0])}</label>
+      <strong>${esc(item[1])}</strong>
+    </div>
+  `).join('');
+
+  msgEl.textContent = `Daily sales for ${date}. Branches without a report are shown as zero; please verify missing submissions.`;
+}
+
 
 async function renderCompliance(fallbackReports=[]) {
   if (!profile || profile.role==='branch_staff' || !db) return;
