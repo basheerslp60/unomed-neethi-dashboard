@@ -44,6 +44,28 @@ if (!ready) {
   $('saveBranchTargets').onclick = saveBranchTargets;
   $('portalUserForm').onsubmit = createPortalUser;
   $('portalRole').addEventListener('change', updatePortalBranchVisibility);
+  // Sidebar navigation
+document.querySelectorAll('.nav-btn').forEach(button => {
+  button.addEventListener('click', () => {
+    const targetId = button.dataset.target;
+    const target = document.getElementById(targetId);
+
+    if (!target) {
+      alert('Section not found: ' + targetId);
+      return;
+    }
+
+    document.querySelectorAll('.main-content > .card, .main-content > section, .main-content > #dashboardSection')
+      .forEach(section => section.classList.add('hidden'));
+
+    target.classList.remove('hidden');
+
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+    button.classList.add('active');
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+});
 
   $('employeeForm').onsubmit = addEmployee;
   $('activityForm').onsubmit = submitEmployeeActivity;
