@@ -44,7 +44,8 @@ if (!ready) {
   $('saveBranchTargets').onclick = saveBranchTargets;
   $('portalUserForm').onsubmit = createPortalUser;
   $('portalRole').addEventListener('change', updatePortalBranchVisibility);
-  // Sidebar navigation
+```javascript
+// Sidebar navigation
 document.querySelectorAll('.nav-btn').forEach(button => {
   button.addEventListener('click', () => {
     const targetId = button.dataset.target;
@@ -55,18 +56,25 @@ document.querySelectorAll('.nav-btn').forEach(button => {
       return;
     }
 
-      document.querySelectorAll('#app > .card, #app > section, #app > .heading, #app > .stats, #app > .executive-grid')
-  .forEach(section => section.classList.add('hidden'));
+    // Hide all main content panels
+    document.querySelectorAll(
+      '#app > .card, #app > section, #app > .heading, #app > .stats, #app > .executive-grid'
+    ).forEach(section => section.classList.add('hidden'));
 
+    // Show the selected panel
     target.classList.remove('hidden');
 
-    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+    // Highlight the selected sidebar button
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+      btn.classList.remove('active');
+    });
     button.classList.add('active');
 
+    // Return to the top of the page
     window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 });
-
+```
   $('employeeForm').onsubmit = addEmployee;
   $('activityForm').onsubmit = submitEmployeeActivity;
   $('employeeTargetForm').onsubmit = saveEmployeeTarget;
