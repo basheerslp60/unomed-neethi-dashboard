@@ -246,7 +246,11 @@ async function loadDailyBranchSales() {
   const branchMap = new Map(branches.map(b => [String(b.id), b]));
   const totals = { sales: 0, patients: 0 };
 
-  const branchRows = branches.map(branch => {
+  const visibleBranches = profile?.role === 'branch_staff'
+  ? branches.filter(branch => String(branch.id) === String(profile.branch_id))
+  : branches;
+
+const branchRows = visibleBranches.map(branch => {
     const matches = reportRows.filter(
       r => String(r.branch_id) === String(branch.id)
     );
@@ -284,7 +288,7 @@ async function loadDailyBranchSales() {
   summaryEl.innerHTML = [
     ['Total daily sales', money(totals.sales)],
     ['Total patients', totals.patients.toLocaleString('en-IN')],
-    ['Branches reporting', `${branchRows.filter(r => r.submitted).length}/${branches.length}`]
+    ['Branches reporting', `${branchRows.filter(r => r.submitted).length}/${visibleBranches.length}`]
   ].map(item => `
     <div class="stat">
       <label>${esc(item[0])}</label>
