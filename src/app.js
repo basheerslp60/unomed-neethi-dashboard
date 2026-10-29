@@ -55,8 +55,8 @@ document.querySelectorAll('.nav-btn').forEach(button => {
       return;
     }
 
-    document.querySelectorAll('.main-content > .card, .main-content > section, .main-content > #dashboardSection')
-      .forEach(section => section.classList.add('hidden'));
+      document.querySelectorAll('#app > .card, #app > section, #app > .heading, #app > .stats, #app > .executive-grid')
+  .forEach(section => section.classList.add('hidden'));
 
     target.classList.remove('hidden');
 
