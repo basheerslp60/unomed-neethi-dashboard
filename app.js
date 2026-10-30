@@ -145,7 +145,7 @@ async function renderTargets(monthReports) {
   show('targetSection',!isStaff);
   if(isStaff) return;
   const targetMonth=monthStart();
-  const {data:targetData,error}=await db.from('monthly_targets').select('branch_id,target_month,target_amount').eq('target_month',targetMonth);
+  const {data:targetData,error}=await db.from('branch_monthly_targets').select('branch_id,target_month,target_amount').eq('target_month',targetMonth);
   if(error) { $('targetRows').innerHTML=`<tr><td colspan="9">${esc(error.message)}</td></tr>`; $('targetMeta').textContent='Could not load monthly targets.'; return; }
   targets=targetData||[];
   const salesByBranch=new Map(),patientsByBranch=new Map();
