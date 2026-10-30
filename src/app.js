@@ -405,7 +405,7 @@ async function saveBranchTargets() {
     if (error) throw error;
     msg('branchTargetAdminMsg','Monthly targets saved successfully.',true);
     await loadBranchTargetEditor();
-    await load(user);
+    await generateManagementReport();
   } catch(err) { msg('branchTargetAdminMsg',err.message||'Could not save targets. Check table permissions.'); }
   finally { $('saveBranchTargets').disabled = false; }
 }
