@@ -207,7 +207,7 @@ async function loadPortalUsers() {
 
 // Load all reports for the current month in pages, so MTD calculations do not depend on the recent-report limit.
 async function loadAllCurrentMonthReports() {
-  const start=monthStart();
+  const start=monthStart($('performanceMonth')?.value || today);
   const [year,month]=start.split('-').map(Number);
   const nextMonth = month===12 ? `${year+1}-01-01` : `${year}-${String(month+1).padStart(2,'0')}-01`;
   let all=[], from=0, pageSize=500;
