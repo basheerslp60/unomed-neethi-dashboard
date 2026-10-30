@@ -110,7 +110,7 @@ async function load(u) {
   branches=b||[];
   $('who').textContent=p.full_name+' · '+p.role;
   if (p.role === 'admin') {
-    $('portalBranch').innerHTML = branches.map(b=>`<option value="${b.id}">${esc(b.network)} — ${esc(b.branch_name)}</option>`).join('');
+  $('portalBranch').innerHTML = branches.map(b => `<option value="${b.id}">${esc(b.network)} - ${esc(b.branch_name)}</option>`).join('');
     updatePortalBranchVisibility();
   }
   show('login',false); show('app',true); show('userTools',true); show('entry',p.role==='branch_staff');
