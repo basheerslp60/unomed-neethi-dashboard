@@ -33,3 +33,84 @@
 #complianceDate{width:auto;min-width:170px}
 #complianceSection .section-head{align-items:flex-end}
 @media(max-width:650px){#complianceSection .section-head{align-items:stretch}}
+```css
+/* UNOMED + NEETHI sidebar layout */
+.app-layout {
+  display: flex;
+  align-items: flex-start;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 240px;
+  min-width: 240px;
+  background: #142d4e;
+  color: #ffffff;
+  padding: 24px 14px;
+  box-sizing: border-box;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.sidebar h2 {
+  font-size: 18px;
+  margin: 0 0 6px;
+  color: #ffffff;
+}
+
+.sidebar p {
+  margin: 0 0 24px;
+  color: #d6e2f1;
+}
+
+.sidebar .nav-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin: 8px 0;
+  padding: 12px;
+  background: transparent;
+  color: #ffffff;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.sidebar .nav-btn:hover,
+.sidebar .nav-btn.active {
+  background: #24466f;
+  border-color: #52749b;
+}
+
+.main-content {
+  flex: 1;
+  min-width: 0;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .app-layout {
+    display: block;
+  }
+
+  .sidebar {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    height: auto;
+  }
+
+  .sidebar .nav-btn {
+    display: inline-block;
+    width: auto;
+    margin: 4px;
+  }
+
+  .main-content {
+    padding: 12px;
+  }
+}
+```
