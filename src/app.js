@@ -28,7 +28,7 @@ if (!ready) {
   $('loginForm').onsubmit = async e => { e.preventDefault(); msg('loginMsg','Signing in…'); const {error} = await db.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value}); if (error) msg('loginMsg',error.message); };
   $('forgot').onclick = async () => { const email=$('email').value.trim(); if(!email){msg('loginMsg','Enter your email first.');return;} const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname}); msg('loginMsg',error?error.message:'If the account exists, password reset instructions will be sent.'); };
   $('logout').onclick = () => db.auth.signOut();
-  $('refresh').onclick = () => load(user);
+  $('refresh').onclick = () => { if (user) load(user); };
   $('salesForm').onsubmit = submit;
   $('generateReport').onclick = generateManagementReport;
   $('copyReport').onclick = copyManagementReport;
@@ -44,7 +44,6 @@ if (!ready) {
   $('saveBranchTargets').onclick = saveBranchTargets;
   $('portalUserForm').onsubmit = createPortalUser;
   $('portalRole').addEventListener('change', updatePortalBranchVisibility);
-```javascript
 // Sidebar navigation
 document.querySelectorAll('.nav-btn').forEach(button => {
   button.addEventListener('click', () => {
