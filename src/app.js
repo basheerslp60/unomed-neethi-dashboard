@@ -8,10 +8,24 @@ const now = new Date();
 const today = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0,10);
 $('date').value = today;
 $('branchTargetMonth').value = today.slice(0,7);
+document.querySelectorAll('.nav-button').forEach(button => {
+  button.addEventListener('click', () => {
+    const target = $(button.dataset.target);
+    if (!target || target.classList.contains('hidden')) return;
+    document.querySelectorAll('.nav-button').forEach(item => item.classList.toggle('active', item === button));
+    target.scrollIntoView({behavior:'smooth',block:'start'});
+  });
+});
 $('packages').innerHTML = names.map((n,i) => `<div class="pkg"><label for="p${i}">${n}</label><input id="p${i}" type="number" min="0" step="1" value="0"></div>`).join('');
 const ready = SUPABASE_URL.startsWith('https://') && !SUPABASE_URL.includes('PASTE_') && SUPABASE_PUBLISHABLE_KEY.startsWith('sb_publishable_') && !SUPABASE_PUBLISHABLE_KEY.includes('PASTE_');
 function msg(id, s, ok=false) { $(id).textContent = s; $(id).style.color = ok ? '#16764a' : '#a21d37'; }
 function show(id, v) { $(id).classList.toggle('hidden', !v); }
+function refreshSidebarVisibility() {
+  document.querySelectorAll('.nav-button[data-target]').forEach(button => {
+    const target = $(button.dataset.target);
+    button.classList.toggle('nav-hidden', !target || target.classList.contains('hidden'));
+  });
+}
 function money(n) { return new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0}).format(Number(n||0)); }
 function esc(s) { return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function monthStart(dateString=today) { return `${dateString.slice(0,7)}-01`; }
@@ -90,7 +104,7 @@ async function load(u) {
   user=u;
   const {data:p,error} = await db.from('profiles').select('user_id,full_name,role,branch_id,active').eq('user_id',u.id).maybeSingle();
   if(error || !p || !p.active) { await db.auth.signOut(); msg('loginMsg','No active portal profile. Ask admin to verify your role.'); return; }
-  profile=p;
+  profile=p; $('app').dataset.role = p.role;
   const {data:b,error:be} = await db.from('branches').select('id,branch_name,network,active').eq('active',true).order('branch_name');
   if(be) { msg('loginMsg',be.message); return; }
   branches=b||[];
@@ -109,6 +123,7 @@ async function load(u) {
   $('title').textContent=p.role==='branch_staff'?`${branches.find(x=>x.id===p.branch_id)?.branch_name||'Branch'} daily entry`:'Management consolidated report';
   $('subtitle').textContent=p.role==='branch_staff'?'Submit sales for your assigned branch':'Targets and sales totals from reports permitted for your account';
   await loadReports();
+  refreshSidebarVisibility();
   if (p.role === 'admin') await loadPortalUsers();
   await loadEmployeeModule();
 }
@@ -236,6 +251,7 @@ async function loadReports() {
   $('rows').innerHTML=reports.slice(0,100).map(r=>{const b=bm.get(r.branch_id)||{};return `<tr><td>${esc(r.report_date)}</td><td>${esc(b.branch_name||'Branch')}</td><td>${esc(b.network||'')}</td><td><b>${money(r.total_sales)}</b></td><td>${Number(r.patient_count||0)}</td><td>${money(r.patient_count?Number(r.total_sales)/Number(r.patient_count):0)}</td><td><span class="pill">${esc(r.status)}</span></td></tr>`;}).join('')||'<tr><td colspan="7">No reports submitted yet.</td></tr>';
   $('reportMsg').textContent=profile.role==='branch_staff'?'Only permitted reports are displayed.':'Showing up to 100 recent reports from the latest 500 loaded rows. MTD summary uses paginated current-month records.';
   await renderTargets(monthReports);
+  refreshSidebarVisibility();
   await renderCompliance(reports);
   renderDailyTrend(monthReports);
   const ids=reports.slice(0,100).map(r=>r.id);
