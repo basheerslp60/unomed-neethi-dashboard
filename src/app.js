@@ -386,7 +386,7 @@ summaryEl.innerHTML = [
     '</div>';
 }).join('');
 
-  msgEl.textContent = `Daily sales for ${date}. Branches without a report are shown as zero; please verify missing submissions.`;
+msgEl.textContent = 'Daily sales for ' + date + '. Branches without a report are shown as zero; please verify missing submissions.';
 }
 
 
