@@ -275,7 +275,10 @@ async function loadReports() {
   const monthSales=monthReports.reduce((s,r)=>s+Number(r.total_sales||0),0);
   const patients=monthReports.reduce((s,r)=>s+Number(r.patient_count||0),0);
   const ds=monthReports.filter(r=>r.report_date===today).reduce((s,r)=>s+Number(r.total_sales||0),0);
-  $('stats').innerHTML=[['Today sales',money(ds),'Visible to this account'],['MTD sales',money(monthSales),'Current month'],['MTD patients',patients.toLocaleString('en-IN'),'Current month'],['Average bill',money(patients?monthSales/patients:0),'MTD sales / patients']].map(x=>`<div class="stat"><label>${x[0]}</label><strong>${x[1]}</strong><small>${x[2]}</small></div>`).join('');
+  $('stats').innerHTML =
+  '<div class="stat-card"><span>Today sales</span><strong>' + money(ds) + '</strong><small>Visible to this account</small></div>' +
+  '<div class="stat-card"><span>MTD sales</span><strong>' + money(monthSales) + '</strong><small>Current month</small></div>' +
+  '<div class="stat-card"><span>MTD patients</span><strong>' + patients.toLocaleString() + '</strong><small>Current month</small></div>';
   $('rows').innerHTML=reports.slice(0,100).map(r=>{const b=bm.get(r.branch_id)||{};return `<tr><td>${esc(r.report_date)}</td><td>${esc(b.branch_name||'Branch')}</td><td>${esc(b.network||'')}</td><td><b>${money(r.total_sales)}</b></td><td>${Number(r.patient_count||0)}</td><td>${money(r.patient_count?Number(r.total_sales)/Number(r.patient_count):0)}</td><td><span class="pill">${esc(r.status)}</span></td></tr>`;}).join('')||'<tr><td colspan="7">No reports submitted yet.</td></tr>';
   $('reportMsg').textContent=profile.role==='branch_staff'?'Only permitted reports are displayed.':'Showing up to 100 recent reports from the latest 500 loaded rows. MTD summary uses paginated current-month records.';
   await renderTargets(monthReports);
