@@ -396,7 +396,7 @@ async function renderCompliance(fallbackReports=[]) {
   $('complianceRows').innerHTML='<tr><td colspan="7">Checking submitted reports…</td></tr>';
   const {data,error}=await db.from('daily_reports').select('id,branch_id,report_date,total_sales,patient_count,status').eq('report_date',date);
   if(error) {
-    $('complianceRows').innerHTML=`<tr><td colspan="7">${esc(error.message)}</td></tr>`;
+  $('complianceRows').innerHTML = '<tr><td colspan="7">' + esc(error.message) + '</td></tr>';
     $('complianceMsg').textContent='Compliance could not be verified. Check account permissions and try Refresh data.';
     return;
   }
