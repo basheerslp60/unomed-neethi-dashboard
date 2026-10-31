@@ -360,15 +360,15 @@ const branchRows = visibleBranches.map(branch => {
     };
   });
 
-  rowsEl.innerHTML = branchRows.map(r => `
-    <tr>
-      <td>${esc(r.branch.branch_name)}</td>
-      <td>${esc(r.branch.network || '')}</td>
-      <td><strong>${money(r.sales)}</strong></td>
-      <td>${r.patients.toLocaleString('en-IN')}</td>
-      <td>${money(r.average)}</td>
-    </tr>
-  `).join('');
+rowsEl.innerHTML = branchRows.map(r => `
+  <tr>
+    <td>${esc(r.branch.branch_name)}</td>
+    <td>${esc(r.branch.network || '')}</td>
+    <td><strong>${money(r.sales)}</strong></td>
+    <td>${r.patients.toLocaleString('en-IN')}</td>
+    <td>${money(r.average)}</td>
+  </tr>
+`).join('');
 
   summaryEl.innerHTML = [
     ['Total daily sales', money(totals.sales)],
