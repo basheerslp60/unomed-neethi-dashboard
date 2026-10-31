@@ -213,14 +213,14 @@ loadPortalUsers()
         : (u.active
           ? '<button type="button" class="secondary" data-user-id="' + esc(u.user_id) + '" data-active="false">Deactivate</button>'
           : '<button type="button" data-user-id="' + esc(u.user_id) + '" data-active="true">Reactivate</button>');
-      return `<tr>
-        <td>${esc(u.full_name)}</td>
-        <td>${esc(u.email || '-')}</td>
-        <td>${esc(u.role)}</td>
-        <td>${esc(branch)}</td>
-        <td><span class="pill">${u.active ? 'Active' : 'Inactive'}</span></td>
-        <td>${action}</td>
-      </tr>`;
+                return '<tr>' +
+        '<td>' + esc(u.full_name) + '</td>' +
+        '<td>' + esc(u.email || '-') + '</td>' +
+        '<td>' + esc(u.role) + '</td>' +
+        '<td>' + esc(branch) + '</td>' +
+        '<td><span class="pill">' + (u.active ? 'Active' : 'Inactive') + '</span></td>' +
+        '<td>' + action + '</td>' +
+        '</tr>';
     }).join('') || '<tr><td colspan="6">No portal users found.</td></tr>';
 $('portalUserRows').querySelectorAll('button[data-user-id]').forEach(btn => {
       btn.addEventListener('click', () => setPortalUserActive(btn.dataset.userId, btn.dataset.active === 'true'));
