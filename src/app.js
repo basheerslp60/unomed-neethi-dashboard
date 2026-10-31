@@ -298,7 +298,10 @@ async function loadReports() {
   const {data:ps,error:pe}=await db.from('package_sales').select('package_name,quantity').in('report_id',ids);
   if(pe) { $('packageSummary').textContent='Package summary unavailable: '+pe.message; return; }
   const totals={}; (ps||[]).forEach(x=>totals[x.package_name]=(totals[x.package_name]||0)+Number(x.quantity||0));
-  $('packageSummary').innerHTML=Object.entries(totals).filter(x=>x[1]>0).map(x=>`<span class="pill">${esc(x[0])}: ${x[1]}</span> `).join('')||'No package counts recorded.';
+  $('packageSummary').innerHTML = Object.entries(totals)
+  .filter(x => x[1] > 0)
+  .map(x => '<span class="pill">' + esc(x[0]) + ': ' + x[1] + '</span>')
+  .join('') || 'No package counts recorded.';
 }
 async function loadDailyBranchSales() {
   const date = $('dailySalesDate').value;
