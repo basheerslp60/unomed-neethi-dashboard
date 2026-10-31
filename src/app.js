@@ -204,7 +204,7 @@ async function loadPortalUsers() {
     const result = await callAdminUserFunction({action:'list'});
     const rows = result.users || [];
     $('portalUserRows').innerHTML = rows.map(u => {
-      const branch = u.branch_name ? `${u.network} — ${u.branch_name}` : 'All permitted branches';
+    const branch = u.branch_name ? `${u.network} – ${u.branch_name}` : 'All permitted branches';
       const action = u.role === 'admin' ? '<span class="pill">Protected admin</span>' :
         (u.active
           ? `<button type="button" class="secondary" data-user-id="${esc(u.user_id)}" data-active="false">Deactivate</button>`
