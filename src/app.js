@@ -204,14 +204,26 @@ async function loadPortalUsers() {
     const result = await callAdminUserFunction({action:'list'});
     const rows = result.users || [];
     $('portalUserRows').innerHTML = rows.map(u => {
-    const branch = u.branch_name ? (u.network + ' – ' + u.branch_name) : 'All permitted branches';
-      const action = u.role === 'admin' ? '<span class="pill">Protected admin</span>' :
-        (u.active
+    const branch = u.branch_name
+        ? (u.network + ' - ' + u.branch_name)
+        : 'All permitted branches';
+
+      const action = u.role === 'admin'
+        ? '<span class="pill">Protected admin</span>'
+        : (u.active
           ? `<button type="button" class="secondary" data-user-id="${esc(u.user_id)}" data-active="false">Deactivate</button>`
           : `<button type="button" data-user-id="${esc(u.user_id)}" data-active="true">Reactivate</button>`);
-      return `<tr><td>${esc(u.full_name)}</td><td>${esc(u.email || '—')}</td><td>${esc(u.role)}</td><td>${esc(branch)}</td><td><span class="pill">${u.active?'Active':'Inactive'}</span></td><td>${action}</td></tr>`;
+
+      return `<tr>
+        <td>${esc(u.full_name)}</td>
+        <td>${esc(u.email || '-')}</td>
+        <td>${esc(u.role)}</td>
+        <td>${esc(branch)}</td>
+        <td><span class="pill">${u.active ? 'Active' : 'Inactive'}</span></td>
+        <td>${action}</td>
+      </tr>`;
     }).join('') || '<tr><td colspan="6">No portal users found.</td></tr>';
-    $('portalUserRows').querySelectorAll('button[data-user-id]').forEach(btn => {
+$('portalUserRows').querySelectorAll('button[data-user-id]').forEach(btn => {
       btn.addEventListener('click', () => setPortalUserActive(btn.dataset.userId, btn.dataset.active === 'true'));
     });
   } catch (err) {
