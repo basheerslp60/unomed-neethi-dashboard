@@ -120,7 +120,7 @@ async function load(u) {
   show('userAccessSection',p.role==='admin');
   show('branchTargetAdminSection',p.role==='admin');
   if(p.role==='admin') await loadBranchTargetEditor();
-  $('title').textContent = p.role === 'branch_staff' ? `${branches.find(x => x.id === p.branch_id)?.branch_name || 'Branch'} daily entry` : 'Management consolidated report';
+  $('title').textContent = p.role === 'branch_staff' ? (branches.find(x => x.id === p.branch_id)?.branch_name || 'Branch') + ' daily entry' : 'Management consolidated report';
   $('subtitle').textContent=p.role==='branch_staff'?'Submit sales for your assigned branch':'Targets and sales totals from reports permitted for your account';
   await loadReports();
   refreshSidebarVisibility();
