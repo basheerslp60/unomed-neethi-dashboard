@@ -266,7 +266,7 @@ async function loadAllCurrentMonthReports() {
 
 async function loadReports() {
   const {data:recent,error}=await db.from('daily_reports').select('id,branch_id,report_date,total_sales,patient_count,status').order('report_date',{ascending:false}).limit(500);
-  if(error) { $('rows').innerHTML=`<tr><td colspan="7">${esc(error.message)}</td></tr>`; return; }
+  if (error) { $('rows').innerHTML = '<tr><td colspan="7">' + esc(error.message) + '</td></tr>'; return; }
   reports=recent||[];
   let monthReports;
   try { monthReports=await loadAllCurrentMonthReports(); }
