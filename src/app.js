@@ -279,7 +279,15 @@ async function loadReports() {
   '<div class="stat-card"><span>Today sales</span><strong>' + money(ds) + '</strong><small>Visible to this account</small></div>' +
   '<div class="stat-card"><span>MTD sales</span><strong>' + money(monthSales) + '</strong><small>Current month</small></div>' +
   '<div class="stat-card"><span>MTD patients</span><strong>' + patients.toLocaleString() + '</strong><small>Current month</small></div>';
-  $('rows').innerHTML=reports.slice(0,100).map(r=>{const b=bm.get(r.branch_id)||{};return `<tr><td>${esc(r.report_date)}</td><td>${esc(b.branch_name||'Branch')}</td><td>${esc(b.network||'')}</td><td><b>${money(r.total_sales)}</b></td><td>${Number(r.patient_count||0)}</td><td>${money(r.patient_count?Number(r.total_sales)/Number(r.patient_count):0)}</td><td><span class="pill">${esc(r.status)}</span></td></tr>`;}).join('')||'<tr><td colspan="7">No reports submitted yet.</td></tr>';
+  $('rows').innerHTML = reports.slice(0, 100).map(r => {
+  const b = bm.get(r.branch_id) || {};
+  return '<tr><td>' + esc(r.report_date) +
+    '</td><td>' + esc(b.branch_name || 'Branch') +
+    '</td><td>' + money(r.total_sales) +
+    '</td><td>' + esc(r.patient_count) +
+    '</td><td>' + esc(r.status || '') +
+    '</td></tr>';
+}).join('');
   $('reportMsg').textContent=profile.role==='branch_staff'?'Only permitted reports are displayed.':'Showing up to 100 recent reports from the latest 500 loaded rows. MTD summary uses paginated current-month records.';
   await renderTargets(monthReports);
   refreshSidebarVisibility();
