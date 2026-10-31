@@ -213,7 +213,6 @@ async function loadPortalUsers() {
         : (u.active
           ? `<button type="button" class="secondary" data-user-id="${esc(u.user_id)}" data-active="false">Deactivate</button>`
           : `<button type="button" data-user-id="${esc(u.user_id)}" data-active="true">Reactivate</button>`);
-
       return `<tr>
         <td>${esc(u.full_name)}</td>
         <td>${esc(u.email || '-')}</td>
