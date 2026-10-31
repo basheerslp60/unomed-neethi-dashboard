@@ -197,7 +197,7 @@ async function setPortalUserActive(userId, active) {
   }
 }
 
-async function loadPortalUsers() {
+loadPortalUsers()
   if (profile?.role !== 'admin') return;
   $('portalUserRows').innerHTML='<tr><td colspan="6">Loading users…</td></tr>';
   try {
