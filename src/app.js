@@ -250,8 +250,8 @@ async function loadAllCurrentMonthReports() {
   const start=monthStart($('performanceMonth')?.value || today);
   const [year,month]=start.split('-').map(Number);
   const nextMonth = month === 12
-  ? `${year + 1}-01-01`
-  : `${year}-${String(month + 1).padStart(2, '0')}-01`;
+  ? (year + 1) + '-01-01'
+  : year + '-' + String(month + 1).padStart(2, '0') + '-01';
   let all=[], from=0, pageSize=500;
   while(true) {
     const {data,error}=await db.from('daily_reports').select('id,branch_id,report_date,total_sales,patient_count,status')
