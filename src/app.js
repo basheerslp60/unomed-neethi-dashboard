@@ -202,9 +202,18 @@ loadPortalUsers()
   $('portalUserRows').innerHTML='<tr><td colspan="6">Loading users…</td></tr>';
   try {
     const result = await callAdminUserFunction({action:'list'});
+    async function loadPortalUsers() {
+  if (profile.role !== 'admin') return;
+
+  $('portalUserRows').innerHTML =
+    '<tr><td colspan="6">Loading users...</td></tr>';
+
+  try {
+    const result = await callAdminUserFunction({ action: 'list' });
     const rows = result.users || [];
+
     $('portalUserRows').innerHTML = rows.map(u => {
-    const branch = u.branch_name
+      const branch = u.branch_name
         ? (u.network + ' - ' + u.branch_name)
         : 'All permitted branches';
 
@@ -213,7 +222,8 @@ loadPortalUsers()
         : (u.active
           ? '<button type="button" class="secondary" data-user-id="' + esc(u.user_id) + '" data-active="false">Deactivate</button>'
           : '<button type="button" data-user-id="' + esc(u.user_id) + '" data-active="true">Reactivate</button>');
-                return '<tr>' +
+
+      return '<tr>' +
         '<td>' + esc(u.full_name) + '</td>' +
         '<td>' + esc(u.email || '-') + '</td>' +
         '<td>' + esc(u.role) + '</td>' +
@@ -222,12 +232,17 @@ loadPortalUsers()
         '<td>' + action + '</td>' +
         '</tr>';
     }).join('') || '<tr><td colspan="6">No portal users found.</td></tr>';
-$('portalUserRows').querySelectorAll('button[data-user-id]').forEach(btn => {
-      btn.addEventListener('click', () => setPortalUserActive(btn.dataset.userId, btn.dataset.active === 'true'));
+
+    $('portalUserRows').querySelectorAll('button[data-user-id]').forEach(btn => {
+      btn.addEventListener('click', () =>
+        setPortalUserActive(btn.dataset.userId, btn.dataset.active === 'true')
+      );
     });
   } catch (err) {
-    $('portalUserRows').innerHTML=`<tr><td colspan="6">${esc(err.message || 'Could not load users.')}</td></tr>`;
+    $('portalUserRows').innerHTML =
+      '<tr><td colspan="6">' + esc(err.message || 'Could not load users.') + '</td></tr>';
   }
+}
 }
 
 // Load all reports for the current month in pages, so MTD calculations do not depend on the recent-report limit.
