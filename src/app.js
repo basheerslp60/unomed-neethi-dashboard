@@ -141,7 +141,7 @@ async function callAdminUserFunction(payload) {
   if (!token) throw new Error('Your session has expired. Sign in again.');
   const { data, error } = await db.functions.invoke('admin-manage-user', {
     body: payload,
-    headers: { Authorization: `Bearer ${token}` }
+    headers: { Authorization: 'Bearer ' + token }
   });
   if (error) {
     let detail = error.message || 'Request failed.';
