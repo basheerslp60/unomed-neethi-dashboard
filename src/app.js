@@ -178,7 +178,7 @@ async function createPortalUser(e) {
     const result = await callAdminUserFunction(payload);
     $('portalUserForm').reset();
     updatePortalBranchVisibility();
-    msg('portalUserMsg',`Account created for ${result.user?.email || payload.email}.`,true);
+    msg('portalUserMsg', 'Account created for ' + (result.user?.email || payload.email) + '.', true);
     await loadPortalUsers();
   } catch (err) {
     msg('portalUserMsg',err.message || 'Could not create account.');
