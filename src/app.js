@@ -187,7 +187,7 @@ async function createPortalUser(e) {
 
 async function setPortalUserActive(userId, active) {
   if (profile?.role !== 'admin') return;
-  if (!confirm(`${active ? 'Reactivate' : 'Deactivate'} this portal account?`)) return;
+  const dates=[...byDate.keys()].sort();
   try {
     await callAdminUserFunction({action:'set_active', user_id:userId, active});
     await loadPortalUsers();
