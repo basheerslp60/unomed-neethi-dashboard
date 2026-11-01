@@ -370,18 +370,18 @@ rowsEl.innerHTML = branchRows.map(r => `
   </tr>
 `).join('');
 
-  summaryEl.innerHTML = [
-    ['Total daily sales', money(totals.sales)],
-    ['Total patients', totals.patients.toLocaleString('en-IN')],
-    ['Branches reporting', `${branchRows.filter(r => r.submitted).length}/${visibleBranches.length}`]
-  ].map(item => `
-    <div class="stat">
-      <label>${esc(item[0])}</label>
-      <strong>${esc(item[1])}</strong>
-    </div>
-  `).join('');
+summaryEl.innerHTML = [
+  ['Total daily sales', money(totals.sales)],
+  ['Total patients', totals.patients.toLocaleString('en-IN')],
+  ['Branches reporting', `${branchRows.filter(r => r.submitted).length}/${visibleBranches.length}`]
+].map(item => `
+  <div class="stat">
+    <label>${esc(item[0])}</label>
+    <strong>${esc(item[1])}</strong>
+  </div>
+`).join('');
 
-  msgEl.textContent = `Daily sales for ${date}. Branches without a report are shown as zero; please verify missing submissions.`;
+msgEl.textContent = `Daily sales for ${date}. Branches without a report are shown as zero; please verify missing submissions.`;
 }
 
 
