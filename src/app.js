@@ -564,11 +564,33 @@ $('neethiExecMeta').textContent = money(ne.target) + ' target · ' + (ne.target 
 $('unomedExecBar').style.width = Math.min(100, un.target ? un.sales / un.target * 100 : 0) + '%';
 $('neethiExecBar').style.width = Math.min(100, ne.target ? ne.sales / ne.target * 100 : 0) + '%';
 const alertCounts={green:rows.filter(r=>r.alertClass==='alert-green').length,yellow:rows.filter(r=>r.alertClass==='alert-yellow').length,red:rows.filter(r=>r.alertClass==='alert-red').length,none:rows.filter(r=>r.alertClass==='alert-none').length};
-    $('targetMeta').textContent = `${targetMonth.slice(0,7)} · ${rows.filter(r=>!r.missing).length}/${branches.length} branch targets loaded.`;
-    $('alertSummary').innerHTML = `<div class="alert-chip alert-green">🟢 On track / achieved: ${alertCounts.green}</div><div class="alert-chip alert-yellow">🟡 Needs attention: ${alertCounts.yellow}</div><div class="alert-chip alert-red">🔴 Critical: ${alertCounts.red}</div>`;
-    $('targetRows').innerHTML = rows.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.branch_name)}${r.missing ? ' <span class="pill">Target missing</span>' : ''}</td></tr>`).join('');
-    const summary = totalsByNetwork.map(n => `${n.network}: sales ${money(n.sales)} / target ${money(n.target)} (${n.target ? fmtPct(n.sales/n.target*100) : '0.0%'} achievement)`).join(' · ');
-    $('targetMsg').textContent = `${summary} · GROUP: ${money(groupSales)} / ${money(groupTarget)} (${groupTarget ? fmtPct(groupSales/groupTarget*100) : '0.0%'} achievement)`;
+    $('targetMeta').textContent = targetMonth.slice(0, 7) + ' · ' + rows.filter(r => !r.missing).length + '/' + branches.length + ' branch targets loaded.';
+
+    $('alertSummary').innerHTML =
+      '<div class="alert-chip alert-green">🟢 On track / achieved: ' + alertCounts.green + '</div>' +
+      '<div class="alert-chip alert-yellow">🟡 Needs attention: ' + alertCounts.yellow + '</div>' +
+      '<div class="alert-chip alert-red">🔴 Critical: ' + alertCounts.red + '</div>';
+
+    $('targetRows').innerHTML = rows.map((r, i) =>
+      '<tr><td>' + (i + 1) + '</td><td>' + esc(r.branch_name) +
+      (r.missing ? ' <span class="pill">Target missing</span>' : '') +
+      '</td><td>' + esc(r.network) + '</td><td>' + money(r.target) +
+      '</td><td>' + money(r.sales) + '</td><td>' + fmtPct(r.achievement) +
+      '</td><td>' + money(r.balance) + '</td><td>' + money(r.required) +
+      '</td><td><span class="alert-chip ' + r.alertClass + '">' + esc(r.alert) +
+      '</span></td><td>' + esc(r.advice) + '</td></tr>'
+    ).join('');
+
+    const summary = totalsByNetwork.map(n =>
+      n.network + ': sales ' + money(n.sales) + ' / target ' + money(n.target) +
+      ' (' + (n.target ? fmtPct(n.sales / n.target * 100) : '0.0%') + ' achievement)'
+    ).join(' · ');
+
+    $('targetMsg').textContent = summary + '. GROUP: ' + money(groupSales) +
+      ' / ' + money(groupTarget) + ' (' +
+      (groupTarget ? fmtPct(groupSales / groupTarget * 100) : '0.0%') +
+      ' achievement).';
+      $('targetMsg').textContent = `${summary} · GROUP: ${money(groupSales)} / ${money(groupTarget)} (${groupTarget ? fmtPct(groupSales/groupTarget*100) : '0.0%'} achievement)`;
 }
 
 function renderDailyTrend(monthReports) {
