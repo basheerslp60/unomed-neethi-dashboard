@@ -585,22 +585,38 @@ $('targetMeta').textContent = targetMonth.slice(0, 7) + ' · ' + rows.filter(r =
       ' (' + (n.target ? fmtPct(n.sales / n.target * 100) : '0.0%') + ' achievement)'
     ).join(' · ');
 
-    $('targetMsg').textContent = summary + '. GROUP: ' + money(groupSales) +
-      ' / ' + money(groupTarget) + ' (' +
-      (groupTarget ? fmtPct(groupSales / groupTarget * 100) : '0.0%') +
-      ' achievement).';
-      $('targetMsg').textContent = `${summary} · GROUP: ${money(groupSales)} / ${money(groupTarget)} (${groupTarget ? fmtPct(groupSales/groupTarget*100) : '0.0%'} achievement)`;
+  $('targetMsg').textContent =
+    summary + ' · GROUP: ' + money(groupSales) +
+    ' / ' + money(groupTarget) + ' (' +
+    (groupTarget ? fmtPct(groupSales / groupTarget * 100) : '0.0%') +
+    ' achievement)';
+
 }
 
 function renderDailyTrend(monthReports) {
-  const byDate=new Map();
-  monthReports.forEach(r=>{const d=r.report_date; if(!d)return; byDate.set(d,(byDate.get(d)||0)+Number(r.total_sales||0));});
-  const dates=[...byDate.keys()].sort();
-  if(!dates.length){$('dailyTrend').innerHTML='<p>No sales reports available for this month yet.</p>';return;}
-  const max=Math.max(...dates.map(d=>byDate.get(d)),1);
-  $('dailyTrend').innerHTML=dates.map(d=>{const v=byDate.get(d),height=Math.max(2,v/max*100);return `<div class="trend-day" title="${esc(d)} · ${money(v)}"><small>${esc(d.slice(-2))}</small><div class="trend-bar-wrap"><div class="trend-bar" style="height:${height}%"></div></div><span class="trend-value">${money(v)}</span></div>`;}).join('');
-}
+  const byDate = new Map();
 
+  monthReports.forEach(r => {
+    const d = r.report_date;
+    if (!d) return;
+    byDate.set(d, (byDate.get(d) || 0) + Number(r.total_sales || 0));
+  });
+
+  const dates = [...byDate.keys()].sort();
+
+  if (!dates.length) {
+    $('dailyTrend').innerHTML = '<p>No sales reports available for this month yet.</p>';
+    return;
+  }
+
+  const max = Math.max(...dates.map(d => byDate.get(d)), 1);
+
+  $('dailyTrend').innerHTML = dates.map(d => {
+    const v = byDate.get(d);
+    const height = Math.max(2, v / max * 100);
+    return `<div class="trend-day" title="${esc(d)} · ${money(v)}"><small>${esc(d.slice(8))}</small><span style="height:${height}%"></span></div>`;
+  }).join('');
+}
 function generateManagementReport() {
   const box=$('managementReportText');
   const data=window.__managementReportData;
