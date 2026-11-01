@@ -412,10 +412,10 @@ async function renderCompliance(fallbackReports=[]) {
     return {...b,matches:matches.length,submitted,sales,patients,status,cls,action};
   });
   const submitted=rows.filter(r=>r.submitted).length, missing=rows.filter(r=>r.status==='Missing').length, review=rows.filter(r=>r.status==='Needs review').length;
-$('complianceSummary').innerHTML =
-  `<div class="alert-chip alert-green">Submitted: ${submitted}/${rows.length}</div>` +
-  `<div class="alert-chip alert-red">Missing: ${missing}</div>` +
-  `<div class="alert-chip alert-yellow">Needs review: ${review}</div>`;
+  $('complianceSummary').innerHTML =
+    '<div class="alert-chip alert-green">Submitted: ' + submitted + '/' + rows.length + '</div>' +
+    '<div class="alert-chip alert-red">Missing: ' + missing + '</div>' +
+    '<div class="alert-chip alert-yellow">Needs review: ' + review + '</div>';
   window.__complianceReportText=`DAILY REPORTING COMPLIANCE — ${date}\nSubmitted: ${submitted}/${rows.length} | Missing: ${missing} | Needs review: ${review}\n\n`+rows.map(r=>`${r.status==='Submitted'?'✓':r.status==='Missing'?'!':'?'} ${r.branch_name} (${r.network}) — ${r.status}; reports ${r.matches}; sales ${money(r.sales)}; patients ${r.patients}. ${r.action}`).join('\n');
 }
 function copyComplianceSummary() {
