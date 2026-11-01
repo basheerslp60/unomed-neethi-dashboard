@@ -389,6 +389,7 @@ async function renderCompliance(fallbackReports = []) {
   if (!profile || profile.role === 'branch_staff' || !db) return;
 
   const date = $('complianceDate')?.value || today;
+
   $('complianceRows').innerHTML =
     '<tr><td colspan="7">Checking submitted reports...</td></tr>';
 
@@ -400,10 +401,100 @@ async function renderCompliance(fallbackReports = []) {
   if (error) {
     $('complianceRows').innerHTML =
       `<tr><td colspan="7">${esc(error.message)}</td></tr>`;
+
     $('complianceMsg').textContent =
       'Compliance could not be verified. Check account permissions and try Refresh data.';
     return;
   }
+
+  const dayReports = data || [];
+
+  const rows = branches.map(branch => {
+    const matches = dayReports.filter(
+      report => String(report.branch_id) === String(branch.id)
+    );
+
+    const submitted = matches.some(
+      report => String(report.status || '').toLowerCase() === 'submitted'
+    );
+
+    const sales = matches.reduce(
+      (sum, report) => sum + Number(report.total_sales || 0),
+      0
+    );
+
+    const patients = matches.reduce(
+      (sum, report) => sum + Number(report.patient_count || 0),
+      0
+    );
+
+    const status = submitted
+      ? 'Submitted'
+      : matches.length
+        ? 'Needs review'
+        : 'Missing';
+
+    const cls = submitted
+      ? 'alert-green'
+      : matches.length
+        ? 'alert-yellow'
+        : 'alert-red';
+
+    const action = submitted
+      ? (matches.length > 1
+          ? 'Check multiple reports for duplicates'
+          : 'No follow-up required')
+      : matches.length
+        ? 'Verify report status and correct it if needed'
+        : 'Contact branch and request report submission';
+
+    return {
+      ...branch,
+      matches: matches.length,
+      submitted,
+      sales,
+      patients,
+      status,
+      cls,
+      action
+    };
+  });
+
+  const submittedCount = rows.filter(row => row.submitted).length;
+  const missingCount = rows.filter(row => row.status === 'Missing').length;
+  const reviewCount = rows.filter(row => row.status === 'Needs review').length;
+
+  $('complianceSummary').innerHTML =
+    `<div class="alert-chip alert-green">Submitted: ${submittedCount}/${rows.length}</div>` +
+    `<div class="alert-chip alert-red">Missing: ${missingCount}</div>` +
+    `<div class="alert-chip alert-yellow">Needs review: ${reviewCount}</div>`;
+
+  $('complianceRows').innerHTML = rows.map(row =>
+    `<tr>
+      <td>${esc(row.branch_name)}</td>
+      <td>${esc(row.network)}</td>
+      <td><span class="alert-chip ${row.cls}">${esc(row.status)}</span></td>
+      <td>${row.matches}</td>
+      <td>${money(row.sales)}</td>
+      <td>${row.patients.toLocaleString('en-IN')}</td>
+      <td>${esc(row.action)}</td>
+    </tr>`
+  ).join('') ||
+    '<tr><td colspan="7">No active branches found.</td></tr>';
+
+  $('complianceMsg').textContent =
+    `Date: ${date}. Found ${dayReports.length} report record(s) across ${rows.length} active branches. A branch is marked Submitted only if at least one visible record has status "submitted". Multiple reports are flagged for review.`;
+
+  window.__complianceReportText =
+    `DAILY REPORTING COMPLIANCE - ${date}\n` +
+    `Submitted: ${submittedCount}/${rows.length} | Missing: ${missingCount} | Needs review: ${reviewCount}\n\n` +
+    rows.map(row =>
+      `${row.status === 'Submitted' ? '[OK]' : row.status === 'Missing' ? '[MISSING]' : '[REVIEW]'} ` +
+      `${row.branch_name} (${row.network}) - ${row.status}; ` +
+      `reports ${row.matches}; sales ${money(row.sales)}; ` +
+      `patients ${row.patients}. ${row.action}`
+    ).join('\n');
+}
 
   const dayReports = data || [];
 
