@@ -491,11 +491,11 @@ async function renderTargets(monthReports) {
   if(isStaff) {
     const own=targets.find(t=>String(t.branch_id)===String(profile.branch_id));
     const target=Number(own?.target_amount||0), sales=Number(salesByBranch.get(profile.branch_id)||0), balance=Math.max(target-sales,0), days=workingDaysRemaining();
-    $('branchMonthlyTarget').textContent=own?money(target):'Not set'; $('branchMtdSales').textContent=money(sales); $('branchBalanceTarget').textContent=own?money(balance):'—'; $('branchRequiredDaily').textContent=own?money(balance/days):'—';
-    $('branchDailyTargetDate').textContent=`${targetMonth.slice(0,7)} · ${days} calendar day(s) remaining, Sundays included`;
-    $('branchDailyTargetNote').textContent=!own?'Your monthly target has not been set. Please contact management.':balance===0?'Monthly target achieved. Maintain your sales performance.':`To reach your target, aim for ${money(balance/days)} per calendar day for the remaining ${days} calendar day(s).`;
-    return;
-  }
+    $('branchMonthlyTarget').textContent=own?money(target):'Not set'; $('branchMtdSales').textContent=money(sales); $('branchBalanceTarget').textContent=own?money(balance):'—'; $('branchRequiredDaily').textContent=own?money(balance/days):'—';0
+$('branchDailyTargetDate').textContent = targetMonth.slice(0, 7) + ' · ' + days + ' calendar day(s) remaining, Sundays included';
+$('branchDailyTargetNote').textContent = !own ? 'Your monthly target has not been set. Please contact management.' : balance === 0 ? 'Monthly target achieved. Maintain your performance.' : 'Keep working towards your monthly target.';
+return;
+}
   targets=targetData||[];
   const now=new Date();
   const daysInMonth=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
