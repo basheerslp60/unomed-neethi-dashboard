@@ -629,8 +629,7 @@ function generateManagementReport() {
   const prevDate=new Date(new Date(today+'T12:00:00').getTime()-86400000).toISOString().slice(0,10);
   const dailyPrev=reports.filter(r=>r.report_date===prevDate).reduce((s,r)=>s+Number(r.total_sales||0),0);
   const pct = n => n.toFixed(1) + '%';
-  const lines=[`📊 UNOMED + NEETHI — MANAGEMENT REPORT`,`📅 As on ${dateLabel}`,``,`🏢 GROUP PERFORMANCE`,`Sales: ${money(groupSales)} / ${money(groupTarget)}`,`Achievement: ${pct(groupTarget?groupSales/groupTarget*100:0)}`,`Balance to target: ${money(groupBalance)}`,`Patients MTD: ${Number(data.groupPatients||0).toLocaleString('en-IN')}`,`Today sales: ${money(dailyToday)}${dailyPrev?` | Previous day: ${money(dailyPrev)}`:''}`,``,`🔵 UNOMED`,`Sales: ${money(un.sales)} | Target: ${money(un.target)} | Achievement: ${pct(un.pct)} | Balance: ${money(un.balance)}`,``,`🔴 NEETHI`,`Sales: ${money(ne.sales)} | Target: ${money(ne.target)} | Achievement: ${pct(ne.pct)} | Balance: ${money(ne.balance)}`,``,`🏆 BRANCH RANKING — ACHIEVEMENT`];
-  rows.forEach((r,i)=>lines.push(`${i+1}. ${r.branch_name} (${r.network}) — ${money(r.sales)} / ${r.target?money(r.target):'Target not set'} — ${r.target?pct(r.achievement):'N/A'} — ${r.alert}`));
+  const lines = ['📊 UNOMED + NEETHI — MANAGEMENT REPORT', '📅 As on ' + dateLabel, '', '📈 GROUP PERFORMANCE', 'Sales: ' + money(groupSales) + ' / ' + money(groupTarget)];  rows.forEach((r,i)=>lines.push(`${i+1}. ${r.branch_name} (${r.network}) — ${money(r.sales)} / ${r.target?money(r.target):'Target not set'} — ${r.target?pct(r.achievement):'N/A'} — ${r.alert}`));
   const critical=rows.filter(r=>r.alertClass==='alert-red'); const missing=rows.filter(r=>r.missing);
   lines.push('', '🚦 MANAGEMENT FOLLOW-UP');
   if(critical.length) lines.push('Critical pace: '+critical.map(r=>r.branch_name).join(', ')+'.'); else lines.push('No branches currently flagged critical by the calendar-day pace rule.');
