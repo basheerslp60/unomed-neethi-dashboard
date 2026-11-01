@@ -564,8 +564,7 @@ $('neethiExecMeta').textContent = money(ne.target) + ' target · ' + (ne.target 
 $('unomedExecBar').style.width = Math.min(100, un.target ? un.sales / un.target * 100 : 0) + '%';
 $('neethiExecBar').style.width = Math.min(100, ne.target ? ne.sales / ne.target * 100 : 0) + '%';
 const alertCounts={green:rows.filter(r=>r.alertClass==='alert-green').length,yellow:rows.filter(r=>r.alertClass==='alert-yellow').length,red:rows.filter(r=>r.alertClass==='alert-red').length,none:rows.filter(r=>r.alertClass==='alert-none').length};
-    $('targetMeta').textContent = targetMonth.slice(0, 7) + ' · ' + rows.filter(r => !r.missing).length + '/' + branches.length + ' branch targets loaded.';
-
+$('targetMeta').textContent = targetMonth.slice(0, 7) + ' · ' + rows.filter(r => !r.missing).length + '/' + branches.length + ' branch targets loaded.';
     $('alertSummary').innerHTML =
       '<div class="alert-chip alert-green">🟢 On track / achieved: ' + alertCounts.green + '</div>' +
       '<div class="alert-chip alert-yellow">🟡 Needs attention: ' + alertCounts.yellow + '</div>' +
