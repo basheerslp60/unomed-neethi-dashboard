@@ -557,11 +557,13 @@ return {...b,target,sales,patients:pat,achievement,balance:Math.max(target-sales
   show('executiveSection', !isStaff);
   const net=(name)=>totalsByNetwork.find(n=>n.network===name)||{sales:0,target:0,patients:0};
   const un=net('UNOMED'), ne=net('NEETHI');
-  $('unomedExecSales').textContent=money(un.sales); $('unomedExecMeta').textContent=`${money(un.target)} target · ${un.target?fmtPct(un.sales/un.target*100):'0.0%'} achieved · ${money(Math.max(un.target-un.sales,0))} remaining · ${money(Math.max(un.target-un.sales,0)/workingDaysRemaining())}/calendar day`;
-  $('neethiExecSales').textContent=money(ne.sales); $('neethiExecMeta').textContent=`${money(ne.target)} target · ${ne.target?fmtPct(ne.sales/ne.target*100):'0.0%'} achieved · ${money(Math.max(ne.target-ne.sales,0))} remaining · ${money(Math.max(ne.target-ne.sales,0)/workingDaysRemaining())}/calendar day`;
-  $('unomedExecBar').style.width=Math.min(100,un.target?un.sales/un.target*100:0)+'%';
-  $('neethiExecBar').style.width=Math.min(100,ne.target?ne.sales/ne.target*100:0)+'%';
-  const alertCounts={green:rows.filter(r=>r.alertClass==='alert-green').length,yellow:rows.filter(r=>r.alertClass==='alert-yellow').length,red:rows.filter(r=>r.alertClass==='alert-red').length,none:rows.filter(r=>r.alertClass==='alert-none').length};
+$('unomedExecSales').textContent = money(un.sales);
+$('unomedExecMeta').textContent = `${money(un.target)} target · ${un.target ? fmtPct(un.sales / un.target * 100) : '0.0%'}`;
+$('neethiExecSales').textContent = money(ne.sales);
+$('neethiExecMeta').textContent = `${money(ne.target)} target · ${ne.target ? fmtPct(ne.sales / ne.target * 100) : '0.0%'}`;
+$('unomedExecBar').style.width = Math.min(100, un.target ? un.sales / un.target * 100 : 0) + '%';
+$('neethiExecBar').style.width = Math.min(100, ne.target ? ne.sales / ne.target * 100 : 0) + '%';
+const alertCounts={green:rows.filter(r=>r.alertClass==='alert-green').length,yellow:rows.filter(r=>r.alertClass==='alert-yellow').length,red:rows.filter(r=>r.alertClass==='alert-red').length,none:rows.filter(r=>r.alertClass==='alert-none').length};
   $('targetMeta').textContent=`${targetMonth.slice(0,7)} · ${rows.filter(r=>!r.missing).length}/${branches.length} branch targets loaded · Pace is measured against calendar days elapsed (${elapsedDays}/${daysInMonth}).`;
   $('alertSummary').innerHTML=`<div class="alert-chip alert-green">🟢 On track / achieved: ${alertCounts.green}</div><div class="alert-chip alert-yellow">🟡 Needs attention: ${alertCounts.yellow}</div><div class="alert-chip alert-red">🔴 Critical: ${alertCounts.red}</div><div class="alert-chip alert-none">⚪ Missing target: ${alertCounts.none}</div>`;
 $('targetRows').innerHTML=rows.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.branch_name)}${r.missing?' <span class="pill">Target missing</span>':''}</td><td>${esc(r.network)}</td><td><strong>${money(r.sales)}</strong></td><td>${r.patients}</td><td>${money(r.target)}</td><td>${fmtPct(r.achievement)}</td><td>${money(r.balance)}</td><td>${money(r.required)}</td><td><span class="pill ${r.alertClass}">${esc(r.alert)}</span><div>${esc(r.advice)}</div></td></tr>`).join('');
