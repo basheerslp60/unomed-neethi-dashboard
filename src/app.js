@@ -646,7 +646,7 @@ async function copyManagementReport() {
 function downloadManagementReport() {
   const textValue=$('managementReportText').value;
   if(!textValue.trim()) { $('managementReportMsg').textContent='Generate the report first.'; return; }
-  const blob=new Blob([textValue+'\n'],{type:'text/plain;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`unomed-neethi-management-report-${today}.txt`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); $('managementReportMsg').textContent='Text report downloaded.'; $('managementReportMsg').style.color='#16764a';
+  const blob = new Blob([textValue + '\n'], { type: 'text/plain;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'unomed-neethi-management-report.txt'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 }
 
 async function submit(e) {
