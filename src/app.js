@@ -480,8 +480,10 @@ async function renderTargets(monthReports) {
   const {data:targetData,error}=await targetQuery;
   if(error) {
     if(isStaff) { ['branchMonthlyTarget','branchMtdSales','branchBalanceTarget','branchRequiredDaily'].forEach(id=>$(id).textContent='—'); $('branchDailyTargetNote').textContent='Could not load target: '+error.message; }
-    else { $('targetRows').innerHTML=`<tr><td colspan="10">${esc(error.message)}</td></tr>`; $('targetMeta').textContent='Could not load monthly targets.'; }
-    return;
+      } else {
+        $('targetRows').innerHTML = '<tr><td colspan="10">' + esc(error.message) + '</td></tr>';
+        $('targetMeta').textContent = 'Could not load monthly targets.';
+      }    return;
   }
   targets=targetData||[];
   const salesByBranch=new Map(),patientsByBranch=new Map();
