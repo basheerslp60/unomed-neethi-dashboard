@@ -444,8 +444,7 @@ function renderBranchTargetEditorRows() {
   const network = $('branchTargetNetwork').value;
   const vals = window.__branchTargetEditorValues || new Map();
   const list = branches.filter(b => network === 'ALL' || b.network === network).sort((a,b)=>String(a.network).localeCompare(String(b.network))||String(a.branch_name).localeCompare(String(b.branch_name)));
-  $('branchTargetAdminRows').innerHTML = list.map(b => `<tr><td>${esc(b.network)}</td><td>${esc(b.branch_name)}</td><td><input class="branch-target-value" data-branch-id="${esc(b.id)}" type="number" min="0" step="1" value="${Number(vals.get(String(b.id))||0)}" aria-label="${esc(b.branch_name)} monthly target"></td></tr>`).join('');
-  updateBranchTargetTotal();
+   $('branchTargetAdminRows').innerHTML = list.map(b => '<tr><td>' + esc(b.network) + '</td><td>' + esc(b.branch_name) + '</td><td><input class="branch-target-value" data-branch-id="' + esc(b.id) + '" type="number" min="0" step="1" value="' + (vals.get(String(b.id)) || 0) + '"></td></tr>').join('');  updateBranchTargetTotal();
   $('branchTargetAdminRows').querySelectorAll('.branch-target-value').forEach(el => el.addEventListener('input', updateBranchTargetTotal));
 }
 function updateBranchTargetTotal() {
