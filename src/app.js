@@ -435,7 +435,7 @@ async function loadBranchTargetEditor() {
     window.__branchTargetEditorValues = new Map((data||[]).map(x => [String(x.branch_id), Number(x.target_amount||0)]));
     renderBranchTargetEditorRows();
   } catch (err) {
-    $('branchTargetAdminRows').innerHTML = `<tr><td colspan="3">${esc(err.message||'Could not load targets')}</td></tr>`;
+      $('branchTargetAdminRows').innerHTML = '<tr><td colspan="3">' + esc(err.message || 'Could not load targets') + '</td></tr>';
     msg('branchTargetAdminMsg', err.message || 'Could not load targets.');
   }
 }
