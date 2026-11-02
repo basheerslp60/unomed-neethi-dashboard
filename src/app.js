@@ -676,7 +676,7 @@ async function loadEmployeeModule() {
   show('employeeSection', true);
   show('employeeAdminPanel', canManageEmployees());
   show('employeeTargetPanel', canManageEmployees());
-  $('employeeBranch').innerHTML = branches.map(b => `<option value="${b.id}">${esc(b.branch_name)}</option>`).join('');
+$('employeeBranch').innerHTML = branches.map(b => `<option value="${b.id}">${esc(b.branch_name)}</option>`).join('');
   try {
     let query=db.from('employee_directory').select('id,employee_code,full_name,branch_id,designation,login_email,active,auth_user_id').order('full_name');
     // Branch staff are scoped by RLS; management/branch managers can see their authorized records.
