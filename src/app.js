@@ -452,23 +452,40 @@ async function renderTargets(monthReports) {
   let targetQuery=db.from('branch_monthly_targets').select('branch_id,target_month,target_amount').eq('target_month',targetMonth);
   if(isStaff) targetQuery=targetQuery.eq('branch_id',profile.branch_id);
   const {data:targetData,error}=await targetQuery;
-  if(error) {
-    if(isStaff) { ['branchMonthlyTarget','branchMtdSales','branchBalanceTarget','branchRequiredDaily'].forEach(id=>$(id).textContent='—'); $('branchDailyTargetNote').textContent='Could not load target: '+error.message; }
-      } else {
-        $('targetRows').innerHTML = '<tr><td colspan="10">' + esc(error.message) + '</td></tr>';
-        $('targetMeta').textContent = 'Could not load monthly targets.';
-      }    return;
-  }
-  targets=targetData||[];
-  const salesByBranch=new Map(),patientsByBranch=new Map();
-  monthReports.forEach(r=>{salesByBranch.set(r.branch_id,(salesByBranch.get(r.branch_id)||0)+Number(r.total_sales||0));patientsByBranch.set(r.branch_id,(patientsByBranch.get(r.branch_id)||0)+Number(r.patient_count||0));});
+
+if(error) {
   if(isStaff) {
-    const own=targets.find(t=>String(t.branch_id)===String(profile.branch_id));
-    const target=Number(own?.target_amount||0), sales=Number(salesByBranch.get(profile.branch_id)||0), balance=Math.max(target-sales,0), days=workingDaysRemaining();
-    $('branchMonthlyTarget').textContent=own?money(target):'Not set'; $('branchMtdSales').textContent=money(sales); $('branchBalanceTarget').textContent=own?money(balance):'—'; $('branchRequiredDaily').textContent=own?money(balance/days):'—';0
-$('branchDailyTargetDate').textContent = targetMonth.slice(0, 7) + ' · ' + days + ' calendar day(s) remaining, Sundays included';
-$('branchDailyTargetNote').textContent = !own ? 'Your monthly target has not been set. Please contact management.' : balance === 0 ? 'Monthly target achieved. Maintain your performance.' : 'Keep working towards your monthly target.';
-return;
+    ['branchMonthlyTarget','branchMtdSales','branchBalanceTarget','branchRequiredDaily']
+      .forEach(id=>$(id).textContent='—');
+    $('branchDailyTargetNote').textContent='Could not load target: '+error.message;
+  } else {
+    $('targetRows').innerHTML = '<tr><td colspan="10">' + esc(error.message) + '</td></tr>';
+    $('targetMeta').textContent = 'Could not load monthly targets.';
+  }
+  return;
+}
+
+targets=targetData||[];
+const salesByBranch=new Map(),patientsByBranch=new Map();
+monthReports.forEach(r=>{
+  salesByBranch.set(r.branch_id,(salesByBranch.get(r.branch_id)||0)+Number(r.total_sales||0));
+  patientsByBranch.set(r.branch_id,(patientsByBranch.get(r.branch_id)||0)+Number(r.patient_count||0));
+});
+
+if(isStaff) {
+  const own=targets.find(t=>String(t.branch_id)===String(profile.branch_id));
+  const target=Number(own?.target_amount||0);
+  const sales=Number(salesByBranch.get(profile.branch_id)||0);
+  const balance=Math.max(target-sales,0);
+  const days=workingDaysRemaining();
+
+  $('branchMonthlyTarget').textContent=own?money(target):'Not set';
+  $('branchMtdSales').textContent=money(sales);
+  $('branchBalanceTarget').textContent=own?money(balance):'—';
+  $('branchRequiredDaily').textContent=own?money(balance/days):'—';
+  $('branchDailyTargetDate').textContent=targetMonth.slice(0,7)+' · '+days+' calendar day(s) remaining, Sundays included';
+  $('branchDailyTargetNote').textContent=!own?'Your monthly target has not been set. Please contact management.':balance===0?'Monthly target achieved. Maintain your performance.':'Keep working towards your monthly target.';
+  return;
 }
   targets=targetData||[];
   const now=new Date();
