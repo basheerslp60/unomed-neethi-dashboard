@@ -110,8 +110,8 @@ async function load(u) {
   branches=b||[];
   $('who').textContent=p.full_name+' · '+p.role;
   if (p.role === 'admin') {
-  $('portalBranch').innerHTML = branches.map(b => `<option value="${b.id}">${esc(b.network)} - ${esc(b.branch_name)}</option>`).join('');
-      updatePortalBranchVisibility();
+  $('portalBranch').innerHTML = branches.map(b =><option value="${b.id}">${esc(b.network)} - ${esc(b.branch_name)}</option>).join('');
+    updatePortalBranchVisibility();
   }
   show('login',false); show('app',true); show('userTools',true); show('entry',p.role==='branch_staff');
   show('managementReportSection',p.role!=='branch_staff');
@@ -187,66 +187,50 @@ async function createPortalUser(e) {
 
 async function setPortalUserActive(userId, active) {
   if (profile?.role !== 'admin') return;
-  if (!confirm(`${active ? 'Reactivate' : 'Deactivate'} this portal account?`)) return;
+  const dates=[...byDate.keys()].sort();
   try {
-    await callAdminUserFunction({ action: 'set_active', user_id: userId, active });
+    await callAdminUserFunction({action:'set_active', user_id:userId, active});
     await loadPortalUsers();
-    msg('portalUserMsg', `Account ${active ? 'reactivated' : 'deactivated'}.`, true);
+    msg('portalUserMsg', 'Account status updated.', true);
   } catch (err) {
-    msg('portalUserMsg', err.message || 'Could not update account.');
+    msg('portalUserMsg',err.message || 'Could not update account.');
   }
 }
 
-async function changePortalUserPassword(userId, userLabel) {
-  if (profile?.role !== 'admin') {
-    msg('portalUserMsg', 'Only the Super Admin can change portal passwords.');
-    return;
-  }
-
-  const password = prompt(`Enter a new password for ${userLabel} (minimum 8 characters):`);
-  if (password === null) return;
-  if (password.length < 8 || password.length > 128) {
-    msg('portalUserMsg', 'Password must be 8–128 characters.');
-    return;
-  }
-
-  const confirmPassword = prompt('Re-enter the new password to confirm:');
-  if (confirmPassword === null) return;
-  if (password !== confirmPassword) {
-    msg('portalUserMsg', 'The passwords do not match. No change was made.');
-    return;
-  }
-
-  if (!confirm(`Change the password for ${userLabel}?`)) return;
-
-  msg('portalUserMsg', 'Updating password…');
-  try {
-    await callAdminUserFunction({
-      action: 'reset_password',
-      user_id: userId,
-      password
-    });
-    msg('portalUserMsg', `Password changed successfully for ${userLabel}.`, true);
-  } catch (err) {
-    msg('portalUserMsg', err.message || 'Could not change the password.');
-  }
-}
-
-async function loadPortalUsers() {
+loadPortalUsers()
   if (profile?.role !== 'admin') return;
-  $('portalUserRows').innerHTML = '<tr><td colspan="6">Loading users…</td></tr>';
+  $('portalUserRows').innerHTML='<tr><td colspan="6">Loading users…</td></tr>';
+  try {
+    const result = await callAdminUserFunction({action:'list'});
+    async function loadPortalUsers() {
+  if (profile.role !== 'admin') return;
+
+  $('portalUserRows').innerHTML =
+    '<tr><td colspan="6">Loading users...</td></tr>';
+
   try {
     const result = await callAdminUserFunction({ action: 'list' });
     const rows = result.users || [];
+
     $('portalUserRows').innerHTML = rows.map(u => {
-      const branch = u.branch_name ? `${u.network} — ${u.branch_name}` : 'All permitted branches';
+      const branch = u.branch_name
+        ? (u.network + ' - ' + u.branch_name)
+        : 'All permitted branches';
+
       const action = u.role === 'admin'
         ? '<span class="pill">Protected admin</span>'
-        : `<button type="button" class="secondary" data-password-user-id="${esc(u.user_id)}" data-user-label="${esc(u.full_name || u.email || 'user')}">Change Password</button> ` +
-          (u.active
-            ? `<button type="button" class="secondary" data-user-id="${esc(u.user_id)}" data-active="false">Deactivate</button>`
-            : `<button type="button" data-user-id="${esc(u.user_id)}" data-active="true">Reactivate</button>`);
-      return `<tr><td>${esc(u.full_name)}</td><td>${esc(u.email || '—')}</td><td>${esc(u.role)}</td><td>${esc(branch)}</td><td><span class="pill">${u.active ? 'Active' : 'Inactive'}</span></td><td>${action}</td></tr>`;
+        : (u.active
+          ? '<button type="button" class="secondary" data-user-id="' + esc(u.user_id) + '" data-active="false">Deactivate</button>'
+          : '<button type="button" data-user-id="' + esc(u.user_id) + '" data-active="true">Reactivate</button>');
+
+      return '<tr>' +
+        '<td>' + esc(u.full_name) + '</td>' +
+        '<td>' + esc(u.email || '-') + '</td>' +
+        '<td>' + esc(u.role) + '</td>' +
+        '<td>' + esc(branch) + '</td>' +
+        '<td><span class="pill">' + (u.active ? 'Active' : 'Inactive') + '</span></td>' +
+        '<td>' + action + '</td>' +
+        '</tr>';
     }).join('') || '<tr><td colspan="6">No portal users found.</td></tr>';
 
     $('portalUserRows').querySelectorAll('button[data-user-id]').forEach(btn => {
@@ -254,14 +238,11 @@ async function loadPortalUsers() {
         setPortalUserActive(btn.dataset.userId, btn.dataset.active === 'true')
       );
     });
-    $('portalUserRows').querySelectorAll('button[data-password-user-id]').forEach(btn => {
-      btn.addEventListener('click', () =>
-        changePortalUserPassword(btn.dataset.passwordUserId, btn.dataset.userLabel || 'user')
-      );
-    });
   } catch (err) {
-    $('portalUserRows').innerHTML = `<tr><td colspan="6">${esc(err.message || 'Could not load users.')}</td></tr>`;
+    $('portalUserRows').innerHTML =
+      '<tr><td colspan="6">' + esc(err.message || 'Could not load users.') + '</td></tr>';
   }
+}
 }
 
 // Load all reports for the current month in pages, so MTD calculations do not depend on the recent-report limit.
