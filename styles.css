@@ -141,3 +141,97 @@
     padding: 9px 7px;
   }
 }
+
+
+/* Header branding: UNOMED left, portal title center, NEETHI right */
+.site-header {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) auto minmax(260px, 1fr);
+  align-items: center;
+  gap: 24px;
+}
+
+.site-header > .unomed-logo {
+  justify-self: start;
+}
+
+.site-header > .portal-label {
+  justify-self: center;
+  text-align: center;
+  border-left: 0;
+  padding-left: 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 22px;
+  min-width: 0;
+}
+
+.header-right .neethi-logo {
+  width: 168px;
+  height: 78px;
+  flex: 0 0 auto;
+}
+
+.site-header .brand-plus {
+  display: none !important;
+}
+
+@media (max-width: 900px) {
+  .site-header {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .site-header > .portal-label {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: center;
+    text-align: center;
+    order: 3;
+  }
+
+  .site-header > .unomed-logo {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .site-header > .header-right {
+    grid-column: 2;
+    grid-row: 1;
+    flex-wrap: wrap;
+  }
+
+  .header-right .neethi-logo {
+    width: min(145px, 100%);
+    height: 64px;
+  }
+}
+
+@media (max-width: 520px) {
+  .site-header {
+    padding: 10px 14px;
+    gap: 8px;
+  }
+
+  .unomed-logo,
+  .header-right .neethi-logo {
+    width: 120px;
+    height: 58px;
+  }
+
+  .header-right {
+    gap: 8px;
+  }
+
+  .site-header > .portal-label strong {
+    font-size: 10px;
+  }
+
+  .site-header > .portal-label small {
+    font-size: 10px;
+  }
+}
