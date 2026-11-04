@@ -187,11 +187,11 @@ async function createPortalUser(e) {
 
 async function setPortalUserActive(userId, active) {
   if (profile?.role !== 'admin') return;
-  if (!confirm(`${active ? 'Reactivate' : 'Deactivate'} this portal account?`)) return;
+  if (!confirm((active ? 'Reactivate' : 'Deactivate') + ' this portal account?')) return;
   try {
     await callAdminUserFunction({ action: 'set_active', user_id: userId, active });
     await loadPortalUsers();
-    msg('portalUserMsg', `Account ${active ? 'reactivated' : 'deactivated'}.`, true);
+    msg('portalUserMsg', 'Account ' + (active ? 'reactivated' : 'deactivated') + '.', true);
   } catch (err) {
     msg('portalUserMsg', err.message || 'Could not update account.');
   }
