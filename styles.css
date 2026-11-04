@@ -33,100 +33,111 @@
 #complianceDate{width:auto;min-width:170px}
 #complianceSection .section-head{align-items:flex-end}
 @media(max-width:650px){#complianceSection .section-head{align-items:stretch}}
-```css
-/* UNOMED + NEETHI sidebar layout */
+
+
+/* UNOMED + NEETHI dashboard navigation */
+#app:not(.hidden) {
+  display: block;
+}
+
 .app-layout {
-  display: flex;
-  align-items: flex-start;
-  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+  width: 100%;
 }
 
-.sidebar {
-  width: 240px;
-  min-width: 240px;
-  background: #142d4e;
-  color: #ffffff;
-  padding: 24px 14px;
-  box-sizing: border-box;
+.side-nav {
   position: sticky;
-  top: 0;
-  height: 100vh;
-  overflow-y: auto;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px;
+  background: var(--navy);
+  color: #fff;
+  border: 1px solid #203e62;
+  border-radius: 14px;
+  box-shadow: 0 5px 20px #142b4920;
 }
 
-.sidebar h2 {
-  font-size: 18px;
-  margin: 0 0 6px;
-  color: #ffffff;
+.side-nav-title {
+  padding: 8px 10px 12px;
+  color: #cbd7e6;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .12em;
 }
 
-.sidebar p {
-  margin: 0 0 24px;
-  color: #d6e2f1;
-}
-
-.sidebar .nav-btn {
+.nav-button {
   display: block;
   width: 100%;
-  text-align: left;
-  margin: 8px 0;
-  padding: 12px;
+  margin: 0;
+  padding: 11px 10px;
   background: transparent;
-  color: #ffffff;
+  color: #f7f9fc;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 9px;
+  text-align: left;
+  font: 600 13px system-ui, -apple-system, Segoe UI, sans-serif;
   cursor: pointer;
 }
 
-.sidebar .nav-btn:hover,
-.sidebar .nav-btn.active {
-  background: #24466f;
+.nav-button:hover,
+.nav-button.active {
+  background: #29496f;
   border-color: #52749b;
+  color: #fff;
 }
 
-.main-content {
-  flex: 1;
+.app-content {
   min-width: 0;
-  padding: 20px;
-  box-sizing: border-box;
 }
 
-@media (max-width: 768px) {
+.app-content > .heading {
+  margin-top: 0;
+}
+
+.nav-button.nav-hidden {
+  display: none !important;
+}
+
+@media (max-width: 900px) {
   .app-layout {
-    display: block;
+    grid-template-columns: 1fr;
+    gap: 14px;
   }
 
-  .sidebar {
-    position: relative;
-    width: 100%;
-    min-width: 0;
-    height: auto;
+  .side-nav {
+    position: static;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
   }
 
-  .sidebar .nav-btn {
-    display: inline-block;
-    width: auto;
-    margin: 4px;
+  .side-nav-title {
+    grid-column: 1 / -1;
   }
 
-  .main-content {
-    padding: 12px;
+  .nav-button {
+    font-size: 12px;
+    padding: 10px 8px;
+  }
+
+  main {
+    margin-top: 16px;
   }
 }
-```
 
-/* Sidebar navigation layout */
-.app-layout{display:grid;grid-template-columns:230px minmax(0,1fr);gap:24px;align-items:start}
-.side-nav{position:sticky;top:16px;display:flex;flex-direction:column;gap:6px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:0 5px 20px #142b4909}
-.side-nav-title{font-size:11px;letter-spacing:.12em;font-weight:800;color:var(--muted);padding:8px 10px 12px}
-.nav-button{width:100%;text-align:left;background:transparent;color:var(--navy);border:1px solid transparent;padding:11px 10px;border-radius:9px;font:600 13px system-ui,-apple-system,Segoe UI,sans-serif;cursor:pointer}
-.nav-button:hover{background:var(--soft);border-color:var(--line)}
-.nav-button.active{background:var(--navy);color:#fff}
-.app-content{min-width:0}
-.app-content>.heading{margin-top:0}
-.admin-nav{display:none}
-#app[data-role="admin"] .admin-nav{display:block}
-@media(max-width:900px){.app-layout{grid-template-columns:1fr;gap:14px}.side-nav{position:static;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}.side-nav-title{grid-column:1/-1}.nav-button{font-size:12px;padding:10px 8px}.site-header{padding:12px 16px}main{margin-top:16px}}
-@media(max-width:480px){.side-nav{grid-template-columns:1fr 1fr}.brand-lockup{gap:7px}.unomed-logo{width:105px;height:62px}.neethi-logo{width:125px;height:62px}.portal-label{padding-left:10px}}
+@media (max-width: 480px) {
+  .side-nav {
+    grid-template-columns: 1fr 1fr;
+    padding: 10px;
+  }
 
-.nav-button.nav-hidden{display:none!important}
+  .nav-button {
+    font-size: 11px;
+    padding: 9px 7px;
+  }
+}
