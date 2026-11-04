@@ -126,6 +126,41 @@ Deno.serve(async (req) => {
       return response({ user: { user_id: created.user.id, email, full_name: fullName, role, branch_id: branchId, active: true } }, 201);
     }
 
+    if (action === "reset_password") {
+      const userId = String(body?.user_id || "");
+      const password = String(body?.password || "");
+
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+        return response({ error: "Invalid user account." }, 400);
+      }
+      if (password.length < 8 || password.length > 128) {
+        return response({ error: "Password must be 8–128 characters." }, 400);
+      }
+
+      const { data: target, error: targetError } = await admin
+        .from("profiles")
+        .select("user_id,role")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (targetError || !target) {
+        return response({ error: "User profile not found." }, 404);
+      }
+      if (target.role === "admin") {
+        return response({ error: "Super Admin passwords cannot be changed from this screen." }, 403);
+      }
+
+      const { error: passwordError } = await admin.auth.admin.updateUserById(userId, {
+        password,
+      });
+
+      if (passwordError) {
+        return response({ error: passwordError.message || "Could not update the user's password." }, 400);
+      }
+
+      return response({ user_id: userId, password_updated: true });
+    }
+
     if (action === "set_active") {
       const userId = String(body?.user_id || "");
       const active = body?.active;
