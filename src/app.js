@@ -87,6 +87,7 @@ document.querySelectorAll('.nav-btn').forEach(button => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 });
+```
   $('employeeForm').onsubmit = addEmployee;
   $('activityForm').onsubmit = submitEmployeeActivity;
   $('employeeTargetForm').onsubmit = saveEmployeeTarget;
@@ -196,6 +197,41 @@ async function setPortalUserActive(userId, active) {
   }
 }
 
+async function changePortalUserPassword(userId, userLabel) {
+  if (profile?.role !== 'admin') {
+    msg('portalUserMsg', 'Only the Super Admin can change portal passwords.');
+    return;
+  }
+
+  const password = prompt(`Enter a new password for ${userLabel} (minimum 8 characters):`);
+  if (password === null) return;
+  if (password.length < 8 || password.length > 128) {
+    msg('portalUserMsg', 'Password must be 8–128 characters.');
+    return;
+  }
+
+  const confirmPassword = prompt('Re-enter the new password to confirm:');
+  if (confirmPassword === null) return;
+  if (password !== confirmPassword) {
+    msg('portalUserMsg', 'The passwords do not match. No change was made.');
+    return;
+  }
+
+  if (!confirm(`Change the password for ${userLabel}?`)) return;
+
+  msg('portalUserMsg', 'Updating password…');
+  try {
+    await callAdminUserFunction({
+      action: 'reset_password',
+      user_id: userId,
+      password
+    });
+    msg('portalUserMsg', `Password changed successfully for ${userLabel}.`, true);
+  } catch (err) {
+    msg('portalUserMsg', err.message || 'Could not change the password.');
+  }
+}
+
 async function loadPortalUsers() {
   if (profile?.role !== 'admin') return;
   $('portalUserRows').innerHTML = '<tr><td colspan="6">Loading users…</td></tr>';
@@ -206,13 +242,22 @@ async function loadPortalUsers() {
       const branch = u.branch_name ? `${u.network} — ${u.branch_name}` : 'All permitted branches';
       const action = u.role === 'admin'
         ? '<span class="pill">Protected admin</span>'
-        : (u.active
-          ? `<button type="button" class="secondary" data-user-id="${esc(u.user_id)}" data-active="false">Deactivate</button>`
-          : `<button type="button" data-user-id="${esc(u.user_id)}" data-active="true">Reactivate</button>`);
+        : `<button type="button" class="secondary" data-password-user-id="${esc(u.user_id)}" data-user-label="${esc(u.full_name || u.email || 'user')}">Change Password</button> ` +
+          (u.active
+            ? `<button type="button" class="secondary" data-user-id="${esc(u.user_id)}" data-active="false">Deactivate</button>`
+            : `<button type="button" data-user-id="${esc(u.user_id)}" data-active="true">Reactivate</button>`);
       return `<tr><td>${esc(u.full_name)}</td><td>${esc(u.email || '—')}</td><td>${esc(u.role)}</td><td>${esc(branch)}</td><td><span class="pill">${u.active ? 'Active' : 'Inactive'}</span></td><td>${action}</td></tr>`;
     }).join('') || '<tr><td colspan="6">No portal users found.</td></tr>';
+
     $('portalUserRows').querySelectorAll('button[data-user-id]').forEach(btn => {
-      btn.addEventListener('click', () => setPortalUserActive(btn.dataset.userId, btn.dataset.active === 'true'));
+      btn.addEventListener('click', () =>
+        setPortalUserActive(btn.dataset.userId, btn.dataset.active === 'true')
+      );
+    });
+    $('portalUserRows').querySelectorAll('button[data-password-user-id]').forEach(btn => {
+      btn.addEventListener('click', () =>
+        changePortalUserPassword(btn.dataset.passwordUserId, btn.dataset.userLabel || 'user')
+      );
     });
   } catch (err) {
     $('portalUserRows').innerHTML = `<tr><td colspan="6">${esc(err.message || 'Could not load users.')}</td></tr>`;
@@ -452,40 +497,23 @@ async function renderTargets(monthReports) {
   let targetQuery=db.from('branch_monthly_targets').select('branch_id,target_month,target_amount').eq('target_month',targetMonth);
   if(isStaff) targetQuery=targetQuery.eq('branch_id',profile.branch_id);
   const {data:targetData,error}=await targetQuery;
-
-if(error) {
-  if(isStaff) {
-    ['branchMonthlyTarget','branchMtdSales','branchBalanceTarget','branchRequiredDaily']
-      .forEach(id=>$(id).textContent='—');
-    $('branchDailyTargetNote').textContent='Could not load target: '+error.message;
-  } else {
-    $('targetRows').innerHTML = '<tr><td colspan="10">' + esc(error.message) + '</td></tr>';
-    $('targetMeta').textContent = 'Could not load monthly targets.';
+  if(error) {
+    if(isStaff) { ['branchMonthlyTarget','branchMtdSales','branchBalanceTarget','branchRequiredDaily'].forEach(id=>$(id).textContent='—'); $('branchDailyTargetNote').textContent='Could not load target: '+error.message; }
+      } else {
+        $('targetRows').innerHTML = '<tr><td colspan="10">' + esc(error.message) + '</td></tr>';
+        $('targetMeta').textContent = 'Could not load monthly targets.';
+      }    return;
   }
-  return;
-}
-
-targets=targetData||[];
-const salesByBranch=new Map(),patientsByBranch=new Map();
-monthReports.forEach(r=>{
-  salesByBranch.set(r.branch_id,(salesByBranch.get(r.branch_id)||0)+Number(r.total_sales||0));
-  patientsByBranch.set(r.branch_id,(patientsByBranch.get(r.branch_id)||0)+Number(r.patient_count||0));
-});
-
-if(isStaff) {
-  const own=targets.find(t=>String(t.branch_id)===String(profile.branch_id));
-  const target=Number(own?.target_amount||0);
-  const sales=Number(salesByBranch.get(profile.branch_id)||0);
-  const balance=Math.max(target-sales,0);
-  const days=workingDaysRemaining();
-
-  $('branchMonthlyTarget').textContent=own?money(target):'Not set';
-  $('branchMtdSales').textContent=money(sales);
-  $('branchBalanceTarget').textContent=own?money(balance):'—';
-  $('branchRequiredDaily').textContent=own?money(balance/days):'—';
-  $('branchDailyTargetDate').textContent=targetMonth.slice(0,7)+' · '+days+' calendar day(s) remaining, Sundays included';
-  $('branchDailyTargetNote').textContent=!own?'Your monthly target has not been set. Please contact management.':balance===0?'Monthly target achieved. Maintain your performance.':'Keep working towards your monthly target.';
-  return;
+  targets=targetData||[];
+  const salesByBranch=new Map(),patientsByBranch=new Map();
+  monthReports.forEach(r=>{salesByBranch.set(r.branch_id,(salesByBranch.get(r.branch_id)||0)+Number(r.total_sales||0));patientsByBranch.set(r.branch_id,(patientsByBranch.get(r.branch_id)||0)+Number(r.patient_count||0));});
+  if(isStaff) {
+    const own=targets.find(t=>String(t.branch_id)===String(profile.branch_id));
+    const target=Number(own?.target_amount||0), sales=Number(salesByBranch.get(profile.branch_id)||0), balance=Math.max(target-sales,0), days=workingDaysRemaining();
+    $('branchMonthlyTarget').textContent=own?money(target):'Not set'; $('branchMtdSales').textContent=money(sales); $('branchBalanceTarget').textContent=own?money(balance):'—'; $('branchRequiredDaily').textContent=own?money(balance/days):'—';0
+$('branchDailyTargetDate').textContent = targetMonth.slice(0, 7) + ' · ' + days + ' calendar day(s) remaining, Sundays included';
+$('branchDailyTargetNote').textContent = !own ? 'Your monthly target has not been set. Please contact management.' : balance === 0 ? 'Monthly target achieved. Maintain your performance.' : 'Keep working towards your monthly target.';
+return;
 }
   targets=targetData||[];
   const now=new Date();
