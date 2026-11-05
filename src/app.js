@@ -335,7 +335,7 @@ async function loadDailyBranchSales() {
     .eq('report_date', date);
 
   if (error) {
-    rowsEl.innerHTML = `<tr><td colspan="5">${esc(error.message)}</td></tr>`;
+  rowsEl.innerHTML = '<tr><td colspan="6">Could not load reports.</td></tr>';
     summaryEl.innerHTML = '';
     msgEl.textContent = 'Could not load daily sales. Check database permissions.';
     return;
