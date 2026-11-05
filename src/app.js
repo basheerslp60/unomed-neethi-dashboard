@@ -217,7 +217,7 @@ const confirmPassword = prompt('Re-enter the new password:');
     return;
   }
 
-  if (!confirm(`Change the password for ${userLabel}?`)) return;
+if (!confirm('Change the password for this user?')) return;
 
   msg('portalUserMsg', 'Updating password…');
   try {
