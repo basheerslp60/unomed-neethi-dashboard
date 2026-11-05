@@ -191,44 +191,33 @@ async function setPortalUserActive(userId, active) {
   try {
     await callAdminUserFunction({ action: 'set_active', user_id: userId, active });
     await loadPortalUsers();
-    msg('portalUserMsg', 'Account ' + (active ? 'reactivated' : 'deactivated') + '.', true);
+    msg('portalUserMsg', 'Account status updated.', true);
   } catch (err) {
     msg('portalUserMsg', err.message || 'Could not update account.');
   }
 }
 
-async function changePortalUserPassword(userId, userLabel) {
-  if (profile?.role !== 'admin') {
-    msg('portalUserMsg', 'Only the Super Admin can change portal passwords.');
-    return;
-  }
-
-const password = prompt('Enter a new password (minimum 8 characters):');
+async function changePortalPassword(userId, userEmail) {
+  if (profile?.role !== 'admin') return;
+  const password = prompt('Enter a new password for ' + userEmail + ' (minimum 8 characters):');
   if (password === null) return;
   if (password.length < 8 || password.length > 128) {
-    msg('portalUserMsg', 'Password must be 8–128 characters.');
+    msg('portalUserMsg', 'Password must be between 8 and 128 characters.');
     return;
   }
-
-const confirmPassword = prompt('Re-enter the new password:');
+  const confirmPassword = prompt('Re-enter the new password:');
   if (confirmPassword === null) return;
   if (password !== confirmPassword) {
-    msg('portalUserMsg', 'The passwords do not match. No change was made.');
+    msg('portalUserMsg', 'The passwords do not match.');
     return;
   }
-
-if (!confirm('Change the password for this user?')) return;
-
+  if (!confirm('Change the password for ' + userEmail + '?')) return;
   msg('portalUserMsg', 'Updating password…');
   try {
-    await callAdminUserFunction({
-      action: 'reset_password',
-      user_id: userId,
-      password
-    });
+    await callAdminUserFunction({ action: 'reset_password', user_id: userId, password: password });
     msg('portalUserMsg', 'Password changed successfully.', true);
   } catch (err) {
-    msg('portalUserMsg', err.message || 'Could not change the password.');
+    msg('portalUserMsg', err.message || 'Could not change password.');
   }
 }
 
@@ -239,28 +228,34 @@ async function loadPortalUsers() {
     const result = await callAdminUserFunction({ action: 'list' });
     const rows = result.users || [];
     $('portalUserRows').innerHTML = rows.map(u => {
-      const branch = u.branch_name ? `${u.network} — ${u.branch_name}` : 'All permitted branches';
-      const action = u.role === 'admin'
+      const branch = u.branch_name ? (u.network + ' - ' + u.branch_name) : 'All permitted branches';
+      const actions = u.role === 'admin'
         ? '<span class="pill">Protected admin</span>'
-        : `<button type="button" class="secondary" data-password-user-id="${esc(u.user_id)}" data-user-label="${esc(u.full_name || u.email || 'user')}">Change Password</button> ` +
+        : '<button type="button" class="secondary" data-user-action="password" data-user-id="' + esc(u.user_id) + '" data-user-email="' + esc(u.email || '') + '">Change Password</button> ' +
           (u.active
-            ? `<button type="button" class="secondary" data-user-id="${esc(u.user_id)}" data-active="false">Deactivate</button>`
-            : `<button type="button" data-user-id="${esc(u.user_id)}" data-active="true">Reactivate</button>`);
-      return `<tr><td>${esc(u.full_name)}</td><td>${esc(u.email || '—')}</td><td>${esc(u.role)}</td><td>${esc(branch)}</td><td><span class="pill">${u.active ? 'Active' : 'Inactive'}</span></td><td>${action}</td></tr>`;
+            ? '<button type="button" class="secondary" data-user-action="active" data-user-id="' + esc(u.user_id) + '" data-active="false">Deactivate</button>'
+            : '<button type="button" data-user-action="active" data-user-id="' + esc(u.user_id) + '" data-active="true">Reactivate</button>');
+      return '<tr>' +
+        '<td>' + esc(u.full_name) + '</td>' +
+        '<td>' + esc(u.email || '-') + '</td>' +
+        '<td>' + esc(u.role) + '</td>' +
+        '<td>' + esc(branch) + '</td>' +
+        '<td><span class="pill">' + (u.active ? 'Active' : 'Inactive') + '</span></td>' +
+        '<td>' + actions + '</td>' +
+        '</tr>';
     }).join('') || '<tr><td colspan="6">No portal users found.</td></tr>';
 
-    $('portalUserRows').querySelectorAll('button[data-user-id]').forEach(btn => {
-      btn.addEventListener('click', () =>
-        setPortalUserActive(btn.dataset.userId, btn.dataset.active === 'true')
-      );
-    });
-    $('portalUserRows').querySelectorAll('button[data-password-user-id]').forEach(btn => {
-      btn.addEventListener('click', () =>
-        changePortalUserPassword(btn.dataset.passwordUserId, btn.dataset.userLabel || 'user')
-      );
+    $('portalUserRows').querySelectorAll('button[data-user-action]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.userAction === 'password') {
+          changePortalPassword(btn.dataset.userId, btn.dataset.userEmail || 'this user');
+        } else {
+          setPortalUserActive(btn.dataset.userId, btn.dataset.active === 'true');
+        }
+      });
     });
   } catch (err) {
-    $('portalUserRows').innerHTML = `<tr><td colspan="6">${esc(err.message || 'Could not load users.')}</td></tr>`;
+    $('portalUserRows').innerHTML = '<tr><td colspan="6">' + esc(err.message || 'Could not load users.') + '</td></tr>';
   }
 }
 
@@ -268,7 +263,7 @@ async function loadPortalUsers() {
 async function loadAllCurrentMonthReports() {
   const start=monthStart($('performanceMonth')?.value || today);
   const [year,month]=start.split('-').map(Number);
-  const nextMonth = new Date(year, month, 1).toISOString().slice(0, 10);
+  const nextMonth = month === 12 ? String(year + 1) + '-01-01' : String(year) + '-' + String(month + 1).padStart(2, '0') + '-01';
   let all=[], from=0, pageSize=500;
   while(true) {
     const {data,error}=await db.from('daily_reports').select('id,branch_id,report_date,total_sales,patient_count,status')
@@ -340,7 +335,7 @@ async function loadDailyBranchSales() {
     .eq('report_date', date);
 
   if (error) {
-          rowsEl.innerHTML = '<tr><td colspan="5">' + esc(error.message) + '</td></tr>';
+    rowsEl.innerHTML = `<tr><td colspan="5">${esc(error.message)}</td></tr>`;
     summaryEl.innerHTML = '';
     msgEl.textContent = 'Could not load daily sales. Check database permissions.';
     return;
@@ -379,33 +374,28 @@ const branchRows = visibleBranches.map(branch => {
     };
   });
 
-rowsEl.innerHTML = branchRows.map(r => {
-  return [
-    '<tr>',
-    '<td>' + esc(r.branch.branch_name) + '</td>',
-    '<td>' + esc(r.branch.network || '') + '</td>',
-    '<td><strong>' + money(r.sales) + '</strong></td>',
-    '<td>' + r.patients.toLocaleString('en-IN') + '</td>',
-    '<td>' + money(r.average) + '</td>',
-    '</tr>'
-  ].join('');
-}).join('');
+  rowsEl.innerHTML = branchRows.map(r => `
+    <tr>
+      <td>${esc(r.branch.branch_name)}</td>
+      <td>${esc(r.branch.network || '')}</td>
+      <td><strong>${money(r.sales)}</strong></td>
+      <td>${r.patients.toLocaleString('en-IN')}</td>
+      <td>${money(r.average)}</td>
+    </tr>
+  `).join('');
 
-summaryEl.innerHTML = [
-  ['Total daily sales', money(totals.sales)],
-  ['Total patients', totals.patients.toLocaleString('en-IN')],
-  [
-    'Branches reporting',
-    branchRows.filter(r => r.submitted).length + '/' + visibleBranches.length
-  ]
-].map(item => {
-  return '<div class="stat">' +
-    '<label>' + esc(item[0]) + '</label>' +
-    '<strong>' + esc(item[1]) + '</strong>' +
-    '</div>';
-}).join('');
+  summaryEl.innerHTML = [
+    ['Total daily sales', money(totals.sales)],
+    ['Total patients', totals.patients.toLocaleString('en-IN')],
+    ['Branches reporting', `${branchRows.filter(r => r.submitted).length}/${visibleBranches.length}`]
+  ].map(item => `
+    <div class="stat">
+      <label>${esc(item[0])}</label>
+      <strong>${esc(item[1])}</strong>
+    </div>
+  `).join('');
 
-msgEl.textContent = 'Daily sales for ' + date + '. Branches without a report are shown as zero; please verify missing submissions.';
+  msgEl.textContent = `Daily sales for ${date}. Branches without a report are shown as zero; please verify missing submissions.`;
 }
 
 
@@ -415,7 +405,7 @@ async function renderCompliance(fallbackReports=[]) {
   $('complianceRows').innerHTML='<tr><td colspan="7">Checking submitted reports…</td></tr>';
   const {data,error}=await db.from('daily_reports').select('id,branch_id,report_date,total_sales,patient_count,status').eq('report_date',date);
   if(error) {
-  $('complianceRows').innerHTML = '<tr><td colspan="7">' + esc(error.message) + '</td></tr>';
+    $('complianceRows').innerHTML=`<tr><td colspan="7">${esc(error.message)}</td></tr>`;
     $('complianceMsg').textContent='Compliance could not be verified. Check account permissions and try Refresh data.';
     return;
   }
@@ -431,11 +421,10 @@ async function renderCompliance(fallbackReports=[]) {
     return {...b,matches:matches.length,submitted,sales,patients,status,cls,action};
   });
   const submitted=rows.filter(r=>r.submitted).length, missing=rows.filter(r=>r.status==='Missing').length, review=rows.filter(r=>r.status==='Needs review').length;
-  $('complianceSummary').innerHTML =
-    '<div class="alert-chip alert-green">Submitted: ' + submitted + '/' + rows.length + '</div>' +
-    '<div class="alert-chip alert-red">Missing: ' + missing + '</div>' +
-    '<div class="alert-chip alert-yellow">Needs review: ' + review + '</div>';
-    window.__complianceReportText = 'DAILY REPORTING COMPLIANCE - ' + date + '\nSubmitted: ' + submitted + '/' + rows.length + ' | Missing: ' + missing + ' | Needs review: ' + review;
+  $('complianceSummary').innerHTML=`<div class="alert-chip alert-green">🟢 Submitted: ${submitted}/${rows.length}</div><div class="alert-chip alert-red">🔴 Missing: ${missing}</div><div class="alert-chip alert-yellow">🟡 Needs review: ${review}</div>`;
+  $('complianceRows').innerHTML=rows.map(r=>`<tr><td>${esc(r.branch_name)}</td><td>${esc(r.network)}</td><td><span class="alert-chip ${r.cls}">${esc(r.status)}</span></td><td>${r.matches}</td><td>${money(r.sales)}</td><td>${r.patients.toLocaleString('en-IN')}</td><td>${esc(r.action)}</td></tr>`).join('')||'<tr><td colspan="7">No active branches found.</td></tr>';
+  $('complianceMsg').textContent=`Date: ${date}. Found ${dayReports.length} report record(s) across ${rows.length} active branches. A branch is marked Submitted only if at least one visible record has status “submitted”. Multiple reports are flagged for review, not automatically treated as invalid.`;
+  window.__complianceReportText=`DAILY REPORTING COMPLIANCE — ${date}\nSubmitted: ${submitted}/${rows.length} | Missing: ${missing} | Needs review: ${review}\n\n`+rows.map(r=>`${r.status==='Submitted'?'✓':r.status==='Missing'?'!':'?'} ${r.branch_name} (${r.network}) — ${r.status}; reports ${r.matches}; sales ${money(r.sales)}; patients ${r.patients}. ${r.action}`).join('\n');
 }
 function copyComplianceSummary() {
   const text=window.__complianceReportText||'';
@@ -454,7 +443,7 @@ async function loadBranchTargetEditor() {
     window.__branchTargetEditorValues = new Map((data||[]).map(x => [String(x.branch_id), Number(x.target_amount||0)]));
     renderBranchTargetEditorRows();
   } catch (err) {
-      $('branchTargetAdminRows').innerHTML = '<tr><td colspan="3">' + esc(err.message || 'Could not load targets') + '</td></tr>';
+    $('branchTargetAdminRows').innerHTML = `<tr><td colspan="3">${esc(err.message||'Could not load targets')}</td></tr>`;
     msg('branchTargetAdminMsg', err.message || 'Could not load targets.');
   }
 }
@@ -463,7 +452,8 @@ function renderBranchTargetEditorRows() {
   const network = $('branchTargetNetwork').value;
   const vals = window.__branchTargetEditorValues || new Map();
   const list = branches.filter(b => network === 'ALL' || b.network === network).sort((a,b)=>String(a.network).localeCompare(String(b.network))||String(a.branch_name).localeCompare(String(b.branch_name)));
-   $('branchTargetAdminRows').innerHTML = list.map(b => '<tr><td>' + esc(b.network) + '</td><td>' + esc(b.branch_name) + '</td><td><input class="branch-target-value" data-branch-id="' + esc(b.id) + '" type="number" min="0" step="1" value="' + (vals.get(String(b.id)) || 0) + '"></td></tr>').join('');  updateBranchTargetTotal();
+  $('branchTargetAdminRows').innerHTML = list.map(b => `<tr><td>${esc(b.network)}</td><td>${esc(b.branch_name)}</td><td><input class="branch-target-value" data-branch-id="${esc(b.id)}" type="number" min="0" step="1" value="${Number(vals.get(String(b.id))||0)}" aria-label="${esc(b.branch_name)} monthly target"></td></tr>`).join('');
+  updateBranchTargetTotal();
   $('branchTargetAdminRows').querySelectorAll('.branch-target-value').forEach(el => el.addEventListener('input', updateBranchTargetTotal));
 }
 function updateBranchTargetTotal() {
@@ -499,10 +489,8 @@ async function renderTargets(monthReports) {
   const {data:targetData,error}=await targetQuery;
   if(error) {
     if(isStaff) { ['branchMonthlyTarget','branchMtdSales','branchBalanceTarget','branchRequiredDaily'].forEach(id=>$(id).textContent='—'); $('branchDailyTargetNote').textContent='Could not load target: '+error.message; }
-      } else {
-        $('targetRows').innerHTML = '<tr><td colspan="10">' + esc(error.message) + '</td></tr>';
-        $('targetMeta').textContent = 'Could not load monthly targets.';
-      }    return;
+    else { $('targetRows').innerHTML=`<tr><td colspan="10">${esc(error.message)}</td></tr>`; $('targetMeta').textContent='Could not load monthly targets.'; }
+    return;
   }
   targets=targetData||[];
   const salesByBranch=new Map(),patientsByBranch=new Map();
@@ -510,11 +498,11 @@ async function renderTargets(monthReports) {
   if(isStaff) {
     const own=targets.find(t=>String(t.branch_id)===String(profile.branch_id));
     const target=Number(own?.target_amount||0), sales=Number(salesByBranch.get(profile.branch_id)||0), balance=Math.max(target-sales,0), days=workingDaysRemaining();
-    $('branchMonthlyTarget').textContent=own?money(target):'Not set'; $('branchMtdSales').textContent=money(sales); $('branchBalanceTarget').textContent=own?money(balance):'—'; $('branchRequiredDaily').textContent=own?money(balance/days):'—';0
-$('branchDailyTargetDate').textContent = targetMonth.slice(0, 7) + ' · ' + days + ' calendar day(s) remaining, Sundays included';
-$('branchDailyTargetNote').textContent = !own ? 'Your monthly target has not been set. Please contact management.' : balance === 0 ? 'Monthly target achieved. Maintain your performance.' : 'Keep working towards your monthly target.';
-return;
-}
+    $('branchMonthlyTarget').textContent=own?money(target):'Not set'; $('branchMtdSales').textContent=money(sales); $('branchBalanceTarget').textContent=own?money(balance):'—'; $('branchRequiredDaily').textContent=own?money(balance/days):'—';
+    $('branchDailyTargetDate').textContent=`${targetMonth.slice(0,7)} · ${days} calendar day(s) remaining, Sundays included`;
+    $('branchDailyTargetNote').textContent=!own?'Your monthly target has not been set. Please contact management.':balance===0?'Monthly target achieved. Maintain your sales performance.':`To reach your target, aim for ${money(balance/days)} per calendar day for the remaining ${days} calendar day(s).`;
+    return;
+  }
   targets=targetData||[];
   const now=new Date();
   const daysInMonth=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
@@ -576,65 +564,27 @@ return {...b,target,sales,patients:pat,achievement,balance:Math.max(target-sales
   show('executiveSection', !isStaff);
   const net=(name)=>totalsByNetwork.find(n=>n.network===name)||{sales:0,target:0,patients:0};
   const un=net('UNOMED'), ne=net('NEETHI');
-$('unomedExecSales').textContent = money(un.sales);
-$('unomedExecMeta').textContent = money(un.target) + ' target · ' + (un.target ? fmtPct(un.sales / un.target * 100) : '0.0%');
-$('neethiExecSales').textContent = money(ne.sales);
-$('neethiExecMeta').textContent = money(ne.target) + ' target · ' + (ne.target ? fmtPct(ne.sales / ne.target * 100) : '0.0%');
-$('unomedExecBar').style.width = Math.min(100, un.target ? un.sales / un.target * 100 : 0) + '%';
-$('neethiExecBar').style.width = Math.min(100, ne.target ? ne.sales / ne.target * 100 : 0) + '%';
-const alertCounts={green:rows.filter(r=>r.alertClass==='alert-green').length,yellow:rows.filter(r=>r.alertClass==='alert-yellow').length,red:rows.filter(r=>r.alertClass==='alert-red').length,none:rows.filter(r=>r.alertClass==='alert-none').length};
-$('targetMeta').textContent = targetMonth.slice(0, 7) + ' · ' + rows.filter(r => !r.missing).length + '/' + branches.length + ' branch targets loaded.';
-    $('alertSummary').innerHTML =
-      '<div class="alert-chip alert-green">🟢 On track / achieved: ' + alertCounts.green + '</div>' +
-      '<div class="alert-chip alert-yellow">🟡 Needs attention: ' + alertCounts.yellow + '</div>' +
-      '<div class="alert-chip alert-red">🔴 Critical: ' + alertCounts.red + '</div>';
-
-    $('targetRows').innerHTML = rows.map((r, i) =>
-      '<tr><td>' + (i + 1) + '</td><td>' + esc(r.branch_name) +
-      (r.missing ? ' <span class="pill">Target missing</span>' : '') +
-      '</td><td>' + esc(r.network) + '</td><td>' + money(r.target) +
-      '</td><td>' + money(r.sales) + '</td><td>' + fmtPct(r.achievement) +
-      '</td><td>' + money(r.balance) + '</td><td>' + money(r.required) +
-      '</td><td><span class="alert-chip ' + r.alertClass + '">' + esc(r.alert) +
-      '</span></td><td>' + esc(r.advice) + '</td></tr>'
-    ).join('');
-
-    const summary = totalsByNetwork.map(n =>
-      n.network + ': sales ' + money(n.sales) + ' / target ' + money(n.target) +
-      ' (' + (n.target ? fmtPct(n.sales / n.target * 100) : '0.0%') + ' achievement)'
-    ).join(' · ');
-
-  $('targetMsg').textContent =
-    summary + ' · GROUP: ' + money(groupSales) +
-    ' / ' + money(groupTarget) + ' (' +
-    (groupTarget ? fmtPct(groupSales / groupTarget * 100) : '0.0%') +
-    ' achievement)';
-
+  $('unomedExecSales').textContent=money(un.sales); $('unomedExecMeta').textContent=`${money(un.target)} target · ${un.target?fmtPct(un.sales/un.target*100):'0.0%'} achieved · ${money(Math.max(un.target-un.sales,0))} remaining · ${money(Math.max(un.target-un.sales,0)/workingDaysRemaining())}/calendar day`;
+  $('neethiExecSales').textContent=money(ne.sales); $('neethiExecMeta').textContent=`${money(ne.target)} target · ${ne.target?fmtPct(ne.sales/ne.target*100):'0.0%'} achieved · ${money(Math.max(ne.target-ne.sales,0))} remaining · ${money(Math.max(ne.target-ne.sales,0)/workingDaysRemaining())}/calendar day`;
+  $('unomedExecBar').style.width=Math.min(100,un.target?un.sales/un.target*100:0)+'%';
+  $('neethiExecBar').style.width=Math.min(100,ne.target?ne.sales/ne.target*100:0)+'%';
+  const alertCounts={green:rows.filter(r=>r.alertClass==='alert-green').length,yellow:rows.filter(r=>r.alertClass==='alert-yellow').length,red:rows.filter(r=>r.alertClass==='alert-red').length,none:rows.filter(r=>r.alertClass==='alert-none').length};
+  $('targetMeta').textContent=`${targetMonth.slice(0,7)} · ${rows.filter(r=>!r.missing).length}/${branches.length} branch targets loaded · Pace is measured against calendar days elapsed (${elapsedDays}/${daysInMonth}).`;
+  $('alertSummary').innerHTML=`<div class="alert-chip alert-green">🟢 On track / achieved: ${alertCounts.green}</div><div class="alert-chip alert-yellow">🟡 Needs attention: ${alertCounts.yellow}</div><div class="alert-chip alert-red">🔴 Critical: ${alertCounts.red}</div><div class="alert-chip alert-none">⚪ Missing target: ${alertCounts.none}</div>`;
+$('targetRows').innerHTML=rows.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.branch_name)}${r.missing?' <span class="pill">Target missing</span>':''}</td><td>${esc(r.network)}</td><td><strong>${money(r.sales)}</strong></td><td>${r.patients}</td><td>${money(r.target)}</td><td>${fmtPct(r.achievement)}</td><td>${money(r.balance)}</td><td>${money(r.required)}</td><td><span class="pill ${r.alertClass}">${esc(r.alert)}</span><div>${esc(r.advice)}</div></td></tr>`).join('');
+  const summary=totalsByNetwork.map(n=>`${n.network}: sales ${money(n.sales)} / target ${money(n.target)} (${n.target?fmtPct(n.sales/n.target*100):'0.0%'} achievement)${n.missing?`; ${n.missing} target(s) missing`:''}`).join(' · ');
+  $('targetMsg').textContent=`${summary} · GROUP: ${money(groupSales)} / ${money(groupTarget)} (${groupTarget?fmtPct(groupSales/groupTarget*100):'0.0%'} achievement), balance ${money(Math.max(groupTarget-groupSales,0))}, required/day ${money(Math.max(groupTarget-groupSales,0)/workingDaysRemaining())}. MTD patients: ${groupPatients.toLocaleString('en-IN')}.`;
 }
 
 function renderDailyTrend(monthReports) {
-  const byDate = new Map();
-
-  monthReports.forEach(r => {
-    const d = r.report_date;
-    if (!d) return;
-    byDate.set(d, (byDate.get(d) || 0) + Number(r.total_sales || 0));
-  });
-
-  const dates = [...byDate.keys()].sort();
-
-  if (!dates.length) {
-    $('dailyTrend').innerHTML = '<p>No sales reports available for this month yet.</p>';
-    return;
-  }
-
-  const max = Math.max(...dates.map(d => byDate.get(d)), 1);
-
-  $('dailyTrend').innerHTML = dates.map(d => {
-    const v = byDate.get(d);
-    const height = Math.max(2, v / max * 100);
-return '<div class="trend-day" title="' + esc(d) + ' · ' + money(v) + '"><small>' + esc(d.slice(8)) + '</small><span style="height:' + height + '%"></span></div>';  }).join('');
+  const byDate=new Map();
+  monthReports.forEach(r=>{const d=r.report_date; if(!d)return; byDate.set(d,(byDate.get(d)||0)+Number(r.total_sales||0));});
+  const dates=[...byDate.keys()].sort();
+  if(!dates.length){$('dailyTrend').innerHTML='<p>No sales reports available for this month yet.</p>';return;}
+  const max=Math.max(...dates.map(d=>byDate.get(d)),1);
+  $('dailyTrend').innerHTML=dates.map(d=>{const v=byDate.get(d),height=Math.max(2,v/max*100);return `<div class="trend-day" title="${esc(d)} · ${money(v)}"><small>${esc(d.slice(-2))}</small><div class="trend-bar-wrap"><div class="trend-bar" style="height:${height}%"></div></div><span class="trend-value">${money(v)}</span></div>`;}).join('');
 }
+
 function generateManagementReport() {
   const box=$('managementReportText');
   const data=window.__managementReportData;
@@ -647,8 +597,9 @@ function generateManagementReport() {
   const dailyToday=reports.filter(r=>r.report_date===today).reduce((s,r)=>s+Number(r.total_sales||0),0);
   const prevDate=new Date(new Date(today+'T12:00:00').getTime()-86400000).toISOString().slice(0,10);
   const dailyPrev=reports.filter(r=>r.report_date===prevDate).reduce((s,r)=>s+Number(r.total_sales||0),0);
-  const pct = n => n.toFixed(1) + '%';
-  const lines = ['📊 UNOMED + NEETHI — MANAGEMENT REPORT', '📅 As on ' + dateLabel, '', '📈 GROUP PERFORMANCE', 'Sales: ' + money(groupSales) + ' / ' + money(groupTarget)];
+  const pct=n=>`${n.toFixed(1)}%`;
+  const lines=[`📊 UNOMED + NEETHI — MANAGEMENT REPORT`,`📅 As on ${dateLabel}`,``,`🏢 GROUP PERFORMANCE`,`Sales: ${money(groupSales)} / ${money(groupTarget)}`,`Achievement: ${pct(groupTarget?groupSales/groupTarget*100:0)}`,`Balance to target: ${money(groupBalance)}`,`Patients MTD: ${Number(data.groupPatients||0).toLocaleString('en-IN')}`,`Today sales: ${money(dailyToday)}${dailyPrev?` | Previous day: ${money(dailyPrev)}`:''}`,``,`🔵 UNOMED`,`Sales: ${money(un.sales)} | Target: ${money(un.target)} | Achievement: ${pct(un.pct)} | Balance: ${money(un.balance)}`,``,`🔴 NEETHI`,`Sales: ${money(ne.sales)} | Target: ${money(ne.target)} | Achievement: ${pct(ne.pct)} | Balance: ${money(ne.balance)}`,``,`🏆 BRANCH RANKING — ACHIEVEMENT`];
+  rows.forEach((r,i)=>lines.push(`${i+1}. ${r.branch_name} (${r.network}) — ${money(r.sales)} / ${r.target?money(r.target):'Target not set'} — ${r.target?pct(r.achievement):'N/A'} — ${r.alert}`));
   const critical=rows.filter(r=>r.alertClass==='alert-red'); const missing=rows.filter(r=>r.missing);
   lines.push('', '🚦 MANAGEMENT FOLLOW-UP');
   if(critical.length) lines.push('Critical pace: '+critical.map(r=>r.branch_name).join(', ')+'.'); else lines.push('No branches currently flagged critical by the calendar-day pace rule.');
@@ -665,7 +616,7 @@ async function copyManagementReport() {
 function downloadManagementReport() {
   const textValue=$('managementReportText').value;
   if(!textValue.trim()) { $('managementReportMsg').textContent='Generate the report first.'; return; }
-  const blob = new Blob([textValue + '\n'], { type: 'text/plain;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'unomed-neethi-management-report.txt'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  const blob=new Blob([textValue+'\n'],{type:'text/plain;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`unomed-neethi-management-report-${today}.txt`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); $('managementReportMsg').textContent='Text report downloaded.'; $('managementReportMsg').style.color='#16764a';
 }
 
 async function submit(e) {
@@ -695,7 +646,7 @@ async function loadEmployeeModule() {
   show('employeeSection', true);
   show('employeeAdminPanel', canManageEmployees());
   show('employeeTargetPanel', canManageEmployees());
-  $('employeeBranch').innerHTML = branches.map(b => `<option value="${b.id}">${esc(b.branch_name)}</option>`).join('');
+  $('employeeBranch').innerHTML = branches.map(b=>`<option value="${b.id}">${esc(b.branch_name)} — ${esc(b.network)}</option>`).join('');
   try {
     let query=db.from('employee_directory').select('id,employee_code,full_name,branch_id,designation,login_email,active,auth_user_id').order('full_name');
     // Branch staff are scoped by RLS; management/branch managers can see their authorized records.
