@@ -203,14 +203,14 @@ async function changePortalUserPassword(userId, userLabel) {
     return;
   }
 
-  const password = prompt(`Enter a new password for ${userLabel} (minimum 8 characters):`);
+const password = prompt('Enter a new password (minimum 8 characters):');
   if (password === null) return;
   if (password.length < 8 || password.length > 128) {
     msg('portalUserMsg', 'Password must be 8–128 characters.');
     return;
   }
 
-  const confirmPassword = prompt('Re-enter the new password to confirm:');
+const confirmPassword = prompt('Re-enter the new password:');
   if (confirmPassword === null) return;
   if (password !== confirmPassword) {
     msg('portalUserMsg', 'The passwords do not match. No change was made.');
