@@ -226,7 +226,7 @@ if (!confirm('Change the password for this user?')) return;
       user_id: userId,
       password
     });
-    msg('portalUserMsg', `Password changed successfully for ${userLabel}.`, true);
+    msg('portalUserMsg', 'Password changed successfully.', true);
   } catch (err) {
     msg('portalUserMsg', err.message || 'Could not change the password.');
   }
