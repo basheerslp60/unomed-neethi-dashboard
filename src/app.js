@@ -588,11 +588,12 @@ $('targetMeta').textContent = targetMonth.slice(0, 7) + ' · ' + rows.filter(r =
     $('targetRows').innerHTML = rows.map((r, i) =>
       '<tr><td>' + (i + 1) + '</td><td>' + esc(r.branch_name) +
       (r.missing ? ' <span class="pill">Target missing</span>' : '') +
-      '</td><td>' + esc(r.network) + '</td><td>' + money(r.target) +
-      '</td><td>' + money(r.sales) + '</td><td>' + fmtPct(r.achievement) +
-      '</td><td>' + money(r.balance) + '</td><td>' + money(r.required) +
+      '</td><td>' + esc(r.network) + '</td><td>' + money(r.sales) +
+      '</td><td>' + Number(r.patients || 0).toLocaleString('en-IN') + '</td><td>' + money(r.target) +
+      '</td><td>' + fmtPct(r.achievement) + '</td><td>' + money(r.balance) +
+      '</td><td>' + money(r.required) +
       '</td><td><span class="alert-chip ' + r.alertClass + '">' + esc(r.alert) +
-      '</span></td><td>' + esc(r.advice) + '</td></tr>'
+      '</span></td></tr>'
     ).join('');
 
     const summary = totalsByNetwork.map(n =>
@@ -611,33 +612,26 @@ $('targetMeta').textContent = targetMonth.slice(0, 7) + ' · ' + rows.filter(r =
 function renderDailyTrend(monthReports) {
   const byDate = new Map();
 
-  (monthReports || []).forEach(r => {
+  monthReports.forEach(r => {
     const d = r.report_date;
     if (!d) return;
     byDate.set(d, (byDate.get(d) || 0) + Number(r.total_sales || 0));
   });
 
   const dates = [...byDate.keys()].sort();
-  const trendEl = $('dailyTrend');
-  if (!trendEl) return;
 
   if (!dates.length) {
-    trendEl.innerHTML = '<p>No sales reports available for this month yet.</p>';
+    $('dailyTrend').innerHTML = '<p>No sales reports available for this month yet.</p>';
     return;
   }
 
   const max = Math.max(...dates.map(d => byDate.get(d)), 1);
-  trendEl.innerHTML = dates.map(d => {
-    const value = byDate.get(d);
-    const height = Math.max(2, value / max * 100);
-    return '<div class="trend-day" title="' + esc(d) + ' · ' + money(value) + '">' +
-      '<div class="trend-bar-wrap"><span class="trend-bar" style="height:' + height + '%"></span></div>' +
-      '<small>' + esc(d.slice(8)) + '</small>' +
-      '<span class="trend-value">' + money(value) + '</span>' +
-      '</div>';
-  }).join('');
-}
 
+  $('dailyTrend').innerHTML = dates.map(d => {
+    const v = byDate.get(d);
+    const height = Math.max(2, v / max * 100);
+return '<div class="trend-day" title="' + esc(d) + ' · ' + money(v) + '"><small>' + esc(d.slice(8)) + '</small><span style="height:' + height + '%"></span></div>';  }).join('');
+}
 function generateManagementReport() {
   const box=$('managementReportText');
   const data=window.__managementReportData;
