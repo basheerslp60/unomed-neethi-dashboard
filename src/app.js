@@ -428,7 +428,26 @@ async function renderCompliance(fallbackReports=[]) {
     '<div class="alert-chip alert-green">Submitted: ' + submitted + '/' + rows.length + '</div>' +
     '<div class="alert-chip alert-red">Missing: ' + missing + '</div>' +
     '<div class="alert-chip alert-yellow">Needs review: ' + review + '</div>';
-    window.__complianceReportText = 'DAILY REPORTING COMPLIANCE - ' + date + '\nSubmitted: ' + submitted + '/' + rows.length + ' | Missing: ' + missing + ' | Needs review: ' + review;
+
+  // Render the branch-level compliance details into the table.
+  $('complianceRows').innerHTML = rows.map(r =>
+    '<tr>' +
+      '<td>' + esc(r.branch_name || 'Branch') + '</td>' +
+      '<td>' + esc(r.network || '') + '</td>' +
+      '<td><span class="alert-chip ' + r.cls + '">' + esc(r.status) + '</span></td>' +
+      '<td>' + r.matches + '</td>' +
+      '<td>' + money(r.sales) + '</td>' +
+      '<td>' + Number(r.patients || 0).toLocaleString('en-IN') + '</td>' +
+      '<td>' + esc(r.action) + '</td>' +
+    '</tr>'
+  ).join('') || '<tr><td colspan="7">No active branches found.</td></tr>';
+
+  window.__complianceReportText = [
+    'DAILY REPORTING COMPLIANCE - ' + date,
+    'Submitted: ' + submitted + '/' + rows.length + ' | Missing: ' + missing + ' | Needs review: ' + review,
+    ...rows.map(r => r.branch_name + ' (' + r.network + '): ' + r.status + ' | Reports: ' + r.matches + ' | Sales: ' + money(r.sales) + ' | Patients: ' + r.patients + ' | ' + r.action)
+  ].join('\n');
+  $('complianceMsg').textContent = 'Compliance checked for ' + date + '. Review the branch details below.';
 }
 function copyComplianceSummary() {
   const text=window.__complianceReportText||'';
