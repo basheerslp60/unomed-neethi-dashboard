@@ -30,7 +30,28 @@ function money(n) { return new Intl.NumberFormat('en-IN',{style:'currency',curre
 function esc(s) { return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function monthStart(dateString=today) { return `${dateString.slice(0,7)}-01`; }
 function daysLeftInclusive(dateString=today) { const [y,m,d] = dateString.split('-').map(Number); return Math.max(1, new Date(y,m,0).getDate() - d); }
-function workingDaysRemaining(dateString=today) { return daysLeftInclusive(dateString); }
+function countWorkingDays(startDate, endDate) {
+  if (endDate < startDate) return 0;
+  const [sy,sm,sd]=startDate.split('-').map(Number);
+  const [ey,em,ed]=endDate.split('-').map(Number);
+  const cursor=new Date(sy,sm-1,sd), end=new Date(ey,em-1,ed);
+  let count=0;
+  while(cursor<=end) { if(cursor.getDay()!==0) count++; cursor.setDate(cursor.getDate()+1); }
+  return count;
+}
+function monthEnd(dateString=today) {
+  const [y,m]=dateString.split('-').map(Number);
+  return `${y}-${String(m).padStart(2,'0')}-${String(new Date(y,m,0).getDate()).padStart(2,'0')}`;
+}
+function workingDaysRemaining(dateString=today) { return countWorkingDays(dateString,monthEnd(dateString)); }
+function workingDaysElapsed(dateString=today) { return countWorkingDays(monthStart(dateString),dateString); }
+function branchPaceState(ratio, achieved) {
+  if (achieved) return {cls:'pace-green',emoji:'🏆',badge:'🏆 Target achieved',message:'Outstanding work! Your monthly target is achieved. Maintain quality and consistency.'};
+  if (ratio>=1) return {cls:'pace-green',emoji:'🟢',badge:'🟢 On track',message:'Great work! Your branch is on track with the expected monthly pace.'};
+  if (ratio>=.85) return {cls:'pace-blue',emoji:'👍',badge:'🔵 Almost on track',message:'Good progress. A little extra effort will bring the branch back on track.'};
+  if (ratio>=.70) return {cls:'pace-yellow',emoji:'⚡',badge:'🟡 Needs a push',message:'Your branch is behind the expected pace. Focus on patient follow-ups and daily conversions.'};
+  return {cls:'pace-red',emoji:'🚨',badge:'🔴 Attention needed',message:'Immediate attention needed. Work together on patient follow-ups and today's sales target.'};
+}
 function fmtPct(n) { return `${(Number(n)||0).toFixed(1)}%`; }
 
 if (!ready) {
@@ -524,12 +545,48 @@ async function renderTargets(monthReports) {
   monthReports.forEach(r=>{salesByBranch.set(r.branch_id,(salesByBranch.get(r.branch_id)||0)+Number(r.total_sales||0));patientsByBranch.set(r.branch_id,(patientsByBranch.get(r.branch_id)||0)+Number(r.patient_count||0));});
   if(isStaff) {
     const own=targets.find(t=>String(t.branch_id)===String(profile.branch_id));
-    const target=Number(own?.target_amount||0), sales=Number(salesByBranch.get(profile.branch_id)||0), balance=Math.max(target-sales,0), days=workingDaysRemaining();
-    $('branchMonthlyTarget').textContent=own?money(target):'Not set'; $('branchMtdSales').textContent=money(sales); $('branchBalanceTarget').textContent=own?money(balance):'—'; $('branchRequiredDaily').textContent=own?money(balance/days):'—';
-$('branchDailyTargetDate').textContent = targetMonth.slice(0, 7) + ' · ' + days + ' calendar day(s) remaining, Sundays included';
-$('branchDailyTargetNote').textContent = !own ? 'Your monthly target has not been set. Please contact management.' : balance === 0 ? 'Monthly target achieved. Maintain your performance.' : 'Keep working towards your monthly target.';
-return;
-}
+    const target=Number(own?.target_amount||0);
+    const branchReports=(monthReports||[]).filter(r=>String(r.branch_id)===String(profile.branch_id));
+    const sales=branchReports.reduce((sum,r)=>sum+Number(r.total_sales||0),0);
+    const patients=branchReports.reduce((sum,r)=>sum+Number(r.patient_count||0),0);
+    const todaySales=branchReports.filter(r=>r.report_date===today).reduce((sum,r)=>sum+Number(r.total_sales||0),0);
+    const balance=Math.max(target-sales,0), days=workingDaysRemaining(), elapsed=workingDaysElapsed();
+    const required=days>0?Math.ceil(balance/days):balance;
+    const achievement=target>0?sales/target*100:0;
+    const expected=target>0&&elapsed>0?target*elapsed/Math.max(countWorkingDays(monthStart(),monthEnd()),1):0;
+    const paceRatio=expected>0?sales/expected:0;
+    const state=branchPaceState(paceRatio,target>0&&sales>=target);
+    const todayPct=required>0?Math.min(100,todaySales/required*100):(todaySales>0?100:0);
+    const todayGap=Math.max(required-todaySales,0);
+    $('branchMonthlyTarget').textContent=own?money(target):'Not set';
+    $('branchMtdSales').textContent=money(sales);
+    $('branchBalanceTarget').textContent=own?money(balance):'—';
+    $('branchRequiredDaily').textContent=own?money(required):'—';
+    $('branchTodaySales').textContent=money(todaySales);
+    $('branchMtdPatients').textContent=patients.toLocaleString('en-IN');
+    $('branchAchievement').textContent=own?fmtPct(achievement):'—';
+    $('branchRequiredDailyHero').textContent=own?money(required):'Target not set';
+    $('branchWorkingDaysLeft').textContent=String(days);
+    $('branchPerformanceBadge').textContent=own?state.badge:'⚠️ Target missing';
+    $('branchTargetEmoji').textContent=own?state.emoji:'⚠️';
+    $('branchTargetHero').className='target-hero '+(own?state.cls:'pace-red');
+    $('branchTodayProgressPct').textContent=own?fmtPct(todayPct):'—';
+    $('branchTodayProgressBar').style.width=(own?todayPct:0)+'%';
+    $('branchTodayGap').textContent=!own?'Please contact management to set your monthly target.':todayGap>0?`⚡ ${money(todayGap)} more needed today to meet the daily target.`:'🎉 Today's required target achieved. Excellent work!';
+    $('branchDailyTargetNote').textContent=!own?'Your monthly target has not been set. Please contact management.':state.message;
+    $('branchDailyTargetDate').textContent=targetMonth.slice(0,7)+' · '+days+' working day(s) remaining, Sundays excluded';
+    const trend=$('branchWeeklyTrend');
+    const [yy,mm,dd]=today.split('-').map(Number);
+    const end=new Date(yy,mm-1,dd), start=new Date(yy,mm-1,dd-6), trendRows=[];
+    for(let dt=new Date(start);dt<=end;dt.setDate(dt.getDate()+1)) {
+      const key=`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+      const value=branchReports.filter(r=>r.report_date===key).reduce((sum,r)=>sum+Number(r.total_sales||0),0);
+      trendRows.push({key,value});
+    }
+    const maxValue=Math.max(1,...trendRows.map(x=>x.value));
+    trend.innerHTML=trendRows.map(x=>`<div class="branch-week-day" title="${esc(x.key)} · ${money(x.value)}"><div class="branch-week-bar-area"><span class="branch-week-bar" style="height:${Math.max(x.value?5:0,x.value/maxValue*100)}%"></span></div><strong>${money(x.value)}</strong><small>${x.key.slice(8)}/${x.key.slice(5,7)}</small></div>`).join('');
+    return;
+  }
   targets=targetData||[];
   const now=new Date();
   const daysInMonth=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
