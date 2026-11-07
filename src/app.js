@@ -630,7 +630,11 @@ function renderDailyTrend(monthReports) {
   $('dailyTrend').innerHTML = dates.map(d => {
     const v = byDate.get(d);
     const height = Math.max(2, v / max * 100);
-return '<div class="trend-day" title="' + esc(d) + ' · ' + money(v) + '"><small>' + esc(d.slice(8)) + '</small><span style="height:' + height + '%"></span></div>';  }).join('');
+    return '<div class="trend-day" title="' + esc(d) + ' · ' + money(v) + '">' +
+      '<div class="trend-bar-wrap"><span class="trend-bar" style="height:' + height + '%"></span></div>' +
+      '<small>' + esc(d.slice(8)) + '</small>' +
+      '</div>';
+  }).join('');
 }
 function generateManagementReport() {
   const box=$('managementReportText');
