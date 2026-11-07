@@ -50,7 +50,7 @@ function branchPaceState(ratio, achieved) {
   if (ratio>=1) return {cls:'pace-green',emoji:'🟢',badge:'🟢 On track',message:'Great work! Your branch is on track with the expected monthly pace.'};
   if (ratio>=.85) return {cls:'pace-blue',emoji:'👍',badge:'🔵 Almost on track',message:'Good progress. A little extra effort will bring the branch back on track.'};
   if (ratio>=.70) return {cls:'pace-yellow',emoji:'⚡',badge:'🟡 Needs a push',message:'Your branch is behind the expected pace. Focus on patient follow-ups and daily conversions.'};
-  return {cls:'pace-red',emoji:'🚨',badge:'🔴 Attention needed',message:'Immediate attention needed. Work together on patient follow-ups and today's sales target.'};
+  return {cls:'pace-red',emoji:'🚨',badge:'🔴 Attention needed',message:"Immediate attention needed. Work together on patient follow-ups and today's sales target."};
 }
 function fmtPct(n) { return `${(Number(n)||0).toFixed(1)}%`; }
 
@@ -572,7 +572,7 @@ async function renderTargets(monthReports) {
     $('branchTargetHero').className='target-hero '+(own?state.cls:'pace-red');
     $('branchTodayProgressPct').textContent=own?fmtPct(todayPct):'—';
     $('branchTodayProgressBar').style.width=(own?todayPct:0)+'%';
-    $('branchTodayGap').textContent=!own?'Please contact management to set your monthly target.':todayGap>0?`⚡ ${money(todayGap)} more needed today to meet the daily target.`:'🎉 Today's required target achieved. Excellent work!';
+    $('branchTodayGap').textContent=!own?'Please contact management to set your monthly target.':todayGap>0?`⚡ ${money(todayGap)} more needed today to meet the daily target.`:"🎉 Today's required target achieved. Excellent work!";
     $('branchDailyTargetNote').textContent=!own?'Your monthly target has not been set. Please contact management.':state.message;
     $('branchDailyTargetDate').textContent=targetMonth.slice(0,7)+' · '+days+' working day(s) remaining, Sundays excluded';
     const trend=$('branchWeeklyTrend');
