@@ -625,27 +625,94 @@ $('targetMeta').textContent = targetMonth.slice(0, 7) + ' · ' + rows.filter(r =
 }
 
 function renderDailyTrend(monthReports) {
-  const byDate=new Map();
-  monthReports.forEach(r=>{if(r.report_date)byDate.set(r.report_date,(byDate.get(r.report_date)||0)+Number(r.total_sales||0));});
-  const dates=[...byDate.keys()].sort();
-  if(!dates.length){$('dailyTrend').innerHTML='<p>No sales reports available for this month yet.</p>';return;}
-  const max=Math.max(...dates.map(d=>byDate.get(d)),1),W=720,H=220,L=58,R=18,T=20,B=38,plotW=W-L-R,plotH=H-T-B;
-  const pts=dates.map((d,i)=>({d,v:byDate.get(d),x:L+(dates.length===1?plotW/2:i*plotW/(dates.length-1)),y:T+plotH-(byDate.get(d)/max)*plotH}));
-  const poly=pts.map(p=>p.x+','+p.y).join(' '),area=`${L},${T+plotH} ${poly} ${pts[pts.length-1].x},${T+plotH}`;
-  const grid=[0,.5,1].map(f=>{const yy=T+plotH*(1-f);return `<g><line x1="${L}" y1="${yy}" x2="${W-R}" y2="${yy}" class="chart-gridline"/><text x="${L-8}" y="${yy+4}" text-anchor="end" class="chart-axis-label">${esc(money(max*f))}</text></g>`;}).join('');
-  $('dailyTrend').innerHTML=`<svg class="sales-line-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Daily sales trend">${grid}<polygon points="${area}" class="chart-area"/><polyline points="${poly}" class="chart-line"/>${pts.map(p=>`<g class="chart-point"><circle cx="${p.x}" cy="${p.y}" r="5"/><title>${esc(p.d)} · ${esc(money(p.v))}</title><text x="${p.x}" y="${H-12}" text-anchor="middle" class="chart-axis-label">${esc(p.d.slice(8))}</text></g>`).join('')}</svg>`;
+  const byDate = new Map();
+  monthReports.forEach(r => {
+    if (r.report_date) byDate.set(r.report_date, (byDate.get(r.report_date) || 0) + Number(r.total_sales || 0));
+  });
+  const dates = Array.from(byDate.keys()).sort();
+  if (!dates.length) {
+    $("dailyTrend").innerHTML = "<p>No sales reports available for this month yet.</p>";
+    return;
+  }
+  const max = Math.max(...dates.map(d => byDate.get(d)), 1);
+  const W = 720, H = 220, L = 58, R = 18, T = 20, B = 38;
+  const plotW = W - L - R, plotH = H - T - B;
+  const pts = dates.map((d, i) => ({
+    d, v: byDate.get(d),
+    x: L + (dates.length === 1 ? plotW / 2 : i * plotW / (dates.length - 1)),
+    y: T + plotH - (byDate.get(d) / max) * plotH
+  }));
+  const poly = pts.map(p => p.x + "," + p.y).join(" ");
+  const area = L + "," + (T + plotH) + " " + poly + " " + pts[pts.length - 1].x + "," + (T + plotH);
+  const grid = [0, 0.5, 1].map(f => {
+    const yy = T + plotH * (1 - f);
+    return '<g><line x1="' + L + '" y1="' + yy + '" x2="' + (W - R) + '" y2="' + yy +
+      '" class="chart-gridline"/><text x="' + (L - 8) + '" y="' + (yy + 4) +
+      '" text-anchor="end" class="chart-axis-label">' + esc(money(max * f)) + "</text></g>";
+  }).join("");
+  const points = pts.map(p =>
+    '<g class="chart-point"><circle cx="' + p.x + '" cy="' + p.y + '" r="5"/><title>' +
+    esc(p.d) + " · " + esc(money(p.v)) + '</title><text x="' + p.x + '" y="' + (H - 12) +
+    '" text-anchor="middle" class="chart-axis-label">' + esc(p.d.slice(8)) + "</text></g>"
+  ).join("");
+  $("dailyTrend").innerHTML =
+    '<svg class="sales-line-svg" viewBox="0 0 ' + W + " " + H +
+    '" role="img" aria-label="Daily sales trend">' + grid +
+    '<polygon points="' + area + '" class="chart-area"/><polyline points="' + poly +
+    '" class="chart-line"/>' + points + "</svg>";
 }
-function renderBranchStaffTrend(monthReports,dailyTarget) {
-  const el=$('branchDailyTrend'); if(!el)return;
-  const byDate=new Map(); monthReports.forEach(r=>{if(r.report_date)byDate.set(r.report_date,(byDate.get(r.report_date)||0)+Number(r.total_sales||0));});
-  const [y,m,d]=today.split('-').map(Number),dates=[];
-  for(let offset=6;offset>=0;offset--){const dt=new Date(y,m-1,d-offset);const key=`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;dates.push({date:key,value:byDate.get(key)||0});}
-  const max=Math.max(dailyTarget||0,...dates.map(p=>p.value),1),W=760,H=245,L=66,R=20,T=25,B=43,plotW=W-L-R,plotH=H-T-B;
-  const pts=dates.map((p,i)=>({...p,x:L+i*plotW/6,y:T+plotH-(p.value/max)*plotH}));
-  const poly=pts.map(p=>p.x+','+p.y).join(' '),area=`${L},${T+plotH} ${poly} ${W-R},${T+plotH}`;
-  const grid=[0,.5,1].map(f=>{const yy=T+plotH*(1-f);return `<g><line x1="${L}" y1="${yy}" x2="${W-R}" y2="${yy}" class="chart-gridline"/><text x="${L-9}" y="${yy+4}" text-anchor="end" class="chart-axis-label">${esc(money(max*f))}</text></g>`;}).join('');
-  const targetY=T+plotH-(Math.min(dailyTarget||0,max)/max)*plotH;
-  el.innerHTML=`<svg class="sales-line-svg staff-sales-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Sales trend for the last seven days">${grid}${dailyTarget>0?`<line x1="${L}" y1="${targetY}" x2="${W-R}" y2="${targetY}" class="chart-target-line"/><text x="${W-R}" y="${Math.max(15,targetY-8)}" text-anchor="end" class="chart-target-label">Daily target</text>`:''}<polygon points="${area}" class="chart-area"/><polyline points="${poly}" class="chart-line"/>${pts.map(p=>`<g class="chart-point ${dailyTarget>0&&p.value>=dailyTarget?'point-achieved':''}"><circle cx="${p.x}" cy="${p.y}" r="6"/><title>${esc(p.date)} · ${esc(money(p.value))}</title><text x="${p.x}" y="${H-14}" text-anchor="middle" class="chart-axis-label">${esc(p.date.slice(8))}/${esc(p.date.slice(5,7))}</text></g>`).join('')}</svg><div class="chart-footnote"><span>● Hover over a point to see exact sales</span><strong>${money(dates.reduce((s,p)=>s+p.value,0))} <small>last 7 days</small></strong></div>`;
+function renderBranchStaffTrend(monthReports, dailyTarget) {
+  const el = $("branchDailyTrend");
+  if (!el) return;
+  const byDate = new Map();
+  monthReports.forEach(r => {
+    if (r.report_date) byDate.set(r.report_date, (byDate.get(r.report_date) || 0) + Number(r.total_sales || 0));
+  });
+  const parts = today.split("-").map(Number);
+  const y = parts[0], m = parts[1], d = parts[2], dates = [];
+  for (let offset = 6; offset >= 0; offset--) {
+    const dt = new Date(y, m - 1, d - offset);
+    const key = dt.getFullYear() + "-" + String(dt.getMonth() + 1).padStart(2, "0") +
+      "-" + String(dt.getDate()).padStart(2, "0");
+    dates.push({ date: key, value: byDate.get(key) || 0 });
+  }
+  const max = Math.max(dailyTarget || 0, ...dates.map(p => p.value), 1);
+  const W = 760, H = 245, L = 66, R = 20, T = 25, B = 43;
+  const plotW = W - L - R, plotH = H - T - B;
+  const pts = dates.map((p, i) => ({
+    date: p.date, value: p.value, x: L + i * plotW / 6,
+    y: T + plotH - (p.value / max) * plotH
+  }));
+  const poly = pts.map(p => p.x + "," + p.y).join(" ");
+  const area = L + "," + (T + plotH) + " " + poly + " " + (W - R) + "," + (T + plotH);
+  const grid = [0, 0.5, 1].map(f => {
+    const yy = T + plotH * (1 - f);
+    return '<g><line x1="' + L + '" y1="' + yy + '" x2="' + (W - R) + '" y2="' + yy +
+      '" class="chart-gridline"/><text x="' + (L - 9) + '" y="' + (yy + 4) +
+      '" text-anchor="end" class="chart-axis-label">' + esc(money(max * f)) + "</text></g>";
+  }).join("");
+  const targetY = T + plotH - (Math.min(dailyTarget || 0, max) / max) * plotH;
+  const targetLine = dailyTarget > 0
+    ? '<line x1="' + L + '" y1="' + targetY + '" x2="' + (W - R) + '" y2="' + targetY +
+      '" class="chart-target-line"/><text x="' + (W - R) + '" y="' + Math.max(15, targetY - 8) +
+      '" text-anchor="end" class="chart-target-label">Daily target</text>'
+    : "";
+  const points = pts.map(p => {
+    const achieved = dailyTarget > 0 && p.value >= dailyTarget ? " point-achieved" : "";
+    return '<g class="chart-point' + achieved + '"><circle cx="' + p.x + '" cy="' + p.y +
+      '" r="6"/><title>' + esc(p.date) + " · " + esc(money(p.value)) +
+      '</title><text x="' + p.x + '" y="' + (H - 14) +
+      '" text-anchor="middle" class="chart-axis-label">' + esc(p.date.slice(8)) +
+      "/" + esc(p.date.slice(5, 7)) + "</text></g>";
+  }).join("");
+  const total = dates.reduce((s, p) => s + p.value, 0);
+  el.innerHTML =
+    '<svg class="sales-line-svg staff-sales-svg" viewBox="0 0 ' + W + " " + H +
+    '" role="img" aria-label="Sales trend for the last seven days">' + grid + targetLine +
+    '<polygon points="' + area + '" class="chart-area"/><polyline points="' + poly +
+    '" class="chart-line"/>' + points + '</svg><div class="chart-footnote">' +
+    "<span>● Hover over a point to see exact sales</span><strong>" + money(total) +
+    " <small>last 7 days</small></strong></div>";
 }
 function generateManagementReport() {
   const box=$('managementReportText');
