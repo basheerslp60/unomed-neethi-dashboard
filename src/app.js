@@ -576,7 +576,10 @@ if (requiredHeroEl) {
 if (workingDaysEl) {
     workingDaysEl.textContent = String(days);
 }
-    $('branchPerformanceBadge').textContent=own?state.badge:'⚠️ Target missing';
+    const performanceBadgeEl = $('branchPerformanceBadge');
+if (performanceBadgeEl) {
+    performanceBadgeEl.textContent = own ? state.badge : '⚠️ Target missing';
+}
     $('branchTargetEmoji').textContent=own?state.emoji:'⚠️';
     $('branchTargetHero').className='target-hero '+(own?state.cls:'pace-red');
     $('branchTodayProgressPct').textContent=own?fmtPct(todayPct):'—';
