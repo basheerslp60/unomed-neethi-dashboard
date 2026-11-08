@@ -615,7 +615,7 @@ if (dateEl) dateEl.textContent = targetMonth.slice(0,7) + ' · ' + days + ' work
       trendRows.push({key,value});
     }
     const maxValue=Math.max(1,...trendRows.map(x=>x.value));
-    if (trend) trend.innerHTML=trendRows.map(x=> ...
+    trend.innerHTML=trendRows.map(x=>`<div class="branch-week-day" title="${esc(x.key)} · ${money(x.value)}"><div class="branch-week-bar-area"><span class="branch-week-bar" style="height:${Math.max(x.value?5:0,x.value/maxValue*100)}%"></span></div><strong>${money(x.value)}</strong><small>${x.key.slice(8)}/${x.key.slice(5,7)}</small></div>`).join('');
     return;
   }
   targets=targetData||[];
