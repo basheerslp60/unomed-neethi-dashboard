@@ -782,15 +782,15 @@ async function loadEmployeeModule() {
     if(error) throw error;
     employeeRecords=data||[];
     const branchMap=new Map(branches.map(b=>[String(b.id),b]));
-    $('employeeRows').innerHTML=employeeRecords.map(e=>`<tr><td>${esc(e.full_name)}</td><td>${esc(e.employee_code||'—')}</td><td>${esc(branchMap.get(String(e.branch_id))?.branch_name||'—')}</td><td>${esc(e.designation||'—')}</td><td><span class="pill">${e.active?'Active':'Inactive'}</span></td></tr>`).join('')||'<tr><td colspan="5">No employees yet. Management can add employees above.</td></tr>';
-    $('activityEmployee').innerHTML=employeeRecords.filter(e=>e.active).map(e=>`<option value="${e.id}">${esc(e.full_name)} — ${esc(branchMap.get(String(e.branch_id))?.branch_name||'Branch')}</option>`).join('');
-    $('targetEmployee').innerHTML=employeeRecords.filter(e=>e.active).map(e=>`<option value="${e.id}">${esc(e.full_name)} — ${esc(branchMap.get(String(e.branch_id))?.branch_name||'Branch')} (${esc(e.designation||'')})</option>`).join('');
+    $('employeeRows').innerHTML=employeeRecords.map(e=>'<tr><td>'+esc(e.full_name)+'</td><td>'+esc(e.employee_code||'—')+'</td><td>'+esc(branchMap.get(String(e.branch_id))?.branch_name||'—')+'</td><td>'+esc(e.designation||'—')+'</td><td><span class="pill">'+(e.active?'Active':'Inactive')+'</span></td></tr>').join('')||'<tr><td colspan="5">No employees yet. Management can add employees above.</td></tr>';
+    $('activityEmployee').innerHTML=employeeRecords.filter(e=>e.active).map(e=>'<option value="'+esc(e.id)+'">'+esc(e.full_name)+' — '+esc(branchMap.get(String(e.branch_id))?.branch_name||'Branch')+'</option>').join('');
+    $('targetEmployee').innerHTML=employeeRecords.filter(e=>e.active).map(e=>'<option value="'+esc(e.id)+'">'+esc(e.full_name)+' — '+esc(branchMap.get(String(e.branch_id))?.branch_name||'Branch')+' ('+esc(e.designation||'')+')</option>').join('');
     await loadEmployeeTargets();
     const active=employeeRecords.filter(e=>e.active).length;
-    $('employeeSummary').innerHTML=`<article class="stat"><span>Employees visible</span><strong>${employeeRecords.length}</strong></article><article class="stat"><span>Active employees</span><strong>${active}</strong></article><article class="stat"><span>Branches represented</span><strong>${new Set(employeeRecords.map(e=>e.branch_id)).size}</strong></article>`;
+    $('employeeSummary').innerHTML='<article class="stat"><span>Employees visible</span><strong>'+employeeRecords.length+'</strong></article><article class="stat"><span>Active employees</span><strong>'+active+'</strong></article><article class="stat"><span>Branches represented</span><strong>'+new Set(employeeRecords.map(e=>e.branch_id)).size+'</strong></article>';
     await loadEmployeeActivities();
   } catch(err) {
-    $('employeeRows').innerHTML=`<tr><td colspan="5">Employee module not ready: ${esc(err.message||err)}</td></tr>`;
+    $('employeeRows').innerHTML='<tr><td colspan="5">Employee module not ready: '+esc(err.message||err)+'</td></tr>';
     $('activityRows').innerHTML='<tr><td colspan="9">Run employee_module_schema.sql in Supabase SQL Editor, then refresh.</td></tr>';
     employeeMessage('employeeMsg','Database setup required. Run employee_module_schema.sql in Supabase, then refresh.');
   }
