@@ -142,28 +142,3 @@
 .branch-week-day strong{display:block;max-width:100%;font-size:12px;line-height:1.2;color:var(--ink);white-space:nowrap;}
 .branch-week-day small{display:block;font-size:11px;color:var(--muted);white-space:nowrap;}
 @media(max-width:760px){.branch-weekly-trend{grid-template-columns:repeat(7,minmax(58px,1fr));gap:7px;overflow-x:auto;padding-bottom:6px}.branch-week-bar-area{height:100px;width:100%;max-width:48px}.branch-week-day strong{font-size:10px}}
-
-
-/* Navigation-only layout correction: keep the branch menu beside the page content */
-#sideNav.side-nav {
-  float: left;
-  width: 230px;
-  max-width: 230px;
-  min-width: 230px;
-  margin: 0 24px 20px 0;
-  box-sizing: border-box;
-}
-.app-content {
-  margin-left: 254px;
-  min-width: 0;
-}
-@media (max-width: 900px) {
-  #sideNav.side-nav {
-    float: none;
-    width: 100%;
-    max-width: none;
-    min-width: 0;
-    margin: 0 0 14px;
-  }
-  .app-content { margin-left: 0; }
-}
