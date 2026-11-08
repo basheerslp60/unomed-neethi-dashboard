@@ -580,13 +580,32 @@ if (workingDaysEl) {
 if (performanceBadgeEl) {
     performanceBadgeEl.textContent = own ? state.badge : '⚠️ Target missing';
 }
-    $('branchTargetEmoji').textContent=own?state.emoji:'⚠️';
-    $('branchTargetHero').className='target-hero '+(own?state.cls:'pace-red');
-    $('branchTodayProgressPct').textContent=own?fmtPct(todayPct):'—';
-    $('branchTodayProgressBar').style.width=(own?todayPct:0)+'%';
-    $('branchTodayGap').textContent=!own?'Please contact management to set your monthly target.':todayGap>0?`⚡ ${money(todayGap)} more needed today to meet the daily target.`:"🎉 Today's required target achieved. Excellent work!";
-    $('branchDailyTargetNote').textContent=!own?'Your monthly target has not been set. Please contact management.':state.message;
-    $('branchDailyTargetDate').textContent=targetMonth.slice(0,7)+' · '+days+' working day(s) remaining, Sundays excluded';
+    const targetEmojiEl = $('branchTargetEmoji');
+if (targetEmojiEl) targetEmojiEl.textContent = own ? state.emoji : '⚠️';
+
+const targetHeroEl = $('branchTargetHero');
+if (targetHeroEl) targetHeroEl.className = 'target-hero ' + (own ? state.cls : 'pace-red');
+
+const progressPctEl = $('branchTodayProgressPct');
+if (progressPctEl) progressPctEl.textContent = own ? fmtPct(todayPct) : '-';
+
+const progressBarEl = $('branchTodayProgressBar');
+if (progressBarEl) progressBarEl.style.width = (own ? todayPct : 0) + '%';
+
+const gapEl = $('branchTodayGap');
+if (gapEl) gapEl.textContent = !own
+  ? 'Please contact management to set your monthly target.'
+  : todayGap > 0
+    ? `⚡ ${money(todayGap)} more needed today`
+    : 'Daily target achieved!';
+
+const noteEl = $('branchDailyTargetNote');
+if (noteEl) noteEl.textContent = !own
+  ? 'Your monthly target has not been set. Please contact management.'
+  : state.message;
+
+const dateEl = $('branchDailyTargetDate');
+if (dateEl) dateEl.textContent = targetMonth.slice(0,7) + ' · ' + days + ' working day(s) remaining, Sundays excluded';
     const trend=$('branchWeeklyTrend');
     const [yy,mm,dd]=today.split('-').map(Number);
     const end=new Date(yy,mm-1,dd), start=new Date(yy,mm-1,dd-6), trendRows=[];
