@@ -572,7 +572,10 @@ if (patientsEl) {
 if (requiredHeroEl) {
     requiredHeroEl.textContent = own ? money(required) : 'Target not set';
 }
-    $('branchWorkingDaysLeft').textContent=String(days);
+    const workingDaysEl = $('branchWorkingDaysLeft');
+if (workingDaysEl) {
+    workingDaysEl.textContent = String(days);
+}
     $('branchPerformanceBadge').textContent=own?state.badge:'⚠️ Target missing';
     $('branchTargetEmoji').textContent=own?state.emoji:'⚠️';
     $('branchTargetHero').className='target-hero '+(own?state.cls:'pace-red');
