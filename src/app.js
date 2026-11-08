@@ -563,7 +563,7 @@ async function renderTargets(monthReports) {
     $('branchBalanceTarget').textContent=own?money(balance):'—';
     $('branchRequiredDaily').textContent=own?money(required):'—';
     $('branchTodaySales').textContent=money(todaySales);
-    const patientsEl = $('branchMtdPatients');
+    const patientsEl = $('branchPatients');
 if (patientsEl) {
     patientsEl.textContent = patients.toLocaleString('en-IN');
 }
