@@ -235,3 +235,125 @@
     font-size: 10px;
   }
 }
+/* BRANCH PERFORMANCE DASHBOARD FIX */
+
+.branch-performance {
+  padding: 28px;
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 4px 20px rgba(20, 50, 80, 0.08);
+}
+
+.branch-performance .section-head {
+  margin-bottom: 22px;
+}
+
+.branch-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 20px 0;
+}
+
+.branch-kpi,
+.branch-secondary-grid .branch-kpi {
+  background: #f4f7fb;
+  border: 1px solid #e1e8f0;
+  border-radius: 12px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.branch-kpi span {
+  color: #69788c;
+  font-size: 13px;
+}
+
+.branch-kpi strong {
+  color: #142b49;
+  font-size: 23px;
+  font-weight: 800;
+}
+
+.target-hero {
+  padding: 22px;
+  margin: 20px 0;
+  border-radius: 14px;
+  background: #edf4fc;
+  border: 1px solid #d8e6f5;
+}
+
+.target-hero-amount {
+  font-size: 30px;
+  font-weight: 800;
+  color: #142b49;
+}
+
+.target-progress-label {
+  display: flex;
+  justify-content: space-between;
+  margin: 16px 0 8px;
+}
+
+.target-progress-track {
+  height: 12px;
+  background: #dce5ef;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.target-progress-fill {
+  height: 100%;
+  background: #203e62;
+  border-radius: 20px;
+  transition: width 0.3s ease;
+}
+
+.target-message,
+.target-gap {
+  margin-top: 14px;
+  color: #69788c;
+}
+
+.branch-secondary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin: 20px 0;
+}
+
+.branch-weekly-card {
+  background: #ffffff;
+  border: 1px solid #e1e8f0;
+  border-radius: 14px;
+  padding: 20px;
+  margin-top: 20px;
+}
+
+@media (max-width: 900px) {
+  .branch-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .branch-secondary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 500px) {
+  .branch-performance {
+    padding: 16px;
+  }
+
+  .branch-kpi-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .branch-kpi strong {
+    font-size: 18px;
+  }
+}
