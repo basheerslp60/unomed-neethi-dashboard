@@ -568,7 +568,10 @@ if (patientsEl) {
     patientsEl.textContent = patients.toLocaleString('en-IN');
 }
     $('branchAchievement').textContent=own?fmtPct(achievement):'—';
-    $('branchRequiredDailyHero').textContent=own?money(required):'Target not set';
+    const requiredHeroEl = $('branchRequiredDailyHero');
+if (requiredHeroEl) {
+    requiredHeroEl.textContent = own ? money(required) : 'Target not set';
+}
     $('branchWorkingDaysLeft').textContent=String(days);
     $('branchPerformanceBadge').textContent=own?state.badge:'⚠️ Target missing';
     $('branchTargetEmoji').textContent=own?state.emoji:'⚠️';
