@@ -93,7 +93,6 @@ document.querySelectorAll('.nav-btn').forEach(button => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 });
-```
   $('employeeForm').onsubmit = addEmployee;
   $('activityForm').onsubmit = submitEmployeeActivity;
   $('employeeTargetForm').onsubmit = saveEmployeeTarget;
