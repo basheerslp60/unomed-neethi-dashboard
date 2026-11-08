@@ -561,7 +561,7 @@ async function renderTargets(monthReports) {
     $('branchMonthlyTarget').textContent=own?money(target):'Not set';
     $('branchMtdSales').textContent=money(sales);
     $('branchBalanceTarget').textContent=own?money(balance):'—';
-    $('branchRequiredDaily').textContent=own?money(required):'—';
+    if ($('branchRequiredDaily')) $('branchRequiredDaily').textContent=own?money(required):'—';
     $('branchTodaySales').textContent=money(todaySales);
     $('branchMtdPatients').textContent=patients.toLocaleString('en-IN');
     $('branchAchievement').textContent=own?fmtPct(achievement):'—';
