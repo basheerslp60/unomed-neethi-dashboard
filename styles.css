@@ -357,3 +357,79 @@
     font-size: 18px;
   }
 }
+
+
+/* Daily sales trend chart */
+.branch-weekly-card {
+  margin-top: 24px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fff;
+}
+
+.branch-weekly-card h3 {
+  margin-bottom: 20px;
+}
+
+.branch-week-trend {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 190px;
+  padding: 16px 4px 0;
+}
+
+.branch-week-day {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  text-align: center;
+  font-size: 12px;
+}
+
+.branch-week-bar-area {
+  width: 100%;
+  height: 130px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: #f1f5f9;
+  border-radius: 8px 8px 0 0;
+  overflow: hidden;
+}
+
+.branch-week-bar {
+  width: 65%;
+  min-height: 3px;
+  background: linear-gradient(180deg, #2d78c8, #142b49);
+  border-radius: 7px 7px 0 0;
+}
+
+.branch-week-day strong {
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.branch-week-day small {
+  color: var(--muted);
+}
+
+@media (max-width: 600px) {
+  .branch-week-trend {
+    gap: 5px;
+  }
+
+  .branch-week-day {
+    font-size: 10px;
+  }
+
+  .branch-week-day strong {
+    font-size: 10px;
+  }
+}
