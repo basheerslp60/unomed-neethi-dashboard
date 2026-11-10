@@ -572,9 +572,14 @@ if (patientsEl) {
 if (requiredHeroEl) {
     requiredHeroEl.textContent = own ? money(required) : 'Target not set';
 }
-    const workingDaysEl = $('branchWorkingDaysLeft');
+    const workingDaysEl = $('branchWorkingDays');
 if (workingDaysEl) {
-    workingDaysEl.textContent = String(days);
+    workingDaysEl.textContent = days + ' working days left';
+}
+
+const workingDaysValueEl = $('branchWorkingDaysValue');
+if (workingDaysValueEl) {
+    workingDaysValueEl.textContent = String(days);
 }
     const performanceBadgeEl = $('branchPerformanceBadge');
 if (performanceBadgeEl) {
@@ -586,8 +591,15 @@ if (targetEmojiEl) targetEmojiEl.textContent = own ? state.emoji : '⚠️';
 const targetHeroEl = $('branchTargetHero');
 if (targetHeroEl) targetHeroEl.className = 'target-hero ' + (own ? state.cls : 'pace-red');
 
-const progressPctEl = $('branchTodayProgressPct');
-if (progressPctEl) progressPctEl.textContent = own ? fmtPct(todayPct) : '-';
+const progressPctEl = $('branchTodayProgressLabel');
+if (progressPctEl) {
+    progressPctEl.textContent = own ? fmtPct(todayPct) : '—';
+}
+
+const gaugePctEl = $('branchTodayProgress');
+if (gaugePctEl) {
+    gaugePctEl.textContent = own ? fmtPct(todayPct) : '—';
+}
 
 const progressBarEl = $('branchTodayProgressBar');
 if (progressBarEl) progressBarEl.style.width = (own ? todayPct : 0) + '%';
