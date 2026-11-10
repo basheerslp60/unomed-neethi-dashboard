@@ -75,6 +75,9 @@ if (!ready) {
   $('userAccessRefresh').onclick = loadPortalUsers;
   $('branchTargetMonth').addEventListener('change', loadBranchTargetEditor);
   $('dailySalesRefresh').onclick = loadDailyBranchSales;
+  $('analyticsRefresh').onclick = loadBranchAnalytics;
+  $('analyticsPeriod').addEventListener('change', loadBranchAnalytics);
+  $('analyticsNetwork').addEventListener('change', renderBranchAnalytics);
   $('branchTargetNetwork').addEventListener('change', renderBranchTargetEditorRows);
   $('saveBranchTargets').onclick = saveBranchTargets;
   $('portalUserForm').onsubmit = createPortalUser;
@@ -135,6 +138,7 @@ async function load(u) {
   }
   show('login',false); show('app',true); show('userTools',true); show('entry',p.role==='branch_staff');
   show('managementReportSection',p.role!=='branch_staff');
+  show('branchAnalyticsSection',p.role!=='branch_staff');
   show('complianceSection',p.role!=='branch_staff');
   // User & Branch Access Management is visible only to the Super Admin.
   show('userAccessSection',p.role==='admin');
@@ -146,6 +150,7 @@ async function load(u) {
   refreshSidebarVisibility();
   if (p.role === 'admin') await loadPortalUsers();
   await loadEmployeeModule();
+  if (p.role !== 'branch_staff') await loadBranchAnalytics();
 }
 
 
@@ -334,6 +339,91 @@ async function loadReports() {
   .map(x => '<span class="pill">' + esc(x[0]) + ': ' + x[1] + '</span>')
   .join('') || 'No package counts recorded.';
 }
+function analyticsDateString(date) {
+  const y=date.getFullYear(), m=String(date.getMonth()+1).padStart(2,'0'), d=String(date.getDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
+}
+function analyticsShiftDate(dateString, days) {
+  const [y,m,d]=dateString.split('-').map(Number);
+  const date=new Date(y,m-1,d); date.setDate(date.getDate()+days);
+  return analyticsDateString(date);
+}
+function analyticsPeriodRanges() {
+  const end=today;
+  if ($('analyticsPeriod').value==='7d') {
+    const currentStart=analyticsShiftDate(end,-6);
+    return {currentStart,currentEnd:end,previousStart:analyticsShiftDate(currentStart,-7),previousEnd:analyticsShiftDate(currentStart,-1),label:`${currentStart} to ${end} compared with ${analyticsShiftDate(currentStart,-7)} to ${analyticsShiftDate(currentStart,-1)}`};
+  }
+  const [year,month,day]=end.split('-').map(Number);
+  const prevMonthLast=new Date(year,month-1,0).getDate();
+  const prevDay=Math.min(day,prevMonthLast);
+  const previousStart=`${String(month===1?year-1:year).padStart(4,'0')}-${String(month===1?12:month-1).padStart(2,'0')}-01`;
+  const previousEnd=`${previousStart.slice(0,7)}-${String(prevDay).padStart(2,'0')}`;
+  return {currentStart:`${end.slice(0,7)}-01`,currentEnd:end,previousStart,previousEnd,label:`${end.slice(0,7)} month-to-date (${day} days) compared with ${previousStart.slice(0,7)} (${prevDay} days)`};
+}
+async function fetchAnalyticsReports(start,end) {
+  let all=[],from=0,pageSize=500;
+  while(true) {
+    const {data,error}=await db.from('daily_reports').select('branch_id,report_date,total_sales,patient_count')
+      .gte('report_date',start).lte('report_date',end).order('report_date',{ascending:true}).range(from,from+pageSize-1);
+    if(error) throw error;
+    all=all.concat(data||[]);
+    if(!data || data.length<pageSize) break;
+    from+=pageSize;
+  }
+  return all;
+}
+async function loadBranchAnalytics() {
+  if(!profile || profile.role==='branch_staff' || !db) return;
+  const rows=$('analyticsRows');
+  rows.innerHTML='<tr><td colspan="8">Loading branch comparison…</td></tr>';
+  $('analyticsMsg').textContent='Loading report records permitted for this account…';
+  try {
+    const range=analyticsPeriodRanges();
+    const [current,previous]=await Promise.all([
+      fetchAnalyticsReports(range.currentStart,range.currentEnd),
+      fetchAnalyticsReports(range.previousStart,range.previousEnd)
+    ]);
+    window.__branchAnalyticsData={current,previous,range};
+    renderBranchAnalytics();
+  } catch(err) {
+    rows.innerHTML='<tr><td colspan="8">Could not load analytics.</td></tr>';
+    $('analyticsKpis').innerHTML='';
+    $('analyticsMsg').textContent=(err.message||'Analytics query failed.')+' Check daily_reports access and Row Level Security.';
+  }
+}
+function renderBranchAnalytics() {
+  const data=window.__branchAnalyticsData;
+  if(!data || !profile || profile.role==='branch_staff') return;
+  const network=$('analyticsNetwork').value;
+  const visible=branches.filter(b=>network==='ALL' || String(b.network).toUpperCase()===network);
+  const sumFor=(rows,branchId)=>rows.filter(r=>String(r.branch_id)===String(branchId)).reduce((a,r)=>({sales:a.sales+Number(r.total_sales||0),patients:a.patients+Number(r.patient_count||0)}),{sales:0,patients:0});
+  const results=visible.map(b=>{
+    const c=sumFor(data.current,b.id), p=sumFor(data.previous,b.id);
+    const salesChange=p.sales===0?(c.sales>0?null:0):((c.sales-p.sales)/p.sales)*100;
+    const patientChange=p.patients===0?(c.patients>0?null:0):((c.patients-p.patients)/p.patients)*100;
+    return {branch:b,current:c,previous:p,salesChange,patientChange,avg:c.patients?c.sales/c.patients:0};
+  }).sort((a,b)=>b.current.sales-a.current.sales);
+  const totals=results.reduce((a,r)=>({sales:a.sales+r.current.sales,patients:a.patients+r.current.patients,previousSales:a.previousSales+r.previous.sales,previousPatients:a.previousPatients+r.previous.patients}),{sales:0,patients:0,previousSales:0,previousPatients:0});
+  const growth=(now,before)=>before===0?(now>0?null:0):((now-before)/before)*100;
+  const salesGrowth=growth(totals.sales,totals.previousSales);
+  const patientGrowth=growth(totals.patients,totals.previousPatients);
+  const topSales=results[0];
+  const topPatients=[...results].sort((a,b)=>b.current.patients-a.current.patients)[0];
+  const bestGrowth=[...results].filter(r=>r.salesChange!==null && r.previous.sales>0).sort((a,b)=>b.salesChange-a.salesChange)[0];
+  const growthText=v=>v===null?'New':`${v>=0?'+':''}${v.toFixed(1)}%`;
+  $('analyticsPeriodLabel').textContent=data.range.label;
+  $('analyticsKpis').innerHTML=
+    `<div class="stat-card"><span>Total sales</span><strong>${money(totals.sales)}</strong><small>${growthText(salesGrowth)} vs previous period</small></div>`+
+    `<div class="stat-card"><span>Total patients</span><strong>${totals.patients.toLocaleString('en-IN')}</strong><small>${growthText(patientGrowth)} vs previous period</small></div>`+
+    `<div class="stat-card"><span>Network average bill</span><strong>${money(totals.patients?totals.sales/totals.patients:0)}</strong><small>Sales divided by patients</small></div>`+
+    `<div class="stat-card"><span>Top sales branch</span><strong>${topSales?esc(topSales.branch.branch_name):'—'}</strong><small>${topSales?money(topSales.current.sales):'No sales recorded'}</small></div>`+
+    `<div class="stat-card"><span>Top patient volume</span><strong>${topPatients?esc(topPatients.branch.branch_name):'—'}</strong><small>${topPatients?topPatients.current.patients.toLocaleString('en-IN')+' patients':'No patients recorded'}</small></div>`+
+    `<div class="stat-card"><span>Best sales growth</span><strong>${bestGrowth?esc(bestGrowth.branch.branch_name):'—'}</strong><small>${bestGrowth?growthText(bestGrowth.salesChange):'No prior-period base'}</small></div>`;
+  $('analyticsRows').innerHTML=results.map((r,i)=>`<tr><td>${i+1}</td><td><strong>${esc(r.branch.branch_name)}</strong></td><td>${esc(r.branch.network)}</td><td>${money(r.current.sales)}</td><td class="${r.salesChange===null?'':r.salesChange>=0?'analytics-positive':'analytics-negative'}">${growthText(r.salesChange)}</td><td>${r.current.patients.toLocaleString('en-IN')}</td><td class="${r.patientChange===null?'':r.patientChange>=0?'analytics-positive':'analytics-negative'}">${growthText(r.patientChange)}</td><td>${money(r.avg)}</td></tr>`).join('') || '<tr><td colspan="8">No active branches found.</td></tr>';
+  $('analyticsMsg').textContent=`${results.length} branches · ${data.current.length} current-period reports and ${data.previous.length} previous-period reports visible to this account. A “New” change means the previous period had zero sales or patients.`;
+}
+
 async function loadDailyBranchSales() {
   const date = $('dailySalesDate').value;
   const rowsEl = $('dailySalesRows');
