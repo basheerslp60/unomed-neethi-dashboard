@@ -618,7 +618,7 @@ if (noteEl) noteEl.textContent = !own
 
 const dateEl = $('branchDailyTargetDate');
 if (dateEl) dateEl.textContent = targetMonth.slice(0,7) + ' · ' + days + ' working day(s) remaining, Sundays excluded';
-    const trend=$('branchWeeklyTrend');
+    const trend=$('branchDailyTrend');
     const [yy,mm,dd]=today.split('-').map(Number);
     const end=new Date(yy,mm-1,dd), start=new Date(yy,mm-1,dd-6), trendRows=[];
     for(let dt=new Date(start);dt<=end;dt.setDate(dt.getDate()+1)) {
