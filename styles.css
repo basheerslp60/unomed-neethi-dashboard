@@ -270,3 +270,55 @@
 @media(max-width:850px){.staff-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.staff-hero-photo{width:30%;min-width:180px}}
 @media(max-width:600px){.staff-hero{min-height:180px}.staff-hero-copy{padding:23px 19px}.staff-hero-photo{min-width:115px;width:28%;background-position:58% center}.staff-welcome-row{padding:21px 17px 9px;align-items:flex-start;flex-direction:column}.staff-kpi-grid{padding:12px 16px 17px;gap:9px}.staff-kpi{min-height:120px;padding:14px}.staff-kpi strong{font-size:21px}.staff-target-card{margin:0 16px 17px;padding:17px}.target-gauge{flex-basis:90px;width:90px;height:90px}.gauge-center strong{font-size:17px}.target-big-number{font-size:34px}.staff-month-summary{padding:0 16px 17px;grid-template-columns:1fr;gap:8px}.staff-month-summary article{display:flex;align-items:center;justify-content:space-between}.staff-month-summary strong{margin:0}.staff-trend-card{margin:0 16px 18px;padding:15px}.staff-trend-head{align-items:flex-start;flex-direction:column}.sales-line-svg{min-height:180px}.chart-axis-label{font-size:9px}}
 @media(prefers-reduced-motion:reduce){.staff-kpi,.staff-progress-fill,.gauge-value{transition:none!important}}
+
+/* 7-Day Branch Sales Trend Chart */
+.branch-week-trend {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    height: 250px;
+    padding: 20px 10px 5px;
+}
+
+.branch-week-day {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 9px;
+}
+
+.branch-week-day strong {
+    font-size: 12px;
+    color: #172f50;
+    white-space: nowrap;
+}
+
+.branch-week-bar-area {
+    height: 170px;
+    width: 100%;
+    display: flex;
+    align-items: flex-end;
+    background: #edf2f8;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.branch-week-bar {
+    width: 100%;
+    min-height: 3px;
+    background: linear-gradient(180deg, #438bd0, #15569b);
+    border-radius: 8px 8px 0 0;
+    transition: height 0.4s ease;
+}
+
+.branch-week-day span {
+    font-size: 11px;
+    color: #718096;
+    white-space: nowrap;
+}
+
