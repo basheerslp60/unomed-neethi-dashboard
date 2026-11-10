@@ -627,7 +627,21 @@ if (dateEl) dateEl.textContent = targetMonth.slice(0,7) + ' · ' + days + ' work
       trendRows.push({key,value});
     }
     const maxValue=Math.max(1,...trendRows.map(x=>x.value));
-    if (trend) trend.innerHTML=trendRows.map(x=>`<div class="branch-week-day" title="${esc(x.key)} · ${money(x.value)}"><div class="branch-week-bar-area"><span class="branch-week-bar" style="height:${Math.max(x.value?5:0,x.value/maxValue*100)}%"></span></div><strong>${money(x.value)}</strong><small>${x.key.slice(8)}/${x.key.slice(5,7)}</small></div>`).join('');
+    if (trend) {
+  trend.innerHTML = `
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;height:220px;padding:20px 10px 5px;">
+      ${trendRows.map(([key,value]) => `
+        <div style="flex:1;min-width:0;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:9px;">
+          <strong style="font-size:12px;color:#172f50;">${money(value)}</strong>
+          <div style="height:140px;width:100%;display:flex;align-items:flex-end;background:#edf2f8;border-radius:8px;overflow:hidden;">
+            <div style="width:100%;height:${maxValue ? Math.max(value/maxValue*100,value>0?3:0) : 0}%;background:linear-gradient(180deg,#438bd0,#15569b);border-radius:8px 8px 0 0;"></div>
+          </div>
+          <span style="font-size:11px;color:#718096;">${key.slice(8,10)}/${key.slice(5,7)}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
     return;
   }
   targets=targetData||[];
