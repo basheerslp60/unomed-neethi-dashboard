@@ -618,34 +618,45 @@ if (noteEl) noteEl.textContent = !own
 
 const dateEl = $('branchDailyTargetDate');
 if (dateEl) dateEl.textContent = targetMonth.slice(0,7) + ' · ' + days + ' working day(s) remaining, Sundays excluded';
-    const trend=$('branchDailyTrend');
-    const [yy,mm,dd]=today.split('-').map(Number);
-    const end=new Date(yy,mm-1,dd), start=new Date(yy,mm-1,dd-6), trendRows=[];
-    for(let dt=new Date(start);dt<=end;dt.setDate(dt.getDate()+1)) {
-      const key=`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
-      const value=branchReports.filter(r=>r.report_date===key).reduce((sum,r)=>sum+Number(r.total_sales||0),0);
-      trendRows.push({key,value});
-    }
-    const maxValue=Math.max(1,...trendRows.map(x=>x.value));
     
-if (trend) {
-  trend.innerHTML = `
-    <div class="branch-week-trend">
-      ${trendRows.map(([key,value]) => `
-        <div class="branch-week-day">
-          <strong>${money(value)}</strong>
-          <div class="branch-week-bar-area">
-            <div class="branch-week-bar"
-              style="height:${maxValue ? value/maxValue*100 : 0}%">
-            </div>
-          </div>
-          <span>${key.slice(8,10)}/${key.slice(5,7)}</span>
-        </div>
-      `).join('')}
-    </div>
-  `;
+const trend = document.getElementById('branchDailyTrend');
+
+const [yy, mm, dd] = today.split('-').map(Number);
+const end = new Date(yy, mm - 1, dd);
+const start = new Date(yy, mm - 1, dd - 6);
+const trendRows = [];
+
+for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
+    const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+
+    const value = branchReports
+        .filter(r => String(r.report_date).slice(0, 10) === key)
+        .reduce((sum, r) => sum + Number(r.total_sales || 0), 0);
+
+    trendRows.push({ key, value });
 }
 
+const maxValue = Math.max(1, ...trendRows.map(x => x.value));
+
+if (trend) {
+    trend.innerHTML = `
+        <div class="branch-week-trend">
+            ${trendRows.map(({key, value}) => `
+                <div class="branch-week-day">
+                    <strong>${money(value)}</strong>
+                    <div class="branch-week-bar-area">
+                        <div class="branch-week-bar"
+                            style="height:${value > 0 ? Math.max(3, value / maxValue * 100) : 0}%">
+                        </div>
+                    </div>
+                    <span>${key.slice(8,10)}/${key.slice(5,7)}</span>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+ 
     return;
   }
   targets=targetData||[];
