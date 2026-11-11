@@ -76,6 +76,10 @@ if (!ready) {
   $('branchTargetMonth').addEventListener('change', loadBranchTargetEditor);
   $('dailySalesRefresh').onclick = loadDailyBranchSales;
   $('analyticsRefresh').onclick = loadBranchAnalytics;
+  $('targetDashboardMonth').value = today.slice(0,7);
+  $('targetDashboardRefresh').onclick = loadTargetDashboard;
+  $('targetDashboardMonth').addEventListener('change', loadTargetDashboard);
+  $('targetDashboardNetwork').addEventListener('change', renderTargetDashboard);
   $('analyticsPeriod').addEventListener('change', loadBranchAnalytics);
   $('analyticsNetwork').addEventListener('change', renderBranchAnalytics);
   $('analyticsRows').addEventListener('click', event => {
@@ -144,6 +148,7 @@ async function load(u) {
   show('login',false); show('app',true); show('userTools',true); show('entry',p.role==='branch_staff');
   show('managementReportSection',p.role!=='branch_staff');
   show('branchAnalyticsSection',p.role!=='branch_staff');
+  show('targetDashboardSection',p.role!=='branch_staff');
   show('complianceSection',p.role!=='branch_staff');
   // User & Branch Access Management is visible only to the Super Admin.
   show('userAccessSection',p.role==='admin');
@@ -155,7 +160,7 @@ async function load(u) {
   refreshSidebarVisibility();
   if (p.role === 'admin') await loadPortalUsers();
   await loadEmployeeModule();
-  if (p.role !== 'branch_staff') await loadBranchAnalytics();
+  if (p.role !== 'branch_staff') { await loadBranchAnalytics(); await loadTargetDashboard(); }
 }
 
 
@@ -465,6 +470,95 @@ function renderBranchDrilldown(branchId) {
   $('analyticsDailyRows').innerHTML=[...days].reverse().map(d=>`<tr><td>${d.date}</td><td>${money(d.sales)}</td><td>${d.patients.toLocaleString('en-IN')}</td><td>${money(d.patients?d.sales/d.patients:0)}</td></tr>`).join('');
   $('analyticsDrilldown').classList.remove('hidden');
   $('analyticsDrilldown').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+async function fetchTargetDashboardReports(start,end) {
+  let all=[],from=0,pageSize=500;
+  while(true) {
+    const {data,error}=await db.from('daily_reports').select('branch_id,report_date,total_sales,patient_count')
+      .gte('report_date',start).lte('report_date',end).order('report_date',{ascending:true}).range(from,from+pageSize-1);
+    if(error) throw error;
+    all=all.concat(data||[]);
+    if(!data || data.length<pageSize) break;
+    from+=pageSize;
+  }
+  return all;
+}
+async function loadTargetDashboard() {
+  if(!profile || profile.role==='branch_staff' || !db) return;
+  const month=$('targetDashboardMonth').value;
+  if(!month) return;
+  $('targetDashboardRows').innerHTML='<tr><td colspan="11">Loading target and sales data…</td></tr>';
+  $('targetDashboardMsg').textContent='Loading records permitted for this account…';
+  try {
+    const start=month+'-01';
+    const [year,mon]=month.split('-').map(Number);
+    const lastDay=new Date(year,mon,0).getDate();
+    const currentMonth=month===today.slice(0,7);
+    const end=currentMonth?today:`${month}-${String(lastDay).padStart(2,'0')}`;
+    const [{data:targetData,error:targetError},monthReports]=await Promise.all([
+      db.from('branch_monthly_targets').select('branch_id,target_amount,target_month').eq('target_month',start),
+      fetchTargetDashboardReports(start,end)
+    ]);
+    if(targetError) throw targetError;
+    window.__targetDashboardData={month,start,end,lastDay,currentMonth,targets:targetData||[],reports:monthReports||[]};
+    renderTargetDashboard();
+  } catch(err) {
+    $('targetDashboardRows').innerHTML='<tr><td colspan="11">Could not load target dashboard.</td></tr>';
+    $('targetDashboardKpis').innerHTML='';
+    $('targetDashboardMsg').textContent=(err.message||'Dashboard query failed.')+' Check branch_monthly_targets and daily_reports permissions.';
+  }
+}
+function renderTargetDashboard() {
+  const data=window.__targetDashboardData;
+  if(!data || !profile || profile.role==='branch_staff') return;
+  const network=$('targetDashboardNetwork').value;
+  const visible=branches.filter(b=>network==='ALL'||String(b.network).toUpperCase()===network);
+  const targetMap=new Map(data.targets.map(t=>[String(t.branch_id),Number(t.target_amount||0)]));
+  const salesMap=new Map(),patientMap=new Map();
+  data.reports.forEach(r=>{
+    const id=String(r.branch_id);
+    salesMap.set(id,(salesMap.get(id)||0)+Number(r.total_sales||0));
+    patientMap.set(id,(patientMap.get(id)||0)+Number(r.patient_count||0));
+  });
+  const elapsedWorking=countWorkingDays(data.start,data.end);
+  const totalWorking=countWorkingDays(data.start,`${data.month}-${String(data.lastDay).padStart(2,'0')}`);
+  const remainingWorking=Math.max(0,totalWorking-elapsedWorking);
+  const rows=visible.map(branch=>{
+    const target=targetMap.get(String(branch.id))||0;
+    const sales=salesMap.get(String(branch.id))||0;
+    const patients=patientMap.get(String(branch.id))||0;
+    const achievement=target?sales/target*100:0;
+    const balance=Math.max(0,target-sales);
+    const required=remainingWorking>0?Math.ceil(balance/remainingWorking):balance;
+    const projected=elapsedWorking>0?(sales/elapsedWorking)*totalWorking:0;
+    const expected=target&&totalWorking?target*elapsedWorking/totalWorking:0;
+    const pace=expected>0?sales/expected:0;
+    let status='Target missing',cls='target-status-none';
+    if(target>0&&sales>=target){status='Target achieved';cls='target-status-good';}
+    else if(target>0&&pace>=1){status='On track';cls='target-status-good';}
+    else if(target>0&&pace>=.85){status='Needs attention';cls='target-status-warn';}
+    else if(target>0){status='Critical';cls='target-status-bad';}
+    return {branch,target,sales,patients,achievement,balance,required,projected,status,cls,missing:!target};
+  }).sort((a,b)=>b.achievement-a.achievement||b.sales-a.sales);
+  const totals=rows.reduce((a,r)=>({target:a.target+r.target,sales:a.sales+r.sales,patients:a.patients+r.patients,balance:a.balance+r.balance,projected:a.projected+r.projected}),{target:0,sales:0,patients:0,balance:0,projected:0});
+  const achievement=totals.target?totals.sales/totals.target*100:0;
+  const targetCount=rows.filter(r=>r.target>0).length;
+  const achieved=rows.filter(r=>r.target>0&&r.sales>=r.target).length;
+  const critical=rows.filter(r=>r.cls==='target-status-bad').length;
+  const best=[...rows].filter(r=>r.target>0).sort((a,b)=>b.achievement-a.achievement)[0];
+  const fmt=n=>`${(Number(n)||0).toFixed(1)}%`;
+  $('targetDashboardPeriod').textContent=`${data.month} · ${data.start} to ${data.end} · ${elapsedWorking} of ${totalWorking} working days elapsed (Sundays excluded)`;
+  $('targetDashboardKpis').innerHTML=
+    `<div class="stat-card"><span>Total target</span><strong>${money(totals.target)}</strong><small>${targetCount} branches with targets</small></div>`+
+    `<div class="stat-card"><span>Actual sales</span><strong>${money(totals.sales)}</strong><small>${fmt(achievement)} achieved</small></div>`+
+    `<div class="stat-card"><span>Target balance</span><strong>${money(totals.balance)}</strong><small>Across selected branches</small></div>`+
+    `<div class="stat-card"><span>Projected month-end</span><strong>${money(totals.projected)}</strong><small>Based on elapsed working-day average</small></div>`+
+    `<div class="stat-card"><span>Patients</span><strong>${totals.patients.toLocaleString('en-IN')}</strong><small>Month-to-date / selected month</small></div>`+
+    `<div class="stat-card"><span>Branches achieved</span><strong>${achieved} / ${targetCount}</strong><small>${critical} branches critical</small></div>`;
+  $('targetDashboardAlerts').innerHTML=`<span class="target-alert-pill target-status-good">On track / achieved: ${rows.filter(r=>r.cls==='target-status-good').length}</span><span class="target-alert-pill target-status-warn">Needs attention: ${rows.filter(r=>r.cls==='target-status-warn').length}</span><span class="target-alert-pill target-status-bad">Critical: ${critical}</span><span class="target-alert-pill target-status-none">Target missing: ${rows.filter(r=>r.missing).length}</span>`;
+  $('targetDashboardRows').innerHTML=rows.map((r,i)=>`<tr><td>${i+1}</td><td><strong>${esc(r.branch.branch_name)}</strong></td><td>${esc(r.branch.network)}</td><td>${r.target?money(r.target):'—'}</td><td>${money(r.sales)}</td><td class="${r.achievement>=100?'analytics-positive':r.target?'analytics-negative':''}">${r.target?fmt(r.achievement):'—'}</td><td><div class="target-progress-cell"><div class="target-progress-track"><span style="width:${Math.min(100,Math.max(0,r.achievement))}%"></span></div><small>${r.target?fmt(r.achievement):'No target'}</small></div></td><td>${r.target?money(r.balance):'—'}</td><td>${r.target?money(r.required):'—'}</td><td>${r.target?money(r.projected):'—'}</td><td><span class="target-alert-pill ${r.cls}">${r.status}</span></td></tr>`).join('')||'<tr><td colspan="11">No active branches found.</td></tr>';
+  $('targetDashboardMsg').textContent=`${rows.length} active branches · Best achievement: ${best?best.branch.branch_name+' ('+fmt(best.achievement)+')':'No targets configured'} · Projected sales are estimates, not guaranteed results. For a future month, projection uses reported sales through the selected month end.`;
 }
 
 async function loadDailyBranchSales() {
