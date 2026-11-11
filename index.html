@@ -93,9 +93,10 @@
     <div><button type="button" id="targetDashboardRefresh">Refresh dashboard</button></div>
   </div>
   <p id="targetDashboardPeriod" class="analytics-period-label"></p>
-  <div id="targetDashboardKpis" class="stats"></div>
+  <div id="targetDashboardKpis" class="target-dashboard-kpis"></div>
   <div id="targetDashboardAlerts" class="target-dashboard-alerts"></div>
-  <div class="scroll"><table class="analytics-table target-dashboard-table"><thead><tr><th>Rank</th><th>Branch</th><th>Network</th><th>Target</th><th>Actual sales</th><th>Achievement</th><th>Progress</th><th>Balance</th><th>Required / working day</th><th>Projected month-end</th><th>Status</th></tr></thead><tbody id="targetDashboardRows"><tr><td colspan="11">Select a month to load target performance.</td></tr></tbody></table></div>
+  <p class="target-dashboard-scroll-hint">Tip: Scroll horizontally to view all branch performance columns.</p>
+  <div class="scroll target-dashboard-scroll" tabindex="0" aria-label="Branch target performance table. Scroll horizontally to see all columns."><table class="analytics-table target-dashboard-table"><thead><tr><th>Rank</th><th>Branch</th><th>Network</th><th>Target</th><th>Actual sales</th><th>Achievement</th><th>Progress</th><th>Balance</th><th>Required / working day</th><th>Projected month-end</th><th>Status</th></tr></thead><tbody id="targetDashboardRows"><tr><td colspan="11">Select a month to load target performance.</td></tr></tbody></table></div>
   <p id="targetDashboardMsg" class="msg" aria-live="polite">Figures are based on monthly targets and daily reports visible to your signed-in account.</p>
 </section>
 <section class="card" id="dailySalesSection">
