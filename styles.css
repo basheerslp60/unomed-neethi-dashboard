@@ -340,3 +340,16 @@
 .analytics-day-value{font-size:10px;color:#52657c;white-space:nowrap;min-height:15px}.analytics-day-track{height:112px;width:25px;display:flex;align-items:flex-end;border-radius:6px;background:#edf2f8;overflow:hidden}
 .analytics-day-bar{width:100%;min-height:0;background:linear-gradient(180deg,#4b91d2,#173f6c);border-radius:5px 5px 0 0}.analytics-day strong{font-size:11px;color:#344b66}.analytics-day small{font-size:10px;color:#75869b;white-space:nowrap}
 @media(max-width:650px){.analytics-drilldown{padding:12px}.analytics-drilldown-head button{width:100%}.analytics-daily-chart{min-height:175px}}
+
+
+/* Target vs actual management dashboard */
+.target-dashboard-controls{display:grid;grid-template-columns:minmax(180px,1fr) minmax(180px,1fr) auto;gap:14px;align-items:end;margin:18px 0}
+.target-dashboard-controls label{display:block;margin-bottom:6px;font-size:12px;font-weight:800;color:#53657c}
+.target-dashboard-controls input,.target-dashboard-controls select{width:100%;min-height:42px;padding:9px 12px;border:1px solid #d5deea;border-radius:9px;background:#fff;color:#17263b}
+.target-dashboard-controls button{min-height:42px;white-space:nowrap}
+.target-dashboard-alerts{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+.target-alert-pill{display:inline-flex;align-items:center;padding:6px 9px;border-radius:999px;font-size:11px;font-weight:800;white-space:nowrap}
+.target-status-good{background:#e7f6ed;color:#176b3c}.target-status-warn{background:#fff5dc;color:#8a5a00}.target-status-bad{background:#fde9ed;color:#a51e3b}.target-status-none{background:#edf1f6;color:#596b80}
+.target-progress-cell{min-width:105px}.target-progress-track{height:8px;background:#edf1f6;border-radius:999px;overflow:hidden}.target-progress-track span{display:block;height:100%;background:linear-gradient(90deg,#2d8a63,#56b98a);border-radius:999px}.target-progress-cell small{display:block;margin-top:4px;color:#64748b;font-size:10px}
+.target-dashboard-table td{vertical-align:middle}.target-dashboard-table th{white-space:nowrap}
+@media(max-width:650px){.target-dashboard-controls{grid-template-columns:1fr}.target-dashboard-controls button{width:100%}}
