@@ -76,6 +76,13 @@
   <div id="analyticsKpis" class="stats"></div>
   <div class="scroll"><table class="analytics-table"><thead><tr><th>Rank</th><th>Branch</th><th>Network</th><th>Sales</th><th>Sales change</th><th>Patients</th><th>Patient change</th><th>Average bill</th></tr></thead><tbody id="analyticsRows"><tr><td colspan="8">Choose a period and load analytics.</td></tr></tbody></table></div>
   <p id="analyticsMsg" class="msg" aria-live="polite">Comparison uses records visible to your signed-in account.</p>
+  <section id="analyticsDrilldown" class="analytics-drilldown hidden" aria-live="polite">
+    <div class="analytics-drilldown-head"><div><p class="eyebrow">BRANCH DETAILS</p><h3 id="analyticsDetailTitle">Branch performance</h3><p id="analyticsDetailPeriod"></p></div><button type="button" id="analyticsDetailClose" class="secondary">Close details</button></div>
+    <div id="analyticsDetailKpis" class="stats"></div>
+    <h3 class="analytics-detail-subtitle">Day-wise performance</h3>
+    <div id="analyticsDailyChart" class="analytics-daily-chart"></div>
+    <div class="scroll"><table class="analytics-table"><thead><tr><th>Date</th><th>Sales</th><th>Patients</th><th>Average bill</th></tr></thead><tbody id="analyticsDailyRows"><tr><td colspan="4">Select a branch to view its daily performance.</td></tr></tbody></table></div>
+  </section>
 </section>
 <section class="card" id="dailySalesSection">
   <h2>Daily Sales Report — Branch-wise</h2>
