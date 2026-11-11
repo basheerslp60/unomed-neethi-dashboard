@@ -78,6 +78,11 @@ if (!ready) {
   $('analyticsRefresh').onclick = loadBranchAnalytics;
   $('analyticsPeriod').addEventListener('change', loadBranchAnalytics);
   $('analyticsNetwork').addEventListener('change', renderBranchAnalytics);
+  $('analyticsRows').addEventListener('click', event => {
+    const button = event.target.closest('[data-analytics-branch]');
+    if (button) renderBranchDrilldown(button.dataset.analyticsBranch);
+  });
+  $('analyticsDetailClose').onclick = () => $('analyticsDrilldown').classList.add('hidden');
   $('branchTargetNetwork').addEventListener('change', renderBranchTargetEditorRows);
   $('saveBranchTargets').onclick = saveBranchTargets;
   $('portalUserForm').onsubmit = createPortalUser;
@@ -420,8 +425,46 @@ function renderBranchAnalytics() {
     `<div class="stat-card"><span>Top sales branch</span><strong>${topSales?esc(topSales.branch.branch_name):'—'}</strong><small>${topSales?money(topSales.current.sales):'No sales recorded'}</small></div>`+
     `<div class="stat-card"><span>Top patient volume</span><strong>${topPatients?esc(topPatients.branch.branch_name):'—'}</strong><small>${topPatients?topPatients.current.patients.toLocaleString('en-IN')+' patients':'No patients recorded'}</small></div>`+
     `<div class="stat-card"><span>Best sales growth</span><strong>${bestGrowth?esc(bestGrowth.branch.branch_name):'—'}</strong><small>${bestGrowth?growthText(bestGrowth.salesChange):'No prior-period base'}</small></div>`;
-  $('analyticsRows').innerHTML=results.map((r,i)=>`<tr><td>${i+1}</td><td><strong>${esc(r.branch.branch_name)}</strong></td><td>${esc(r.branch.network)}</td><td>${money(r.current.sales)}</td><td class="${r.salesChange===null?'':r.salesChange>=0?'analytics-positive':'analytics-negative'}">${growthText(r.salesChange)}</td><td>${r.current.patients.toLocaleString('en-IN')}</td><td class="${r.patientChange===null?'':r.patientChange>=0?'analytics-positive':'analytics-negative'}">${growthText(r.patientChange)}</td><td>${money(r.avg)}</td></tr>`).join('') || '<tr><td colspan="8">No active branches found.</td></tr>';
-  $('analyticsMsg').textContent=`${results.length} branches · ${data.current.length} current-period reports and ${data.previous.length} previous-period reports visible to this account. A “New” change means the previous period had zero sales or patients.`;
+  $('analyticsRows').innerHTML=results.map((r,i)=>`<tr><td>${i+1}</td><td><button type="button" class="analytics-branch-link" data-analytics-branch="${esc(String(r.branch.id))}" aria-label="View ${esc(r.branch.branch_name)} daily details">${esc(r.branch.branch_name)} <span>↗</span></button></td><td>${esc(r.branch.network)}</td><td>${money(r.current.sales)}</td><td class="${r.salesChange===null?'':r.salesChange>=0?'analytics-positive':'analytics-negative'}">${growthText(r.salesChange)}</td><td>${r.current.patients.toLocaleString('en-IN')}</td><td class="${r.patientChange===null?'':r.patientChange>=0?'analytics-positive':'analytics-negative'}">${growthText(r.patientChange)}</td><td>${money(r.avg)}</td></tr>`).join('') || '<tr><td colspan="8">No active branches found.</td></tr>';
+  $('analyticsDrilldown').classList.add('hidden');
+  $('analyticsMsg').textContent=`${results.length} branches · ${data.current.length} current-period reports and ${data.previous.length} previous-period reports visible to this account. Select a branch name to open its day-wise sales and patient details. A “New” change means the previous period had zero sales or patients.`;
+}
+function renderBranchDrilldown(branchId) {
+  const data=window.__branchAnalyticsData;
+  if(!data || !profile || profile.role==='branch_staff') return;
+  const branch=branches.find(b=>String(b.id)===String(branchId));
+  if(!branch) return;
+  const daily=new Map();
+  data.current.filter(r=>String(r.branch_id)===String(branchId)).forEach(r=>{
+    const key=r.report_date;
+    const item=daily.get(key)||{date:key,sales:0,patients:0};
+    item.sales+=Number(r.total_sales||0);
+    item.patients+=Number(r.patient_count||0);
+    daily.set(key,item);
+  });
+  const days=[];
+  let cursor=data.range.currentStart;
+  while(cursor<=data.range.currentEnd) {
+    days.push(daily.get(cursor)||{date:cursor,sales:0,patients:0});
+    cursor=analyticsShiftDate(cursor,1);
+  }
+  const totals=days.reduce((a,d)=>({sales:a.sales+d.sales,patients:a.patients+d.patients}),{sales:0,patients:0});
+  const maxSales=Math.max(1,...days.map(d=>d.sales));
+  $('analyticsDetailTitle').textContent=branch.branch_name+' — '+branch.network;
+  $('analyticsDetailPeriod').textContent='Daily breakdown for '+data.range.currentStart+' to '+data.range.currentEnd;
+  $('analyticsDetailKpis').innerHTML=
+    `<div class="stat-card"><span>Period sales</span><strong>${money(totals.sales)}</strong></div>`+
+    `<div class="stat-card"><span>Patients served</span><strong>${totals.patients.toLocaleString('en-IN')}</strong></div>`+
+    `<div class="stat-card"><span>Average bill</span><strong>${money(totals.patients?totals.sales/totals.patients:0)}</strong></div>`+
+    `<div class="stat-card"><span>Reporting days</span><strong>${days.filter(d=>d.sales>0||d.patients>0).length} / ${days.length}</strong></div>`;
+  $('analyticsDailyChart').innerHTML=days.map(d=>{
+    const height=d.sales?Math.max(3,(d.sales/maxSales)*100):0;
+    const label=d.date.slice(8,10)+'/'+d.date.slice(5,7);
+    return `<div class="analytics-day"><div class="analytics-day-value">${d.sales?money(d.sales):'—'}</div><div class="analytics-day-track"><div class="analytics-day-bar" style="height:${height}%"></div></div><strong>${label}</strong><small>${d.patients} patients</small></div>`;
+  }).join('');
+  $('analyticsDailyRows').innerHTML=[...days].reverse().map(d=>`<tr><td>${d.date}</td><td>${money(d.sales)}</td><td>${d.patients.toLocaleString('en-IN')}</td><td>${money(d.patients?d.sales/d.patients:0)}</td></tr>`).join('');
+  $('analyticsDrilldown').classList.remove('hidden');
+  $('analyticsDrilldown').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 async function loadDailyBranchSales() {
