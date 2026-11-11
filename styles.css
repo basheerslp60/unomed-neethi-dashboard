@@ -379,3 +379,16 @@
 .target-dashboard-table tbody tr:hover{background:#f1f6fc}
 @media(max-width:900px){.target-dashboard-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.target-dashboard-kpis{grid-template-columns:1fr;gap:9px}.target-dashboard-kpis .stat-card{min-height:96px;padding:14px 15px}.target-dashboard-kpis .stat-card strong{font-size:23px}.target-dashboard-scroll-hint{line-height:1.45}}
+
+
+/* Keep branch identity visible while horizontally scrolling target performance */
+.target-dashboard-table{table-layout:fixed;min-width:1380px}
+.target-dashboard-table th:nth-child(1),.target-dashboard-table td:nth-child(1){width:64px;min-width:64px;max-width:64px;position:sticky;left:0}
+.target-dashboard-table th:nth-child(2),.target-dashboard-table td:nth-child(2){width:150px;min-width:150px;max-width:150px;position:sticky;left:64px}
+.target-dashboard-table th:nth-child(3),.target-dashboard-table td:nth-child(3){width:110px;min-width:110px;max-width:110px;position:sticky;left:214px}
+.target-dashboard-table thead th:nth-child(-n+3){z-index:6;background:var(--navy)}
+.target-dashboard-table tbody td:nth-child(-n+3){z-index:3;background:#fff}
+.target-dashboard-table tbody tr:nth-child(even) td:nth-child(-n+3){background:#f8fafd}
+.target-dashboard-table tbody tr:hover td:nth-child(-n+3){background:#fff1f5}
+.target-dashboard-table th:nth-child(3),.target-dashboard-table td:nth-child(3){box-shadow:3px 0 5px #142b4912}
+@media(max-width:650px){.target-dashboard-table th:nth-child(2),.target-dashboard-table td:nth-child(2){width:132px;min-width:132px;max-width:132px;left:64px}.target-dashboard-table th:nth-child(3),.target-dashboard-table td:nth-child(3){width:96px;min-width:96px;max-width:96px;left:196px}}
