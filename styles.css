@@ -63,3 +63,36 @@ form{max-width:100%}.pkg{display:flex;align-items:center;justify-content:space-b
 @media(max-width:1000px){.app-layout{grid-template-columns:1fr}.side-nav{position:relative;top:auto;max-height:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr))}.side-nav-title{grid-column:1/-1}.site-header{flex-wrap:wrap}.portal-label{margin-left:auto}}
 @media(max-width:650px){.site-header{position:relative;align-items:flex-start;gap:10px;padding:10px 13px}.brand-logo{height:36px;max-width:105px}.unomed-logo{max-width:100px}.neethi-logo{max-width:112px}.brand-lockup{gap:6px;flex-wrap:wrap}.portal-label{width:100%;margin:0}.portal-label strong{font-size:11px}.portal-label small{font-size:10px}#userTools{width:100%}main{width:calc(100% - 20px);margin:12px auto 24px}.card{padding:15px}.side-nav{grid-template-columns:repeat(2,minmax(0,1fr));padding:8px}.nav-button{font-size:11px;padding:9px 7px}.executive-grid{grid-template-columns:1fr}.trend-card{grid-column:auto}.staff-hero{flex-direction:column;align-items:flex-start}.staff-hero-photo{width:100%}.overview-brand-logos{gap:6px;padding:7px}.overview-brand-logos img{height:38px;max-width:105px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+/* UNOMED + NEETHI portal: full navy-blue overview banner
+   Add this block at the VERY END of the existing root styles.css file. */
+.overview-hero {
+  background: #071b3b !important;
+  background-image: none !important;
+}
+
+/* Remove decorative rings and any mobile overlay/grid treatment. */
+.overview-hero::before,
+.overview-hero::after {
+  content: none !important;
+  display: none !important;
+}
+
+/* Keep the banner text and action controls clearly visible. */
+.overview-hero,
+.overview-hero h2,
+.overview-hero p,
+.overview-hero .overview-kicker,
+.overview-hero .overview-role-pill {
+  color: #ffffff;
+}
+
+.overview-hero p {
+  color: #dce8f7;
+}
+
+.overview-hero .overview-refresh {
+  background: #ffffff;
+  color: #071b3b;
+}
+
+
