@@ -4,6 +4,7 @@ import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "./config.js";
 const $ = id => document.getElementById(id);
 const names = ["Complete HC 599","My Health 999","Cardiac HC","EHC 2500","EHC Advanced 3500","Healthy Women 699","Healthy Men","EHC PRO 8499","Hairfall","Vitamin Profile","PCOD Mini","Onam Camp","Other Packages"];
 let db, user, profile, branches = [], reports = [], targets = [];
+let editingReportId = null;
 const now = new Date();
 const today = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0,10);
 $('date').value = today;
@@ -75,6 +76,16 @@ if (!ready) {
   $('userAccessRefresh').onclick = loadPortalUsers;
   $('branchTargetMonth').addEventListener('change', loadBranchTargetEditor);
   $('dailySalesRefresh').onclick = loadDailyBranchSales;
+  $('correctionRefresh').onclick = loadCorrectionReports;
+  $('correctionDate').addEventListener('change', loadCorrectionReports);
+  $('correctionBranch').addEventListener('change', loadCorrectionReports);
+  $('correctionRows').addEventListener('click', async event => {
+    const editBtn=event.target.closest('[data-correction-edit]');
+    const historyBtn=event.target.closest('[data-correction-history]');
+    if(editBtn) await beginEditReport(editBtn.dataset.correctionEdit);
+    if(historyBtn) await viewReportHistory(historyBtn.dataset.correctionHistory);
+  });
+  $('cancelCorrection').onclick = cancelReportCorrection;
   $('analyticsRefresh').onclick = loadBranchAnalytics;
   $('targetDashboardMonth').value = today.slice(0,7);
   $('targetDashboardRefresh').onclick = loadTargetDashboard;
@@ -151,6 +162,9 @@ async function load(u) {
     updatePortalBranchVisibility();
   }
   show('login',false); show('app',true); show('userTools',true); show('entry',p.role==='branch_staff');
+  show('correctionBranchWrap',p.role!=='branch_staff');
+  if(p.role==='branch_staff') $('correctionBranch').innerHTML='';
+  else $('correctionBranch').innerHTML='<option value=>All permitted branches</option>'+branches.map(b=>`<option value="${esc(b.id)}">${esc(b.network)} - ${esc(b.branch_name)}</option>`).join('');
   show('managementReportSection',p.role!=='branch_staff');
   show('branchAnalyticsSection',p.role!=='branch_staff');
   show('targetDashboardSection',p.role!=='branch_staff');
@@ -163,6 +177,8 @@ async function load(u) {
   $('title').textContent = p.role === 'branch_staff' ? (branches.find(x => x.id === p.branch_id)?.branch_name || 'Branch') + ' daily entry' : 'Management consolidated report';
   $('subtitle').textContent=p.role==='branch_staff'?'Submit sales for your assigned branch':'Targets and sales totals from reports permitted for your account';
   await loadReports();
+  $('correctionDate').value='';
+  await loadCorrectionReports();
   refreshSidebarVisibility();
   if (p.role === 'admin') await loadPortalUsers();
   await loadEmployeeModule();
@@ -1134,18 +1150,76 @@ function downloadManagementReport() {
 
 async function submit(e) {
   e.preventDefault();
-  if(profile.role!=='branch_staff') { msg('salesMsg','Only branch staff can submit.'); return; }
+  if(!editingReportId && profile.role!=='branch_staff') { msg('salesMsg','Only branch staff can submit new reports.'); return; }
   const branch=branches.find(b=>b.id===profile.branch_id);
-  if(!branch) { msg('salesMsg','No valid active branch assigned.'); return; }
-  const btn=$('salesForm').querySelector('button'); btn.disabled=true; msg('salesMsg','Submitting…');
+  if(!editingReportId && !branch) { msg('salesMsg','No valid active branch assigned.'); return; }
+  const btn=$('salesForm').querySelector('button[type="submit"],button:not([type])');
+  btn.disabled=true; msg('salesMsg',editingReportId?'Saving corrections…':'Submitting…');
   try {
-    const {data:r,error}=await db.from('daily_reports').insert({branch_id:branch.id,report_date:$('date').value,total_sales:Number($('sales').value),patient_count:Number($('patients').value),home_collections:Number($('home').value||0),google_reviews:Number($('reviews').value||0),submitted_by:user.id,status:'submitted'}).select('id').single();
-    if(error) throw error;
-    const rows=names.map((name,i)=>({report_id:r.id,package_name:name,quantity:Number($('p'+i).value||0)})).filter(x=>x.quantity>0);
-    if(rows.length) { const {error:pe}=await db.from('package_sales').insert(rows); if(pe) throw new Error('Report saved but package counts failed. Check the database before retrying: '+pe.message); }
-    msg('salesMsg','Report submitted.',true); $('salesForm').reset(); $('date').value=today; names.forEach((_,i)=>$('p'+i).value=0); await loadReports();
+    const packages=names.map((name,i)=>({package_name:name,quantity:Number($('p'+i).value||0)})).filter(x=>x.quantity>0);
+    if(editingReportId) {
+      const {error}=await db.rpc('correct_daily_report',{p_report_id:String(editingReportId),p_report_date:$('date').value,p_total_sales:Number($('sales').value),p_patient_count:Number($('patients').value),p_home_collections:Number($('home').value||0),p_google_reviews:Number($('reviews').value||0),p_packages:packages});
+      if(error) throw error;
+      msg('salesMsg','Report corrections saved successfully. The original report was updated.',true);
+      cancelReportCorrection(false);
+      await loadReports(); await loadCorrectionReports();
+    } else {
+      const {data:r,error}=await db.from('daily_reports').insert({branch_id:branch.id,report_date:$('date').value,total_sales:Number($('sales').value),patient_count:Number($('patients').value),home_collections:Number($('home').value||0),google_reviews:Number($('reviews').value||0),submitted_by:user.id,status:'submitted'}).select('id').single();
+      if(error) throw error;
+      const rows=packages.map(x=>({...x,report_id:r.id}));
+      if(rows.length) { const {error:pe}=await db.from('package_sales').insert(rows); if(pe) throw new Error('Report saved but package counts failed. Check the database before retrying: '+pe.message); }
+      msg('salesMsg','Report submitted.',true); $('salesForm').reset(); $('date').value=today; names.forEach((_,i)=>$('p'+i).value=0); await loadReports(); await loadCorrectionReports();
+    }
   } catch(err) { msg('salesMsg',err.message||'Submission failed'); }
   finally { btn.disabled=false; }
+}
+
+async function loadCorrectionReports() {
+  if(!db || !profile) return;
+  const body=$('correctionRows');
+  body.innerHTML='<tr><td colspan="5">Loading reports…</td></tr>';
+  let query=db.from('daily_reports').select('id,branch_id,report_date,total_sales,patient_count,home_collections,google_reviews,status').order('report_date',{ascending:false}).limit(200);
+  const date=$('correctionDate').value, branchId=$('correctionBranch').value;
+  if(date) query=query.eq('report_date',date);
+  if(profile.role==='branch_staff') query=query.eq('branch_id',profile.branch_id);
+  else if(branchId) query=query.eq('branch_id',branchId);
+  const {data,error}=await query;
+  if(error) { body.innerHTML=`<tr><td colspan="5">${esc(error.message)}</td></tr>`; $('correctionMsg').textContent='Could not load reports. Check report read permissions.'; return; }
+  const list=data||[], branchMap=new Map(branches.map(b=>[String(b.id),b]));
+  if(!list.length) { body.innerHTML='<tr><td colspan="5">No submitted reports found for this filter.</td></tr>'; $('correctionMsg').textContent=''; return; }
+  body.innerHTML=list.map(r=>{const b=branchMap.get(String(r.branch_id))||{};return `<tr><td>${esc(r.report_date)}</td><td>${esc(b.branch_name||'Branch')}</td><td>${money(r.total_sales)}</td><td>${Number(r.patient_count||0).toLocaleString('en-IN')}</td><td><button type="button" class="secondary" data-correction-edit="${esc(r.id)}">Edit</button> <button type="button" class="secondary" data-correction-history="${esc(r.id)}">History</button></td></tr>`;}).join('');
+  $('correctionMsg').textContent=`Showing ${list.length} recent permitted report(s), maximum 200.`;
+}
+
+async function beginEditReport(id) {
+  $('correctionMsg').textContent='Loading report details…';
+  const {data:r,error}=await db.from('daily_reports').select('id,branch_id,report_date,total_sales,patient_count,home_collections,google_reviews').eq('id',id).maybeSingle();
+  if(error || !r) { $('correctionMsg').textContent=error?.message||'Report not found or access denied.'; return; }
+  const {data:ps,error:pe}=await db.from('package_sales').select('package_name,quantity').eq('report_id',r.id);
+  if(pe) { $('correctionMsg').textContent='Could not load package counts: '+pe.message; return; }
+  editingReportId=r.id;
+  $('date').value=r.report_date||today; $('sales').value=Number(r.total_sales||0); $('patients').value=Number(r.patient_count||0); $('home').value=Number(r.home_collections||0); $('reviews').value=Number(r.google_reviews||0);
+  names.forEach((name,i)=>{const row=(ps||[]).find(x=>x.package_name===name);$('p'+i).value=Number(row?.quantity||0);});
+  const submitBtn=$('salesForm').querySelector('button[type="submit"],button:not([type])'); submitBtn.textContent='Save corrections';
+  $('correctionMsg').textContent=`Editing report ${r.report_date}. Update the fields in Daily Sales Entry and save.`;
+  $('salesMsg').textContent='Correction mode: changes will update this existing report.';
+  $('entry').classList.remove('hidden'); $('entry').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function cancelReportCorrection(clearMessage=true) {
+  editingReportId=null;
+  $('salesForm').reset(); $('date').value=today; names.forEach((_,i)=>$('p'+i).value=0);
+  const submitBtn=$('salesForm').querySelector('button[type="submit"],button:not([type])'); submitBtn.textContent='Submit daily report';
+  if(clearMessage) $('salesMsg').textContent='Correction cancelled.';
+}
+
+async function viewReportHistory(id) {
+  const panel=$('correctionHistory'), target=$('correctionHistoryRows');
+  panel.classList.remove('hidden'); target.textContent='Loading history…';
+  const {data,error}=await db.from('daily_report_change_log').select('changed_at,changed_by,old_values,new_values').eq('report_id',String(id)).order('changed_at',{ascending:false}).limit(20);
+  if(error) { target.textContent='History unavailable: '+error.message; return; }
+  if(!data?.length) { target.textContent='No corrections have been recorded for this report.'; return; }
+  target.innerHTML=data.map(x=>`<article style="padding:10px 0;border-top:1px solid #e3e9f1"><strong>${esc(new Date(x.changed_at).toLocaleString('en-IN'))}</strong><p>Changed by: ${esc(x.changed_by||'Unknown user')}</p><details><summary>View before and after values</summary><p><strong>Before</strong></p><pre style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(JSON.stringify(x.old_values,null,2))}</pre><p><strong>After</strong></p><pre style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(JSON.stringify(x.new_values,null,2))}</pre></details></article>`).join('');
 }
 
 
