@@ -140,5 +140,15 @@
     </table>
   </div>
   <p id="dailySalesMsg"></p>
+  <hr style="margin:24px 0;border:0;border-top:1px solid #dbe3ee">
+  <div class="section-head"><div><p class="eyebrow">REPORT MAINTENANCE</p><h3>Daily report corrections</h3><p>Find a submitted report and correct it without creating a duplicate. Branch staff see reports for their assigned branch; management access is controlled by Supabase.</p></div></div>
+  <div class="grid" style="align-items:end">
+    <div><label for="correctionDate">Filter by date (optional)</label><input type="date" id="correctionDate"></div>
+    <div id="correctionBranchWrap"><label for="correctionBranch">Branch</label><select id="correctionBranch"><option value="">All permitted branches</option></select></div>
+    <div><button type="button" id="correctionRefresh" class="secondary">Find reports</button></div>
+  </div>
+  <div class="scroll" style="margin-top:12px"><table><thead><tr><th>Date</th><th>Branch</th><th>Sales</th><th>Patients</th><th>Action</th></tr></thead><tbody id="correctionRows"><tr><td colspan="5">Loading submitted reports…</td></tr></tbody></table></div>
+  <p id="correctionMsg" class="msg" aria-live="polite"></p>
+  <div id="correctionHistory" class="hidden" style="margin-top:12px;padding:14px;border:1px solid #dbe3ee;border-radius:10px"><h3>Correction history</h3><div id="correctionHistoryRows"></div></div>
 </section>
   <section class="card"><h2>Package counts in loaded reports</h2><div id="packageSummary"></div></section><small class="footnote">Pilot scaffold only. Verify role-based access and data completeness before using reports for final business decisions.</small></div></div></section></main><footer>UNOMED + NEETHI · Together for a Healthier Tomorrow</footer><script type="module" src="./src/app.js"></script></body></html>
