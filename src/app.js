@@ -85,7 +85,8 @@ if (!ready) {
     if(editBtn) await beginEditReport(editBtn.dataset.correctionEdit);
     if(historyBtn) await viewReportHistory(historyBtn.dataset.correctionHistory);
   });
-  $('cancelCorrection').onclick = cancelReportCorrection;
+  const cancelCorrectionButton = $('cancelCorrection');
+  if (cancelCorrectionButton) cancelCorrectionButton.onclick = cancelReportCorrection;
   $('analyticsRefresh').onclick = loadBranchAnalytics;
   $('targetDashboardMonth').value = today.slice(0,7);
   $('targetDashboardRefresh').onclick = loadTargetDashboard;
@@ -1216,6 +1217,7 @@ function cancelReportCorrection(clearMessage=true) {
 async function viewReportHistory(id) {
   const panel=$('correctionHistory'), target=$('correctionHistoryRows');
   panel.classList.remove('hidden'); target.textContent='Loading history…';
+  panel.scrollIntoView({behavior:'smooth',block:'nearest'});
   const {data,error}=await db.from('daily_report_change_log').select('changed_at,changed_by,old_values,new_values').eq('report_id',String(id)).order('changed_at',{ascending:false}).limit(20);
   if(error) { target.textContent='History unavailable: '+error.message; return; }
   if(!data?.length) { target.textContent='No corrections have been recorded for this report.'; return; }
