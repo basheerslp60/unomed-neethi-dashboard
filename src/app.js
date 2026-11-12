@@ -4,15 +4,10 @@ import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "./config.js";
 const $ = id => document.getElementById(id);
 const names = ["Complete HC 599","My Health 999","Cardiac HC","EHC 2500","EHC Advanced 3500","Healthy Women 699","Healthy Men","EHC PRO 8499","Hairfall","Vitamin Profile","PCOD Mini","Onam Camp","Other Packages"];
 let db, user, profile, branches = [], reports = [], targets = [];
-let editingReportId = null;
-let overviewReports = [];
-let overviewPeriod = '7';
-let overviewNetwork = 'ALL';
 const now = new Date();
 const today = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0,10);
 $('date').value = today;
 $('branchTargetMonth').value = today.slice(0,7);
-if ($('performanceMonth')) $('performanceMonth').value = today.slice(0,7);
 document.querySelectorAll('.nav-button').forEach(button => {
   button.addEventListener('click', () => {
     const target = $(button.dataset.target);
@@ -21,7 +16,24 @@ document.querySelectorAll('.nav-button').forEach(button => {
     target.scrollIntoView({behavior:'smooth',block:'start'});
   });
 });
-$('packages').innerHTML = names.map((n,i) => `<div class="pkg"><label for="p${i}">${n}</label><input id="p${i}" type="number" min="0" step="1" value="0"></div>`).join('');
+// Compact package selector. Hidden per-package inputs preserve the existing database write format.
+$('packageSelect').innerHTML = '<option value="">Choose a package</option>' + names.map((n,i) => `<option value="${i}">${esc(n)}</option>`).join('');
+$('packages').innerHTML = names.map((n,i) => `<input type="hidden" id="p${i}" value="0">`).join('') + '<p class="package-empty">No packages added yet. You can submit without package sales.</p>';
+function renderSelectedPackages() {
+  const selected = names.map((name,i)=>({name,qty:Number($('p'+i).value||0),i})).filter(x=>x.qty>0);
+  $('packages').innerHTML = names.map((n,i)=>`<input type="hidden" id="p${i}" value="${Number($('p'+i)?.value||0)}">`).join('') + (selected.length ? selected.map(x=>`<div class="selected-package-row"><span>${esc(x.name)}</span><strong>Qty: ${x.qty}</strong><button type="button" class="remove-package" data-index="${x.i}" aria-label="Remove ${esc(x.name)}">Remove</button></div>`).join('') : '<p class="package-empty">No packages added yet. You can submit without package sales.</p>');
+  $('packageCountBadge').textContent = `${selected.length} package${selected.length===1?'':'s'} added`;
+}
+function addSelectedPackage() {
+  const index = $('packageSelect').value;
+  const qty = Number($('packageQuantity').value);
+  if(index==='') { msg('salesMsg','Please select a package first.'); return; }
+  if(!Number.isInteger(qty) || qty<1) { msg('salesMsg','Enter a valid package quantity.'); return; }
+  const field=$('p'+Number(index)); field.value=String(Number(field.value||0)+qty);
+  $('packageSelect').value=''; $('packageQuantity').value='1'; msg('salesMsg','Package added.',true); renderSelectedPackages();
+}
+$('addPackage').addEventListener('click',addSelectedPackage);
+$('packages').addEventListener('click',e=>{const b=e.target.closest('.remove-package');if(!b)return;$('p'+Number(b.dataset.index)).value='0';renderSelectedPackages();});
 const ready = SUPABASE_URL.startsWith('https://') && !SUPABASE_URL.includes('PASTE_') && SUPABASE_PUBLISHABLE_KEY.startsWith('sb_publishable_') && !SUPABASE_PUBLISHABLE_KEY.includes('PASTE_');
 function msg(id, s, ok=false) { $(id).textContent = s; $(id).style.color = ok ? '#16764a' : '#a21d37'; }
 function show(id, v) { $(id).classList.toggle('hidden', !v); }
@@ -69,18 +81,10 @@ if (!ready) {
   $('forgot').onclick = async () => { const email=$('email').value.trim(); if(!email){msg('loginMsg','Enter your email first.');return;} const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname}); msg('loginMsg',error?error.message:'If the account exists, password reset instructions will be sent.'); };
   $('logout').onclick = () => db.auth.signOut();
   $('refresh').onclick = () => { if (user) load(user); };
-  $('applyPerformanceMonth').onclick = async () => { if(user){ await loadReports(); if(profile.role!=='branch_staff'){ await loadBranchAnalytics(); await loadTargetDashboard(); await loadManagementExecutiveDashboard(); } } };
-  $('performanceMonth').addEventListener('change', () => { if(user) $('applyPerformanceMonth').click(); });
-  $('overviewRefresh').onclick = () => { if (user) loadReports(); };
-  $('overviewDashboard').addEventListener('click', event => {
-    const period=event.target.closest('[data-overview-period]');
-    const network=event.target.closest('[data-overview-network]');
-    const action=event.target.closest('[data-overview-target]');
-    if(period){overviewPeriod=period.dataset.overviewPeriod;$('overviewDashboard').querySelectorAll('[data-overview-period]').forEach(b=>b.classList.toggle('active',b===period));renderOverview();}
-    if(network){overviewNetwork=network.dataset.overviewNetwork;$('overviewDashboard').querySelectorAll('[data-overview-network]').forEach(b=>b.classList.toggle('active',b===network));renderOverview();}
-    if(action){const target=$(action.dataset.overviewTarget);if(target&&!target.classList.contains('hidden')){target.scrollIntoView({behavior:'smooth',block:'start'});}}
-  });
-  $('salesForm').onsubmit = submit;
+  $('salesForm').onsubmit = openSalesConfirmation;
+  $('closeSalesConfirm').onclick = closeSalesConfirmation;
+  $('editSalesReport').onclick = closeSalesConfirmation;
+  $('confirmSalesSubmit').onclick = () => { closeSalesConfirmation(); submit({preventDefault(){}}); };
   $('generateReport').onclick = generateManagementReport;
   $('copyReport').onclick = copyManagementReport;
   $('downloadReport').onclick = downloadManagementReport;
@@ -91,34 +95,9 @@ if (!ready) {
   $('userAccessRefresh').onclick = loadPortalUsers;
   $('branchTargetMonth').addEventListener('change', loadBranchTargetEditor);
   $('dailySalesRefresh').onclick = loadDailyBranchSales;
-  $('correctionRefresh').onclick = loadCorrectionReports;
-  $('correctionDate').addEventListener('change', loadCorrectionReports);
-  $('correctionBranch').addEventListener('change', loadCorrectionReports);
-  $('correctionRows').addEventListener('click', async event => {
-    const editBtn=event.target.closest('[data-correction-edit]');
-    const historyBtn=event.target.closest('[data-correction-history]');
-    if(editBtn) await beginEditReport(editBtn.dataset.correctionEdit);
-    if(historyBtn) await viewReportHistory(historyBtn.dataset.correctionHistory);
-  });
-  const cancelCorrectionButton = $('cancelCorrection');
-  if (cancelCorrectionButton) cancelCorrectionButton.onclick = cancelReportCorrection;
   $('analyticsRefresh').onclick = loadBranchAnalytics;
-  $('targetDashboardMonth').value = today.slice(0,7);
-  $('targetDashboardRefresh').onclick = loadTargetDashboard;
-  $('targetDashboardMonth').addEventListener('change', loadTargetDashboard);
-  $('targetDashboardNetwork').addEventListener('change', renderTargetDashboard);
-  $('execDashboardMonth').value = today.slice(0,7);
-  $('execDashboardRefresh').onclick = loadManagementExecutiveDashboard;
-  $('execDashboardMonth').addEventListener('change', loadManagementExecutiveDashboard);
-  $('execDashboardNetwork').addEventListener('change', renderManagementExecutiveDashboard);
-  $('execDashboardExport').onclick = exportManagementExecutiveCSV;
   $('analyticsPeriod').addEventListener('change', loadBranchAnalytics);
   $('analyticsNetwork').addEventListener('change', renderBranchAnalytics);
-  $('analyticsRows').addEventListener('click', event => {
-    const button = event.target.closest('[data-analytics-branch]');
-    if (button) renderBranchDrilldown(button.dataset.analyticsBranch);
-  });
-  $('analyticsDetailClose').onclick = () => $('analyticsDrilldown').classList.add('hidden');
   $('branchTargetNetwork').addEventListener('change', renderBranchTargetEditorRows);
   $('saveBranchTargets').onclick = saveBranchTargets;
   $('portalUserForm').onsubmit = createPortalUser;
@@ -178,13 +157,8 @@ async function load(u) {
     updatePortalBranchVisibility();
   }
   show('login',false); show('app',true); show('userTools',true); show('entry',p.role==='branch_staff');
-  show('correctionBranchWrap',p.role!=='branch_staff');
-  if(p.role==='branch_staff') $('correctionBranch').innerHTML='';
-  else $('correctionBranch').innerHTML='<option value=>All permitted branches</option>'+branches.map(b=>`<option value="${esc(b.id)}">${esc(b.network)} - ${esc(b.branch_name)}</option>`).join('');
   show('managementReportSection',p.role!=='branch_staff');
   show('branchAnalyticsSection',p.role!=='branch_staff');
-  show('targetDashboardSection',p.role!=='branch_staff');
-  show('managementExecutiveSection',p.role!=='branch_staff');
   show('complianceSection',p.role!=='branch_staff');
   // User & Branch Access Management is visible only to the Super Admin.
   show('userAccessSection',p.role==='admin');
@@ -193,12 +167,10 @@ async function load(u) {
   $('title').textContent = p.role === 'branch_staff' ? (branches.find(x => x.id === p.branch_id)?.branch_name || 'Branch') + ' daily entry' : 'Management consolidated report';
   $('subtitle').textContent=p.role==='branch_staff'?'Submit sales for your assigned branch':'Targets and sales totals from reports permitted for your account';
   await loadReports();
-  $('correctionDate').value='';
-  await loadCorrectionReports();
   refreshSidebarVisibility();
   if (p.role === 'admin') await loadPortalUsers();
   await loadEmployeeModule();
-  if (p.role !== 'branch_staff') { await loadBranchAnalytics(); await loadTargetDashboard(); await loadManagementExecutiveDashboard(); }
+  if (p.role !== 'branch_staff') await loadBranchAnalytics();
 }
 
 
@@ -374,8 +346,6 @@ async function loadReports() {
 }).join('');
   $('reportMsg').textContent=profile.role==='branch_staff'?'Only permitted reports are displayed.':'Showing up to 100 recent reports from the latest 500 loaded rows. MTD summary uses paginated current-month records.';
   await renderTargets(monthReports);
-  overviewReports = monthReports || [];
-  renderOverview();
   refreshSidebarVisibility();
   await renderCompliance(reports);
   renderDailyTrend(monthReports);
@@ -470,217 +440,8 @@ function renderBranchAnalytics() {
     `<div class="stat-card"><span>Top sales branch</span><strong>${topSales?esc(topSales.branch.branch_name):'—'}</strong><small>${topSales?money(topSales.current.sales):'No sales recorded'}</small></div>`+
     `<div class="stat-card"><span>Top patient volume</span><strong>${topPatients?esc(topPatients.branch.branch_name):'—'}</strong><small>${topPatients?topPatients.current.patients.toLocaleString('en-IN')+' patients':'No patients recorded'}</small></div>`+
     `<div class="stat-card"><span>Best sales growth</span><strong>${bestGrowth?esc(bestGrowth.branch.branch_name):'—'}</strong><small>${bestGrowth?growthText(bestGrowth.salesChange):'No prior-period base'}</small></div>`;
-  $('analyticsRows').innerHTML=results.map((r,i)=>`<tr><td>${i+1}</td><td><button type="button" class="analytics-branch-link" data-analytics-branch="${esc(String(r.branch.id))}" aria-label="View ${esc(r.branch.branch_name)} daily details">${esc(r.branch.branch_name)} <span>↗</span></button></td><td>${esc(r.branch.network)}</td><td>${money(r.current.sales)}</td><td class="${r.salesChange===null?'':r.salesChange>=0?'analytics-positive':'analytics-negative'}">${growthText(r.salesChange)}</td><td>${r.current.patients.toLocaleString('en-IN')}</td><td class="${r.patientChange===null?'':r.patientChange>=0?'analytics-positive':'analytics-negative'}">${growthText(r.patientChange)}</td><td>${money(r.avg)}</td></tr>`).join('') || '<tr><td colspan="8">No active branches found.</td></tr>';
-  $('analyticsDrilldown').classList.add('hidden');
-  $('analyticsMsg').textContent=`${results.length} branches · ${data.current.length} current-period reports and ${data.previous.length} previous-period reports visible to this account. Select a branch name to open its day-wise sales and patient details. A “New” change means the previous period had zero sales or patients.`;
-}
-function renderBranchDrilldown(branchId) {
-  const data=window.__branchAnalyticsData;
-  if(!data || !profile || profile.role==='branch_staff') return;
-  const branch=branches.find(b=>String(b.id)===String(branchId));
-  if(!branch) return;
-  const daily=new Map();
-  data.current.filter(r=>String(r.branch_id)===String(branchId)).forEach(r=>{
-    const key=r.report_date;
-    const item=daily.get(key)||{date:key,sales:0,patients:0};
-    item.sales+=Number(r.total_sales||0);
-    item.patients+=Number(r.patient_count||0);
-    daily.set(key,item);
-  });
-  const days=[];
-  let cursor=data.range.currentStart;
-  while(cursor<=data.range.currentEnd) {
-    days.push(daily.get(cursor)||{date:cursor,sales:0,patients:0});
-    cursor=analyticsShiftDate(cursor,1);
-  }
-  const totals=days.reduce((a,d)=>({sales:a.sales+d.sales,patients:a.patients+d.patients}),{sales:0,patients:0});
-  const maxSales=Math.max(1,...days.map(d=>d.sales));
-  $('analyticsDetailTitle').textContent=branch.branch_name+' — '+branch.network;
-  $('analyticsDetailPeriod').textContent='Daily breakdown for '+data.range.currentStart+' to '+data.range.currentEnd;
-  $('analyticsDetailKpis').innerHTML=
-    `<div class="stat-card"><span>Period sales</span><strong>${money(totals.sales)}</strong></div>`+
-    `<div class="stat-card"><span>Patients served</span><strong>${totals.patients.toLocaleString('en-IN')}</strong></div>`+
-    `<div class="stat-card"><span>Average bill</span><strong>${money(totals.patients?totals.sales/totals.patients:0)}</strong></div>`+
-    `<div class="stat-card"><span>Reporting days</span><strong>${days.filter(d=>d.sales>0||d.patients>0).length} / ${days.length}</strong></div>`;
-  $('analyticsDailyChart').innerHTML=days.map(d=>{
-    const height=d.sales?Math.max(3,(d.sales/maxSales)*100):0;
-    const label=d.date.slice(8,10)+'/'+d.date.slice(5,7);
-    return `<div class="analytics-day"><div class="analytics-day-value">${d.sales?money(d.sales):'—'}</div><div class="analytics-day-track"><div class="analytics-day-bar" style="height:${height}%"></div></div><strong>${label}</strong><small>${d.patients} patients</small></div>`;
-  }).join('');
-  $('analyticsDailyRows').innerHTML=[...days].reverse().map(d=>`<tr><td>${d.date}</td><td>${money(d.sales)}</td><td>${d.patients.toLocaleString('en-IN')}</td><td>${money(d.patients?d.sales/d.patients:0)}</td></tr>`).join('');
-  $('analyticsDrilldown').classList.remove('hidden');
-  $('analyticsDrilldown').scrollIntoView({behavior:'smooth',block:'start'});
-}
-
-async function fetchTargetDashboardReports(start,end) {
-  let all=[],from=0,pageSize=500;
-  while(true) {
-    const {data,error}=await db.from('daily_reports').select('branch_id,report_date,total_sales,patient_count')
-      .gte('report_date',start).lte('report_date',end).order('report_date',{ascending:true}).range(from,from+pageSize-1);
-    if(error) throw error;
-    all=all.concat(data||[]);
-    if(!data || data.length<pageSize) break;
-    from+=pageSize;
-  }
-  return all;
-}
-async function loadTargetDashboard() {
-  if(!profile || profile.role==='branch_staff' || !db) return;
-  const month=$('targetDashboardMonth').value;
-  if(!month) return;
-  $('targetDashboardRows').innerHTML='<tr><td colspan="11">Loading target and sales data…</td></tr>';
-  $('targetDashboardMsg').textContent='Loading records permitted for this account…';
-  try {
-    const start=month+'-01';
-    const [year,mon]=month.split('-').map(Number);
-    const lastDay=new Date(year,mon,0).getDate();
-    const currentMonth=month===today.slice(0,7);
-    const end=currentMonth?today:`${month}-${String(lastDay).padStart(2,'0')}`;
-    const [{data:targetData,error:targetError},monthReports]=await Promise.all([
-      db.from('branch_monthly_targets').select('branch_id,target_amount,target_month').eq('target_month',start),
-      fetchTargetDashboardReports(start,end)
-    ]);
-    if(targetError) throw targetError;
-    window.__targetDashboardData={month,start,end,lastDay,currentMonth,targets:targetData||[],reports:monthReports||[]};
-    renderTargetDashboard();
-  } catch(err) {
-    $('targetDashboardRows').innerHTML='<tr><td colspan="11">Could not load target dashboard.</td></tr>';
-    $('targetDashboardKpis').innerHTML='';
-    $('targetDashboardMsg').textContent=(err.message||'Dashboard query failed.')+' Check branch_monthly_targets and daily_reports permissions.';
-  }
-}
-function renderTargetDashboard() {
-  const data=window.__targetDashboardData;
-  if(!data || !profile || profile.role==='branch_staff') return;
-  const network=$('targetDashboardNetwork').value;
-  const visible=branches.filter(b=>network==='ALL'||String(b.network).toUpperCase()===network);
-  const targetMap=new Map(data.targets.map(t=>[String(t.branch_id),Number(t.target_amount||0)]));
-  const salesMap=new Map(),patientMap=new Map();
-  data.reports.forEach(r=>{
-    const id=String(r.branch_id);
-    salesMap.set(id,(salesMap.get(id)||0)+Number(r.total_sales||0));
-    patientMap.set(id,(patientMap.get(id)||0)+Number(r.patient_count||0));
-  });
-  const elapsedWorking=countWorkingDays(data.start,data.end);
-  const totalWorking=countWorkingDays(data.start,`${data.month}-${String(data.lastDay).padStart(2,'0')}`);
-  const remainingWorking=Math.max(0,totalWorking-elapsedWorking);
-  const rows=visible.map(branch=>{
-    const target=targetMap.get(String(branch.id))||0;
-    const sales=salesMap.get(String(branch.id))||0;
-    const patients=patientMap.get(String(branch.id))||0;
-    const achievement=target?sales/target*100:0;
-    const balance=Math.max(0,target-sales);
-    const required=remainingWorking>0?Math.ceil(balance/remainingWorking):balance;
-    const projected=elapsedWorking>0?(sales/elapsedWorking)*totalWorking:0;
-    const expected=target&&totalWorking?target*elapsedWorking/totalWorking:0;
-    const pace=expected>0?sales/expected:0;
-    let status='Target missing',cls='target-status-none';
-    if(target>0&&sales>=target){status='Target achieved';cls='target-status-good';}
-    else if(target>0&&pace>=1){status='On track';cls='target-status-good';}
-    else if(target>0&&pace>=.85){status='Needs attention';cls='target-status-warn';}
-    else if(target>0){status='Critical';cls='target-status-bad';}
-    return {branch,target,sales,patients,achievement,balance,required,projected,status,cls,missing:!target};
-  }).sort((a,b)=>b.achievement-a.achievement||b.sales-a.sales);
-  const totals=rows.reduce((a,r)=>({target:a.target+r.target,sales:a.sales+r.sales,patients:a.patients+r.patients,balance:a.balance+r.balance,projected:a.projected+r.projected}),{target:0,sales:0,patients:0,balance:0,projected:0});
-  const achievement=totals.target?totals.sales/totals.target*100:0;
-  const targetCount=rows.filter(r=>r.target>0).length;
-  const achieved=rows.filter(r=>r.target>0&&r.sales>=r.target).length;
-  const critical=rows.filter(r=>r.cls==='target-status-bad').length;
-  const best=[...rows].filter(r=>r.target>0).sort((a,b)=>b.achievement-a.achievement)[0];
-  const fmt=n=>`${(Number(n)||0).toFixed(1)}%`;
-  $('targetDashboardPeriod').textContent=`${data.month} · ${data.start} to ${data.end} · ${elapsedWorking} of ${totalWorking} working days elapsed (Sundays excluded)`;
-  $('targetDashboardKpis').innerHTML=
-    `<div class="stat-card"><span>Total target</span><strong>${money(totals.target)}</strong><small>${targetCount} branches with targets</small></div>`+
-    `<div class="stat-card"><span>Actual sales</span><strong>${money(totals.sales)}</strong><small>${fmt(achievement)} achieved</small></div>`+
-    `<div class="stat-card"><span>Target balance</span><strong>${money(totals.balance)}</strong><small>Across selected branches</small></div>`+
-    `<div class="stat-card"><span>Projected month-end</span><strong>${money(totals.projected)}</strong><small>Based on elapsed working-day average</small></div>`+
-    `<div class="stat-card"><span>Patients</span><strong>${totals.patients.toLocaleString('en-IN')}</strong><small>Month-to-date / selected month</small></div>`+
-    `<div class="stat-card"><span>Branches achieved</span><strong>${achieved} / ${targetCount}</strong><small>${critical} branches critical</small></div>`;
-  $('targetDashboardAlerts').innerHTML=`<span class="target-alert-pill target-status-good">On track / achieved: ${rows.filter(r=>r.cls==='target-status-good').length}</span><span class="target-alert-pill target-status-warn">Needs attention: ${rows.filter(r=>r.cls==='target-status-warn').length}</span><span class="target-alert-pill target-status-bad">Critical: ${critical}</span><span class="target-alert-pill target-status-none">Target missing: ${rows.filter(r=>r.missing).length}</span>`;
-  $('targetDashboardRows').innerHTML=rows.map((r,i)=>`<tr><td>${i+1}</td><td><strong>${esc(r.branch.branch_name)}</strong></td><td>${esc(r.branch.network)}</td><td>${r.target?money(r.target):'—'}</td><td>${money(r.sales)}</td><td class="${r.achievement>=100?'analytics-positive':r.target?'analytics-negative':''}">${r.target?fmt(r.achievement):'—'}</td><td><div class="target-progress-cell"><div class="target-progress-track"><span style="width:${Math.min(100,Math.max(0,r.achievement))}%"></span></div><small>${r.target?fmt(r.achievement):'No target'}</small></div></td><td>${r.target?money(r.balance):'—'}</td><td>${r.target?money(r.required):'—'}</td><td>${r.target?money(r.projected):'—'}</td><td><span class="target-alert-pill ${r.cls}">${r.status}</span></td></tr>`).join('')||'<tr><td colspan="11">No active branches found.</td></tr>';
-  $('targetDashboardMsg').textContent=`${rows.length} active branches · Best achievement: ${best?best.branch.branch_name+' ('+fmt(best.achievement)+')':'No targets configured'} · Projected sales are estimates, not guaranteed results. For a future month, projection uses reported sales through the selected month end.`;
-}
-
-async function loadManagementExecutiveDashboard() {
-  if (!profile || profile.role==='branch_staff' || !db) return;
-  const month=$('execDashboardMonth').value || today.slice(0,7);
-  const start=month+'-01';
-  const [year,mon]=month.split('-').map(Number);
-  const end=`${month}-${String(new Date(year,mon,0).getDate()).padStart(2,'0')}`;
-  $('execDashboardMsg').textContent='Loading monthly sales and target records permitted for this account…';
-  $('execDashboardBranches').innerHTML='<tr><td colspan="8">Loading branch performance…</td></tr>';
-  try {
-    let monthReports=[],from=0,pageSize=500;
-    while(true) {
-      const {data,error}=await db.from('daily_reports').select('branch_id,report_date,total_sales,patient_count,status')
-        .gte('report_date',start).lte('report_date',end).order('report_date',{ascending:true}).range(from,from+pageSize-1);
-      if(error) throw error;
-      monthReports=monthReports.concat(data||[]);
-      if(!data || data.length<pageSize) break;
-      from+=pageSize;
-    }
-    const {data:targetData,error:targetError}=await db.from('branch_monthly_targets').select('branch_id,target_month,target_amount').eq('target_month',start);
-    if(targetError) throw targetError;
-    window.__managementExecutiveData={month,start,end,reports:monthReports,targets:targetData||[]};
-    renderManagementExecutiveDashboard();
-  } catch(err) {
-    $('execDashboardBranches').innerHTML='<tr><td colspan="8">Could not load management dashboard.</td></tr>';
-    $('execDashboardMsg').textContent=(err.message||'Dashboard query failed.')+' Check daily_reports and branch_monthly_targets access.';
-  }
-}
-function renderManagementExecutiveDashboard() {
-  const data=window.__managementExecutiveData;
-  if(!data) return;
-  const network=$('execDashboardNetwork').value;
-  const allowed=branches.filter(b=>network==='ALL'||b.network===network);
-  const ids=new Set(allowed.map(b=>String(b.id)));
-  const reports=data.reports.filter(r=>ids.has(String(r.branch_id)));
-  const targetMap=new Map(data.targets.map(t=>[String(t.branch_id),Number(t.target_amount||0)]));
-  const sales=reports.reduce((s,r)=>s+Number(r.total_sales||0),0);
-  const patients=reports.reduce((s,r)=>s+Number(r.patient_count||0),0);
-  const targets=allowed.reduce((s,b)=>s+(targetMap.get(String(b.id))||0),0);
-  const todayDate=data.month===today.slice(0,7)?today:data.end;
-  const dailySales=reports.filter(r=>r.report_date===todayDate).reduce((s,r)=>s+Number(r.total_sales||0),0);
-  const dailyPatients=reports.filter(r=>r.report_date===todayDate).reduce((s,r)=>s+Number(r.patient_count||0),0);
-  const rows=allowed.map(branch=>{
-    const br=reports.filter(r=>String(r.branch_id)===String(branch.id));
-    const branchSales=br.reduce((s,r)=>s+Number(r.total_sales||0),0);
-    const branchPatients=br.reduce((s,r)=>s+Number(r.patient_count||0),0);
-    const target=targetMap.get(String(branch.id))||0;
-    return {branch,sales:branchSales,patients:branchPatients,average:branchPatients?branchSales/branchPatients:0,target,achievement:target?branchSales/target*100:0};
-  }).sort((a,b)=>b.sales-a.sales);
-  const networkRows=['UNOMED','NEETHI'].map(name=>{
-    const list=rows.filter(r=>r.branch.network===name);
-    const ns=list.reduce((s,r)=>s+r.sales,0), np=list.reduce((s,r)=>s+r.patients,0), nt=list.reduce((s,r)=>s+r.target,0);
-    return {name,sales:ns,patients:np,target:nt,average:np?ns/np:0,achievement:nt?ns/nt*100:0};
-  }).filter(n=>network==='ALL'||n.name===network);
-  $('execDashboardPeriod').textContent=`${data.month} · ${data.start} to ${data.end} · ${reports.length.toLocaleString('en-IN')} daily report records`;
-  const kpis=[['Daily sales',money(dailySales),`${todayDate} · ${dailyPatients.toLocaleString('en-IN')} patients`],['Monthly sales',money(sales),`${data.month} selected period`],['Monthly patients',patients.toLocaleString('en-IN'),'Patients served'],['Average bill',money(patients?sales/patients:0),'Sales divided by patients'],['Monthly target',money(targets),`${allowed.filter(b=>targetMap.has(String(b.id))).length} branches with targets`],['Target achievement',targets?fmtPct(sales/targets*100):'—','Actual sales ÷ target']];
-  $('execDashboardKpis').innerHTML=kpis.map((k,i)=>`<article class="exec-kpi exec-kpi-${i+1}"><span>${k[0]}</span><strong>${k[1]}</strong><small>${k[2]}</small></article>`).join('');
-  $('execDashboardNetworks').innerHTML=networkRows.map(n=>`<article class="exec-network-card ${n.name==='NEETHI'?'exec-neethi':''}"><div><p class="eyebrow">${n.name} NETWORK</p><strong>${money(n.sales)}</strong><small>${n.patients.toLocaleString('en-IN')} patients · Average bill ${money(n.average)}</small></div><div class="exec-network-meta"><b>${n.target?fmtPct(n.achievement):'No target'}</b><small>${n.target?money(n.target)+' target':'Target not configured'}</small></div><div class="exec-network-track"><span style="width:${Math.min(100,Math.max(0,n.achievement))}%"></span></div></article>`).join('');
-  const byDate=new Map(); reports.forEach(r=>byDate.set(r.report_date,(byDate.get(r.report_date)||0)+Number(r.total_sales||0)));
-  const days=Array.from(byDate.entries()).sort((a,b)=>a[0].localeCompare(b[0]));
-  const maxDay=Math.max(1,...days.map(x=>x[1]));
-  $('execDashboardDaily').innerHTML=days.length?days.map(([date,value])=>`<div class="exec-day"><small>${date.slice(8,10)}</small><div class="exec-day-track" title="${date}: ${money(value)}"><span style="height:${Math.max(2,value/maxDay*100)}%"></span></div><b>${money(value)}</b></div>`).join(''):'<p>No daily sales records for this month.</p>';
-  const best=rows[0], highestPatients=[...rows].sort((a,b)=>b.patients-a.patients)[0], lowest=[...rows].filter(r=>r.sales>0).sort((a,b)=>a.sales-b.sales)[0];
-  $('execDashboardHighlights').innerHTML=[['Top sales branch',best?`${best.branch.branch_name} · ${money(best.sales)}`:'No sales data'],['Highest patient volume',highestPatients?`${highestPatients.branch.branch_name} · ${highestPatients.patients} patients`:'No patient data'],['Lowest sales among active branches',lowest?`${lowest.branch.branch_name} · ${money(lowest.sales)}`:'No sales data'],['Daily group sales',money(dailySales),`${dailyPatients.toLocaleString('en-IN')} patients on ${todayDate}`]].map(x=>`<div class="exec-highlight"><span>${x[0]}</span><strong>${x[1]}</strong>${x[2]?`<small>${x[2]}</small>`:''}</div>`).join('');
-  $('execDashboardBranches').innerHTML=rows.map((r,i)=>`<tr><td>${i+1}</td><td><strong>${esc(r.branch.branch_name)}</strong></td><td>${esc(r.branch.network)}</td><td>${money(r.sales)}</td><td>${r.patients.toLocaleString('en-IN')}</td><td>${money(r.average)}</td><td>${r.target?money(r.target):'—'}</td><td>${r.target?fmtPct(r.achievement):'—'}</td></tr>`).join('')||'<tr><td colspan="8">No active branches found.</td></tr>';
-  $('execDashboardMsg').textContent=`${rows.length} active branches · Best sales: ${best?best.branch.branch_name:'—'} · All figures are based on records and targets visible to the signed-in account.`;
-}
-function exportManagementExecutiveCSV() {
-  const data=window.__managementExecutiveData;
-  if(!data) { $('execDashboardMsg').textContent='Refresh the dashboard before exporting.'; return; }
-  const network=$('execDashboardNetwork').value;
-  const reports=data.reports;
-  const rows=branches.filter(b=>network==='ALL'||b.network===network).map(b=>{
-    const br=reports.filter(r=>String(r.branch_id)===String(b.id));
-    const sales=br.reduce((s,r)=>s+Number(r.total_sales||0),0), patients=br.reduce((s,r)=>s+Number(r.patient_count||0),0);
-    const target=Number(data.targets.find(t=>String(t.branch_id)===String(b.id))?.target_amount||0);
-    return [b.branch_name,b.network,sales,patients,patients?sales/patients:0,target,target?sales/target*100:0];
-  });
-  const csv=[['Branch','Network','Sales','Patients','Average bill','Target','Achievement %'],...rows].map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),a=document.createElement('a');
-  a.href=url;a.download=`UNOMED_NEETHI_Management_${data.month}.csv`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+  $('analyticsRows').innerHTML=results.map((r,i)=>`<tr><td>${i+1}</td><td><strong>${esc(r.branch.branch_name)}</strong></td><td>${esc(r.branch.network)}</td><td>${money(r.current.sales)}</td><td class="${r.salesChange===null?'':r.salesChange>=0?'analytics-positive':'analytics-negative'}">${growthText(r.salesChange)}</td><td>${r.current.patients.toLocaleString('en-IN')}</td><td class="${r.patientChange===null?'':r.patientChange>=0?'analytics-positive':'analytics-negative'}">${growthText(r.patientChange)}</td><td>${money(r.avg)}</td></tr>`).join('') || '<tr><td colspan="8">No active branches found.</td></tr>';
+  $('analyticsMsg').textContent=`${results.length} branches · ${data.current.length} current-period reports and ${data.previous.length} previous-period reports visible to this account. A “New” change means the previous period had zero sales or patients.`;
 }
 
 async function loadDailyBranchSales() {
@@ -1106,61 +867,6 @@ $('targetMeta').textContent = targetMonth.slice(0, 7) + ' · ' + rows.filter(r =
 
 }
 
-function renderOverview() {
-  const staff=profile?.role==='branch_staff';
-  const monthKey=$('performanceMonth')?.value || today.slice(0,7);
-  const branchMap=new Map(branches.map(b=>[String(b.id),b]));
-  const source=(overviewReports||[]).filter(r=>r.report_date && r.report_date.startsWith(monthKey));
-  const visibleBranches=staff?branches.filter(b=>String(b.id)===String(profile.branch_id)):branches;
-  const branchRows=visibleBranches.map(b=>{
-    const rows=source.filter(r=>String(r.branch_id)===String(b.id));
-    const sales=rows.reduce((a,r)=>a+Number(r.total_sales||0),0);
-    const patients=rows.reduce((a,r)=>a+Number(r.patient_count||0),0);
-    const targetRow=(targets||[]).find(t=>String(t.branch_id)===String(b.id));
-    const target=Number(targetRow?.target_amount||0);
-    return {...b,sales,patients,target,achievement:target?sales/target*100:0,reports:rows.length};
-  }).sort((a,b)=>b.sales-a.sales);
-  const totalSales=branchRows.reduce((a,r)=>a+r.sales,0);
-  const totalPatients=branchRows.reduce((a,r)=>a+r.patients,0);
-  const totalTarget=branchRows.reduce((a,r)=>a+r.target,0);
-  const achievement=totalTarget?totalSales/totalTarget*100:0;
-  const todaySales=(overviewReports||[]).filter(r=>r.report_date===today && (staff?String(r.branch_id)===String(profile.branch_id):true)).reduce((a,r)=>a+Number(r.total_sales||0),0);
-  const avgBill=totalPatients?totalSales/totalPatients:0;
-  const branchLabel=staff?(branchRows[0]?.branch_name||'Your branch'):'UNOMED + NEETHI Group';
-  $('overviewGreeting').textContent=staff?'YOUR BRANCH COMMAND CENTRE':'MANAGEMENT COMMAND CENTRE';
-  $('overviewHeroTitle').textContent=staff?`Welcome, ${profile.full_name?.split(' ')[0]||'Team'}!`:'Business performance at a glance';
-  $('overviewHeroSub').textContent=`${branchLabel} · ${monthKey} · Data visible to your signed-in account`;
-  $('overviewRolePill').textContent=String(profile?.role||'portal').replaceAll('_',' ').toUpperCase();
-  const kpis=[
-    {label:'TODAY\'S SALES',value:money(todaySales),meta:'Sales recorded today',tone:'blue',icon:'₹'},
-    {label:'MONTH SALES',value:money(totalSales),meta:`${monthKey} month-to-date`,tone:'red',icon:'↗'},
-    {label:'PATIENTS SERVED',value:totalPatients.toLocaleString('en-IN'),meta:'Patients in selected month',tone:'teal',icon:'♙'},
-    {label:'TARGET ACHIEVEMENT',value:fmtPct(achievement),meta:totalTarget?`${money(Math.max(totalTarget-totalSales,0))} balance`:'Monthly target not set',tone:'gold',icon:'◎'},
-    {label:'AVERAGE BILL',value:money(avgBill),meta:'Sales divided by patients',tone:'violet',icon:'⌁'}
-  ];
-  $('overviewKpis').innerHTML=kpis.map(k=>`<article class="overview-kpi ${k.tone}"><span class="overview-kpi-icon">${k.icon}</span><span class="overview-kpi-label">${k.label}</span><strong>${k.value}</strong><small>${k.meta}</small></article>`).join('');
-  const nets=['UNOMED','NEETHI'].map(n=>{const arr=branchRows.filter(b=>String(b.network).toUpperCase()===n);return {name:n,sales:arr.reduce((a,b)=>a+b.sales,0),target:arr.reduce((a,b)=>a+b.target,0),patients:arr.reduce((a,b)=>a+b.patients,0),count:arr.length};});
-  $('overviewNetworkGrid').innerHTML=staff?`<article class="overview-network-card own"><span class="overview-label">YOUR BRANCH</span><strong>${esc(branchLabel)}</strong><div class="overview-network-numbers"><b>${money(totalSales)}</b><span>${fmtPct(achievement)} achieved</span></div><div class="overview-progress"><i style="width:${Math.min(100,achievement)}%"></i></div><small>${money(totalTarget)} monthly target · ${totalPatients.toLocaleString('en-IN')} patients</small></article>`:nets.map(n=>`<article class="overview-network-card ${n.name.toLowerCase()}"><div class="overview-network-head"><span class="overview-label">${n.name} NETWORK</span><span>${n.count} branches</span></div><strong>${money(n.sales)}</strong><div class="overview-progress"><i style="width:${Math.min(100,n.target?n.sales/n.target*100:0)}%"></i></div><div class="overview-network-numbers"><span>${fmtPct(n.target?n.sales/n.target*100:0)} achieved</span><span>Target ${money(n.target)}</span></div><small>${n.patients.toLocaleString('en-IN')} patients</small></article>`).join('');
-  const dates=[];const nowDate=new Date();const [yy,mm]=monthKey.split('-').map(Number);const lastDay=new Date(yy,mm,0).getDate();
-  let count=overviewPeriod==='month'?lastDay:Number(overviewPeriod);let startDay=overviewPeriod==='month'?1:Math.max(1,nowDate.getDate()-count+1);if(monthKey!==today.slice(0,7)&&overviewPeriod!=='month')startDay=Math.max(1,lastDay-count+1);const endDay=overviewPeriod==='month'?lastDay:Math.min(lastDay,startDay+count-1);
-  for(let d=startDay;d<=endDay;d++){const key=`${monthKey}-${String(d).padStart(2,'0')}`;dates.push({key,sales:source.filter(r=>r.report_date===key).filter(r=>!staff||String(r.branch_id)===String(profile.branch_id)).reduce((a,r)=>a+Number(r.total_sales||0),0)});}
-  const max=Math.max(1,...dates.map(x=>x.sales));
-  $('overviewChartTitle').textContent=overviewPeriod==='month'?'Daily sales · full month':`Daily sales · last ${overviewPeriod} days`;
-  $('overviewTrend').innerHTML=dates.map(x=>`<div class="overview-trend-day" title="${x.key}: ${money(x.sales)}"><div class="overview-trend-bar-wrap"><i style="height:${x.sales?Math.max(3,x.sales/max*100):1}%"></i></div><small>${x.key.slice(8)}</small></div>`).join('');
-  const periodTotal=dates.reduce((a,x)=>a+x.sales,0);$('overviewTrendFoot').textContent=`Period sales: ${money(periodTotal)} · ${dates.filter(x=>x.sales>0).length} reporting days`;
-  const quick=staff?[['✍','Submit daily sales','entry'],['🎯','My branch target','branchDailyTargetSection'],['📅','View daily reports','dailySalesSection'],['🛠','Correct a submitted report','dailySalesSection']]:[['📊','Branch performance','targetSection'],['🎯','Target vs actual','targetDashboardSection'],['✅','Daily compliance','complianceSection'],['📄','Management report','managementReportSection'],['📅','Daily sales & corrections','dailySalesSection']];
-  $('overviewQuickActions').innerHTML=quick.filter(q=>$(q[2])&&!$(q[2]).classList.contains('hidden')).map(q=>`<button type="button" class="overview-action" data-overview-target="${q[2]}"><span>${q[0]}</span>${q[1]}<b>→</b></button>`).join('');
-  const pace=totalTarget?achievement:0;const best=branchRows[0];const weakest=[...branchRows].filter(r=>r.target>0).sort((a,b)=>a.achievement-b.achievement)[0];
-  $('overviewInsight').innerHTML=staff?`<strong>${pace>=100?'🏆 Target achieved':pace>=85?'👍 Good progress':'⚡ Keep building momentum'}</strong><br>${pace>=100?'Your branch has achieved its monthly target.':`You have achieved ${fmtPct(pace)} of your monthly target. Focus on consistent daily sales and patient follow-up.`}`:`<strong>${best?'🏆 Leading branch: '+esc(best.branch_name):'📊 Branch insights'}</strong><br>${weakest?`Needs attention: ${esc(weakest.branch_name)} at ${fmtPct(weakest.achievement)} achievement.`:'Set branch targets to unlock pace insights.'}`;
-  show('overviewBranchPanel',!staff);
-  const filtered=branchRows.filter(r=>overviewNetwork==='ALL'||String(r.network).toUpperCase()===overviewNetwork);
-  $('overviewBranchRows').innerHTML=filtered.map((r,i)=>`<div class="overview-branch-row"><span class="overview-rank">${i+1}</span><div class="overview-branch-name"><strong>${esc(r.branch_name)}</strong><small>${esc(r.network)} · ${r.patients.toLocaleString('en-IN')} patients</small></div><div class="overview-branch-progress"><div><i style="width:${Math.min(100,r.achievement)}%"></i></div><small>${fmtPct(r.achievement)} of ${money(r.target)}</small></div><strong class="overview-branch-sales">${money(r.sales)}</strong></div>`).join('')||'<p>No branch results for this filter.</p>';
-  const reportToday=(overviewReports||[]).filter(r=>r.report_date===today);const reported=new Set(reportToday.map(r=>String(r.branch_id)));const compliant=visibleBranches.filter(b=>reported.has(String(b.id))).length;
-  $('overviewCompliance').innerHTML=`<div class="overview-compliance-count"><strong>${compliant}/${visibleBranches.length}</strong><span>branches submitted today</span></div><div class="overview-progress"><i style="width:${visibleBranches.length?compliant/visibleBranches.length*100:0}%"></i></div><small>${visibleBranches.length-compliant} branch(es) without a visible report today</small>`;
-  const recent=(reports||[]).filter(r=>staff?String(r.branch_id)===String(profile.branch_id):true).slice(0,5);
-  $('overviewRecent').innerHTML=recent.map(r=>{const b=branchMap.get(String(r.branch_id));return `<div class="overview-recent-row"><span><strong>${esc(b?.branch_name||'Branch')}</strong><small>${esc(r.report_date)}</small></span><b>${money(r.total_sales)}</b></div>`;}).join('')||'<p>No recent reports available.</p>';
-}
-
 function renderDailyTrend(monthReports) {
   const byDate = new Map();
 
@@ -1221,88 +927,42 @@ function downloadManagementReport() {
   const blob = new Blob([textValue + '\n'], { type: 'text/plain;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'unomed-neethi-management-report.txt'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 }
 
+function openSalesConfirmation(e) {
+  e.preventDefault();
+  const form=$('salesForm');
+  if(!form.reportValidity()) return;
+  const branch=branches.find(b=>b.id===profile?.branch_id);
+  const selected=names.map((name,i)=>({name,qty:Number($('p'+i).value||0)})).filter(x=>x.qty>0);
+  const rows=selected.length ? selected.map(x=>`<div class="confirm-package-row"><span>${esc(x.name)}</span><strong>${x.qty}</strong></div>`).join('') : '<p class="confirm-no-packages">No package sales entered</p>';
+  $('salesConfirmContent').innerHTML = `
+    <div class="confirm-summary-grid">
+      <div><span>Branch</span><strong>${esc(branch?.branch_name||'Assigned branch')}</strong></div>
+      <div><span>Report date</span><strong>${esc($('date').value)}</strong></div>
+      <div><span>Total sales</span><strong>${money($('sales').value)}</strong></div>
+      <div><span>Patients</span><strong>${Number($('patients').value||0)}</strong></div>
+      <div><span>Home collections</span><strong>${Number($('home').value||0)}</strong></div>
+      <div><span>Google reviews</span><strong>${Number($('reviews').value||0)}</strong></div>
+    </div>
+    <div class="confirm-package-list"><div class="confirm-package-heading"><strong>Package counts</strong><span>${selected.length} selected</span></div>${rows}</div>`;
+  $('salesConfirmModal').classList.remove('hidden');
+  $('confirmSalesSubmit').focus();
+}
+function closeSalesConfirmation() { $('salesConfirmModal').classList.add('hidden'); }
+
 async function submit(e) {
   e.preventDefault();
-  if(!editingReportId && profile.role!=='branch_staff') { msg('salesMsg','Only branch staff can submit new reports.'); return; }
+  if(profile.role!=='branch_staff') { msg('salesMsg','Only branch staff can submit.'); return; }
   const branch=branches.find(b=>b.id===profile.branch_id);
-  if(!editingReportId && !branch) { msg('salesMsg','No valid active branch assigned.'); return; }
-  const btn=$('salesForm').querySelector('button[type="submit"],button:not([type])');
-  btn.disabled=true; msg('salesMsg',editingReportId?'Saving corrections…':'Submitting…');
+  if(!branch) { msg('salesMsg','No valid active branch assigned.'); return; }
+  const btn=$('salesForm').querySelector('button[type="submit"]'); btn.disabled=true; msg('salesMsg','Submitting…');
   try {
-    const packages=names.map((name,i)=>({package_name:name,quantity:Number($('p'+i).value||0)})).filter(x=>x.quantity>0);
-    if(editingReportId) {
-      const {error}=await db.rpc('correct_daily_report',{p_report_id:String(editingReportId),p_report_date:$('date').value,p_total_sales:Number($('sales').value),p_patient_count:Number($('patients').value),p_home_collections:Number($('home').value||0),p_google_reviews:Number($('reviews').value||0),p_packages:packages});
-      if(error) throw error;
-      msg('salesMsg','Report corrections saved successfully. The original report was updated.',true);
-      cancelReportCorrection(false);
-      await loadReports(); await loadCorrectionReports();
-    } else {
-      const {data:r,error}=await db.from('daily_reports').insert({branch_id:branch.id,report_date:$('date').value,total_sales:Number($('sales').value),patient_count:Number($('patients').value),home_collections:Number($('home').value||0),google_reviews:Number($('reviews').value||0),submitted_by:user.id,status:'submitted'}).select('id').single();
-      if(error) throw error;
-      const rows=packages.map(x=>({...x,report_id:r.id}));
-      if(rows.length) { const {error:pe}=await db.from('package_sales').insert(rows); if(pe) throw new Error('Report saved but package counts failed. Check the database before retrying: '+pe.message); }
-      msg('salesMsg','Report submitted.',true); $('salesForm').reset(); $('date').value=today; names.forEach((_,i)=>$('p'+i).value=0); await loadReports(); await loadCorrectionReports();
-    }
+    const {data:r,error}=await db.from('daily_reports').insert({branch_id:branch.id,report_date:$('date').value,total_sales:Number($('sales').value),patient_count:Number($('patients').value),home_collections:Number($('home').value||0),google_reviews:Number($('reviews').value||0),submitted_by:user.id,status:'submitted'}).select('id').single();
+    if(error) throw error;
+    const rows=names.map((name,i)=>({report_id:r.id,package_name:name,quantity:Number($('p'+i).value||0)})).filter(x=>x.quantity>0);
+    if(rows.length) { const {error:pe}=await db.from('package_sales').insert(rows); if(pe) throw new Error('Report saved but package counts failed. Check the database before retrying: '+pe.message); }
+    msg('salesMsg','Report submitted.',true); $('salesForm').reset(); $('date').value=today; names.forEach((_,i)=>$('p'+i).value=0); renderSelectedPackages(); await loadReports();
   } catch(err) { msg('salesMsg',err.message||'Submission failed'); }
   finally { btn.disabled=false; }
-}
-
-async function loadCorrectionReports() {
-  if(!db || !profile) return;
-  const body=$('correctionRows');
-  body.innerHTML='<tr><td colspan="5">Loading reports…</td></tr>';
-  let query=db.from('daily_reports').select('id,branch_id,report_date,total_sales,patient_count,home_collections,google_reviews,status').order('report_date',{ascending:false}).limit(200);
-  const date=$('correctionDate').value, branchId=$('correctionBranch').value;
-  if(date) query=query.eq('report_date',date);
-  if(profile.role==='branch_staff') query=query.eq('branch_id',profile.branch_id);
-  else if(branchId) query=query.eq('branch_id',branchId);
-  const {data,error}=await query;
-  if(error) { body.innerHTML=`<tr><td colspan="5">${esc(error.message)}</td></tr>`; $('correctionMsg').textContent='Could not load reports. Check report read permissions.'; return; }
-  const list=data||[], branchMap=new Map(branches.map(b=>[String(b.id),b]));
-  if(!list.length) { body.innerHTML='<tr><td colspan="5">No submitted reports found for this filter.</td></tr>'; $('correctionMsg').textContent=''; return; }
-  body.innerHTML=list.map(r=>{const b=branchMap.get(String(r.branch_id))||{};return `<tr><td>${esc(r.report_date)}</td><td>${esc(b.branch_name||'Branch')}</td><td>${money(r.total_sales)}</td><td>${Number(r.patient_count||0).toLocaleString('en-IN')}</td><td><button type="button" class="secondary" data-correction-edit="${esc(r.id)}">Edit</button> <button type="button" class="secondary" data-correction-history="${esc(r.id)}">History</button></td></tr>`;}).join('');
-  $('correctionMsg').textContent=`Showing ${list.length} recent permitted report(s), maximum 200.`;
-}
-
-async function beginEditReport(id) {
-  $('correctionMsg').textContent='Loading report details…';
-  const {data:r,error}=await db.from('daily_reports').select('id,branch_id,report_date,total_sales,patient_count,home_collections,google_reviews').eq('id',id).maybeSingle();
-  if(error || !r) { $('correctionMsg').textContent=error?.message||'Report not found or access denied.'; return; }
-  const {data:ps,error:pe}=await db.from('package_sales').select('package_name,quantity').eq('report_id',r.id);
-  if(pe) { $('correctionMsg').textContent='Could not load package counts: '+pe.message; return; }
-  editingReportId=r.id;
-  $('date').value=r.report_date||today; $('sales').value=Number(r.total_sales||0); $('patients').value=Number(r.patient_count||0); $('home').value=Number(r.home_collections||0); $('reviews').value=Number(r.google_reviews||0);
-  names.forEach((name,i)=>{const row=(ps||[]).find(x=>x.package_name===name);$('p'+i).value=Number(row?.quantity||0);});
-  const submitBtn=$('salesForm').querySelector('button[type="submit"],button:not([type])'); submitBtn.textContent='Save corrections';
-  $('correctionMsg').textContent=`Editing report ${r.report_date}. Update the fields in Daily Sales Entry and save.`;
-  $('salesMsg').textContent='Correction mode: changes will update this existing report.';
-  $('entry').classList.remove('hidden'); $('entry').scrollIntoView({behavior:'smooth',block:'start'});
-}
-
-function cancelReportCorrection(clearMessage=true) {
-  editingReportId=null;
-  $('salesForm').reset(); $('date').value=today; names.forEach((_,i)=>$('p'+i).value=0);
-  const submitBtn=$('salesForm').querySelector('button[type="submit"],button:not([type])'); submitBtn.textContent='Submit daily report';
-  if(clearMessage) $('salesMsg').textContent='Correction cancelled.';
-}
-
-async function viewReportHistory(id) {
-  const panel=$('correctionHistory'), target=$('correctionHistoryRows');
-  panel.classList.remove('hidden'); target.textContent='Loading history…';
-  panel.scrollIntoView({behavior:'smooth',block:'nearest'});
-  const {data,error}=await db.rpc('get_daily_report_history',{p_report_id:String(id)});
-  if(error) { target.textContent='History unavailable: '+error.message; return; }
-  if(!data?.length) { target.textContent='No corrections have been recorded for this report.'; return; }
-  const branchMap=new Map(branches.map(b=>[String(b.id),b.branch_name]));
-  target.innerHTML=data.map(x=>{
-    const branchName=branchMap.get(String(x.branch_id))||'Branch';
-    const changedBy=x.changed_by_name||'Unknown staff member';
-    const before=x.old_values||{}, after=x.new_values||{};
-    const fields=[['Report date','report_date'],['Sales','total_sales'],['Patients','patient_count'],['Home collections','home_collections'],['Google reviews','google_reviews']];
-    const changes=fields.filter(([,key])=>String(before[key]??'')!==String(after[key]??''));
-    const changesHtml=changes.length?`<div style="margin:8px 0"><strong>Changed fields</strong><ul>${changes.map(([label,key])=>`<li>${esc(label)}: ${esc(String(before[key]??'—'))} → ${esc(String(after[key]??'—'))}</li>`).join('')}</ul></div>`:'<p>No main report fields changed (package counts may have changed).</p>';
-    return `<article style="padding:14px 0;border-top:1px solid #e3e9f1"><strong>${esc(new Date(x.changed_at).toLocaleString('en-IN'))}</strong><p style="margin:6px 0;color:#526b88">Changed by: <strong>${esc(changedBy)}</strong></p><p style="margin:4px 0;color:#526b88">Branch: <strong>${esc(branchName)}</strong></p>${changesHtml}<details><summary>View complete before and after values</summary><p><strong>Before</strong></p><pre style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(JSON.stringify(before,null,2))}</pre><p><strong>After</strong></p><pre style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(JSON.stringify(after,null,2))}</pre></details></article>`;
-  }).join('');
 }
 
 
