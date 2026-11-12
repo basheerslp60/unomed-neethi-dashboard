@@ -94,5 +94,26 @@ form{max-width:100%}.pkg{display:flex;align-items:center;justify-content:space-b
   background: #ffffff;
   color: #071b3b;
 }
+/* FIX: Remove UNOMED + NEETHI logos ONLY from the Overview banner.
+   Keep the portal header logos and all other portal features unchanged. */
+.overview-hero .overview-brand-logos,
+.overview-hero .overview-brand-logos img,
+.overview-hero .overview-brand-logos span {
+  display: none !important;
+}
+
+/* Keep the approved full navy-blue banner background. */
+.overview-hero {
+  background: #071b3b !important;
+  background-image: none !important;
+}
+
+/* Remove decorative banner overlays/patterns. */
+.overview-hero::before,
+.overview-hero::after {
+  content: none !important;
+  display: none !important;
+}
+
 
 
