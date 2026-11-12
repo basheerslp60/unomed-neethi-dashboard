@@ -291,5 +291,127 @@ form{max-width:100%}.pkg{display:flex;align-items:center;justify-content:space-b
  #branchDailyTargetSection .staff-kpi:hover{transform:none}
 }
 
+/* UNOMED + NEETHI login refresh — visual-only overrides */
+:root {
+  --navy: #102b4e;
+  --navy2: #1c426b;
+  --red: #c51f4b;
+  --red-dark: #9f173b;
+  --ink: #172b45;
+  --muted: #687b94;
+  --line: #dce5ef;
+  --soft: #f4f7fc;
+}
+
+/* Remove the plus sign between the official brand marks */
+.brand-plus {
+  display: none !important;
+}
+.brand-lockup {
+  gap: clamp(18px, 2vw, 30px) !important;
+}
+.brand-logo {
+  background: transparent !important;
+  object-fit: contain;
+}
+
+/* Richer healthcare brand palette */
+body {
+  background:
+    radial-gradient(ellipse at 12% 18%, rgba(197,31,75,.075), transparent 34%),
+    radial-gradient(ellipse at 88% 82%, rgba(28,66,107,.09), transparent 38%),
+    #f3f6fb !important;
+  color: var(--ink);
+}
+.site-header {
+  background: linear-gradient(100deg, #ffffff 0%, #fffafd 58%, #f8fbff 100%) !important;
+  border-bottom: 4px solid var(--red) !important;
+  box-shadow: 0 5px 22px rgba(16,43,78,.09) !important;
+}
+.portal-label strong {
+  color: var(--navy) !important;
+}
+.portal-label small {
+  color: #687b94 !important;
+}
+
+/* Login card: clean white surface, navy structure, visible red brand accent */
+.card#login {
+  border: 1px solid #e1e7f0 !important;
+  border-top: 5px solid var(--red) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 18px 48px rgba(16,43,78,.12), 0 3px 10px rgba(197,31,75,.045) !important;
+  background: rgba(255,255,255,.97) !important;
+}
+#login .eyebrow,
+.eyebrow {
+  color: var(--red) !important;
+}
+#login h1 {
+  color: var(--navy) !important;
+  letter-spacing: -.035em;
+}
+#login > p:not(.eyebrow):not(.msg) {
+  color: #687b94 !important;
+}
+#login label {
+  color: #29415e !important;
+}
+#login input {
+  border: 1px solid #cbd8e8 !important;
+  background: #fbfcff !important;
+  border-radius: 10px !important;
+  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+#login input:focus {
+  border-color: var(--red) !important;
+  box-shadow: 0 0 0 4px rgba(197,31,75,.12) !important;
+  outline: none !important;
+  background: #fff !important;
+}
+#login form button {
+  background: linear-gradient(105deg, #102b4e 0%, #1c426b 72%, #c51f4b 160%) !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  min-height: 49px;
+  box-shadow: 0 7px 16px rgba(16,43,78,.18);
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+}
+#login form button:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(16,43,78,.22);
+}
+#login .link {
+  color: var(--red) !important;
+  font-weight: 700;
+}
+#login small {
+  color: #71819a !important;
+}
+#loginMsg {
+  color: var(--red) !important;
+}
+footer {
+  border-top: 1px solid #e3e9f1 !important;
+  color: #6d7e95 !important;
+  background: rgba(255,255,255,.72) !important;
+}
+
+/* Keep the header and login card comfortable on smaller screens */
+@media (max-width: 650px) {
+  .brand-lockup {
+    justify-content: center;
+    gap: 16px !important;
+  }
+  .card#login {
+    margin-top: 28px !important;
+    border-radius: 16px !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #login input, #login form button { transition: none !important; }
+}
+
 
 
