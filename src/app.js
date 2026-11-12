@@ -1218,10 +1218,19 @@ async function viewReportHistory(id) {
   const panel=$('correctionHistory'), target=$('correctionHistoryRows');
   panel.classList.remove('hidden'); target.textContent='Loading history…';
   panel.scrollIntoView({behavior:'smooth',block:'nearest'});
-  const {data,error}=await db.from('daily_report_change_log').select('changed_at,changed_by,old_values,new_values').eq('report_id',String(id)).order('changed_at',{ascending:false}).limit(20);
+  const {data,error}=await db.rpc('get_daily_report_history',{p_report_id:String(id)});
   if(error) { target.textContent='History unavailable: '+error.message; return; }
   if(!data?.length) { target.textContent='No corrections have been recorded for this report.'; return; }
-  target.innerHTML=data.map(x=>`<article style="padding:10px 0;border-top:1px solid #e3e9f1"><strong>${esc(new Date(x.changed_at).toLocaleString('en-IN'))}</strong><p>Changed by: ${esc(x.changed_by||'Unknown user')}</p><details><summary>View before and after values</summary><p><strong>Before</strong></p><pre style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(JSON.stringify(x.old_values,null,2))}</pre><p><strong>After</strong></p><pre style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(JSON.stringify(x.new_values,null,2))}</pre></details></article>`).join('');
+  const branchMap=new Map(branches.map(b=>[String(b.id),b.branch_name]));
+  target.innerHTML=data.map(x=>{
+    const branchName=branchMap.get(String(x.branch_id))||'Branch';
+    const changedBy=x.changed_by_name||'Unknown staff member';
+    const before=x.old_values||{}, after=x.new_values||{};
+    const fields=[['Report date','report_date'],['Sales','total_sales'],['Patients','patient_count'],['Home collections','home_collections'],['Google reviews','google_reviews']];
+    const changes=fields.filter(([,key])=>String(before[key]??'')!==String(after[key]??''));
+    const changesHtml=changes.length?`<div style="margin:8px 0"><strong>Changed fields</strong><ul>${changes.map(([label,key])=>`<li>${esc(label)}: ${esc(String(before[key]??'—'))} → ${esc(String(after[key]??'—'))}</li>`).join('')}</ul></div>`:'<p>No main report fields changed (package counts may have changed).</p>';
+    return `<article style="padding:14px 0;border-top:1px solid #e3e9f1"><strong>${esc(new Date(x.changed_at).toLocaleString('en-IN'))}</strong><p style="margin:6px 0;color:#526b88">Changed by: <strong>${esc(changedBy)}</strong></p><p style="margin:4px 0;color:#526b88">Branch: <strong>${esc(branchName)}</strong></p>${changesHtml}<details><summary>View complete before and after values</summary><p><strong>Before</strong></p><pre style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(JSON.stringify(before,null,2))}</pre><p><strong>After</strong></p><pre style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(JSON.stringify(after,null,2))}</pre></details></article>`;
+  }).join('');
 }
 
 
