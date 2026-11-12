@@ -154,6 +154,142 @@ form{max-width:100%}.pkg{display:flex;align-items:center;justify-content:space-b
   background-image: none !important;
   box-shadow: none !important;
 }
+/* =========================================================
+   UNOMED + NEETHI — PREMIUM BRANCH TARGET DASHBOARD
+   Visual upgrade only. Existing live data and JS controls remain.
+   ========================================================= */
+
+/* Branch staff target command centre */
+#branchDailyTargetSection.staff-dashboard{
+  display:block;
+  padding:22px;
+  background:linear-gradient(180deg,#f5f8fc 0%,#ffffff 38%);
+  border:1px solid #dfe7f1;
+  border-radius:22px;
+  box-shadow:0 14px 38px rgba(14,38,68,.09);
+}
+#branchDailyTargetSection .staff-hero{
+  position:relative;display:flex;align-items:center;min-height:185px;
+  overflow:hidden;padding:30px 34px;border-radius:18px;
+  color:#fff;background:linear-gradient(115deg,#071b3b 0%,#102e55 58%,#173d68 100%);
+  box-shadow:0 12px 28px rgba(7,27,59,.18);
+}
+#branchDailyTargetSection .staff-hero-photo{display:none!important}
+#branchDailyTargetSection .staff-hero-copy{position:relative;z-index:1;max-width:780px}
+#branchDailyTargetSection .staff-hero .eyebrow{color:#ffb5c8;letter-spacing:.16em}
+#branchDailyTargetSection .staff-hero h2{color:#fff;font-size:clamp(24px,3vw,36px);margin:8px 0}
+#branchDailyTargetSection .staff-hero p{color:#dce8f6;margin:8px 0}
+#branchDailyTargetSection .staff-hero-tag{display:inline-flex;margin-top:8px;padding:8px 13px;border:1px solid #ffffff35;border-radius:99px;color:#fff;background:#ffffff0d;font-weight:650}
+#branchDailyTargetSection .staff-welcome-row{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin:24px 2px 14px}
+#branchDailyTargetSection .staff-welcome-row h2{font-size:clamp(22px,2.4vw,29px);margin:4px 0;color:#102b4c}
+#branchDailyTargetSection .staff-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin:14px 0}
+#branchDailyTargetSection .staff-kpi{
+  position:relative;min-width:0;padding:18px 17px;border:1px solid #e1e8f0;border-radius:16px;
+  background:#fff;box-shadow:0 5px 18px rgba(17,42,72,.055);
+  transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;
+}
+#branchDailyTargetSection .staff-kpi:hover{transform:translateY(-4px);box-shadow:0 13px 26px rgba(17,42,72,.12);border-color:#b9cce2}
+#branchDailyTargetSection .staff-kpi .kpi-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:#edf3fa;color:#173b64;font-size:18px}
+#branchDailyTargetSection .staff-kpi .kpi-label{display:block;margin-top:13px;color:#738196;font-size:10px;font-weight:850;letter-spacing:.09em}
+#branchDailyTargetSection .staff-kpi strong{display:block;margin:7px 0 3px;color:#102b4c;font-size:clamp(20px,2vw,28px);line-height:1.2;overflow-wrap:anywhere}
+#branchDailyTargetSection .staff-kpi small{color:#8390a2;font-size:11px}
+#branchDailyTargetSection .kpi-today{border-top:4px solid #159b87}
+#branchDailyTargetSection .kpi-mtd{border-top:4px solid #2865a3}
+#branchDailyTargetSection .kpi-patients{border-top:4px solid #8a62b0}
+#branchDailyTargetSection .kpi-achievement{border-top:4px solid #d69b2d}
+#branchDailyTargetSection .staff-target-card{
+  margin:15px 0;padding:22px 24px;border:1px solid #dce6f1;border-radius:18px;
+  background:linear-gradient(135deg,#fff 0%,#f4f8fd 100%);
+  box-shadow:0 8px 24px rgba(17,42,72,.07);
+}
+#branchDailyTargetSection .target-card-top{display:flex;align-items:center;justify-content:space-between;gap:20px}
+#branchDailyTargetSection .target-kicker{display:block;color:#be1745;font-size:11px;font-weight:900;letter-spacing:.1em}
+#branchDailyTargetSection .target-big-number{display:block;margin:8px 0;color:#102b4c;font-size:clamp(30px,4vw,44px);line-height:1.1}
+#branchDailyTargetSection .target-card-top p{margin:5px 0;color:#6e7d91}
+#branchDailyTargetSection .target-gauge{position:relative;flex:0 0 124px;width:124px;height:124px;display:grid;place-items:center}
+#branchDailyTargetSection .target-gauge svg{width:124px;height:124px;transform:rotate(-90deg);overflow:visible}
+#branchDailyTargetSection .target-gauge circle{fill:none;stroke-width:10}
+#branchDailyTargetSection .target-gauge .gauge-track{stroke:#e3eaf2}
+#branchDailyTargetSection .target-gauge .gauge-value{stroke:#159b87;stroke-linecap:round}
+#branchDailyTargetSection .gauge-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+#branchDailyTargetSection .gauge-center strong{font-size:25px;color:#102b4c}
+#branchDailyTargetSection .gauge-center span{font-size:9px;font-weight:850;letter-spacing:.13em;color:#7a8799}
+#branchDailyTargetSection .target-progress-heading{display:flex;justify-content:space-between;gap:10px;margin:18px 0 8px;color:#42536a;font-size:13px;font-weight:750}
+#branchDailyTargetSection .staff-progress-track{height:13px;border-radius:99px;background:#e5ebf2;overflow:hidden}
+#branchDailyTargetSection .staff-progress-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#0e8e7c,#45c3a4);transition:width .6s ease}
+#branchDailyTargetSection .target-gap-row{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:11px;color:#63748a;font-size:12px}
+#branchDailyTargetSection .staff-motivation{margin:14px 0 0;padding:11px 13px;border-radius:10px;background:#edf6f5;color:#176b60;font-size:13px;font-weight:650}
+#branchDailyTargetSection .staff-month-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:14px 0}
+#branchDailyTargetSection .staff-month-summary article{padding:17px 18px;border:1px solid #e1e8f0;border-radius:15px;background:#fff;box-shadow:0 4px 15px rgba(17,42,72,.045)}
+#branchDailyTargetSection .staff-month-summary article span{display:block;color:#78869a;font-size:10px;font-weight:850;letter-spacing:.08em}
+#branchDailyTargetSection .staff-month-summary article strong{display:block;margin-top:8px;color:#102b4c;font-size:clamp(19px,2.2vw,27px)}
+#branchDailyTargetSection .staff-trend-card{margin-top:15px;padding:20px;border:1px solid #e1e8f0;border-radius:17px;background:#fff;box-shadow:0 5px 18px rgba(17,42,72,.05)}
+#branchDailyTargetSection .staff-trend-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+#branchDailyTargetSection .staff-trend-head h3{margin:4px 0;color:#102b4c}
+#branchDailyTargetSection .staff-trend-head p{margin:4px 0;color:#7a8799;font-size:12px}
+#branchDailyTargetSection .trend-legend{font-size:11px;color:#6d7d91}
+#branchDailyTargetSection .trend-legend i{display:inline-block;width:9px;height:9px;margin-right:5px;border-radius:3px;background:#be1745}
+#branchDailyTargetSection .branch-week-trend{display:flex;align-items:stretch;gap:10px;min-height:175px;padding:15px 3px 3px;overflow-x:auto}
+#branchDailyTargetSection .branch-week-day{flex:1;min-width:54px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:7px}
+#branchDailyTargetSection .branch-week-day>strong{font-size:10px;color:#68788e;white-space:nowrap}
+#branchDailyTargetSection .branch-week-bar-area{width:min(100%,34px);height:112px;display:flex;align-items:flex-end;border-radius:9px 9px 4px 4px;background:#f0f3f8;overflow:hidden}
+#branchDailyTargetSection .branch-week-bar{width:100%;min-height:2px;border-radius:8px 8px 3px 3px;background:linear-gradient(180deg,#df5577,#173d68);transition:height .5s ease;cursor:default}
+#branchDailyTargetSection .branch-week-bar:hover{filter:brightness(1.15);box-shadow:0 0 0 3px #be17451c}
+#branchDailyTargetSection .branch-week-day>span{font-size:10px;color:#8390a2}
+
+/* Management target vs actual dashboard */
+#targetDashboardSection{border:1px solid #dfe7f1;border-radius:20px;background:linear-gradient(180deg,#f7f9fc,#fff 35%);box-shadow:0 12px 32px rgba(14,38,68,.07)}
+#targetDashboardSection>.section-head h2{font-size:clamp(22px,2.5vw,30px);color:#102b4c}
+#targetDashboardSection .target-dashboard-controls{display:flex;align-items:flex-end;gap:13px;flex-wrap:wrap;padding:14px 16px;border:1px solid #e3eaf2;border-radius:14px;background:#fff}
+#targetDashboardSection .target-dashboard-controls>div{min-width:170px;flex:1}
+#targetDashboardSection .target-dashboard-controls label{display:block;margin:0 0 6px;color:#53647a;font-size:12px;font-weight:800}
+#targetDashboardSection .target-dashboard-controls input,#targetDashboardSection .target-dashboard-controls select{width:100%;min-height:42px;padding:9px 11px;border:1px solid #d6e0eb;border-radius:9px;background:#fff;color:#183653}
+#targetDashboardSection .target-dashboard-controls button{min-height:42px;margin:0;padding:10px 16px}
+#targetDashboardSection .analytics-period-label{margin:12px 2px;color:#718096;font-size:12px}
+#targetDashboardSection .target-dashboard-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:14px 0}
+#targetDashboardSection .target-dashboard-kpi{min-width:0;padding:17px;border:1px solid #e1e8f0;border-radius:15px;background:#fff;box-shadow:0 5px 16px rgba(17,42,72,.05)}
+#targetDashboardSection .target-dashboard-kpi strong{display:block;margin:8px 0 3px;color:#102b4c;font-size:clamp(19px,2vw,26px)}
+#targetDashboardSection .target-dashboard-kpi span,#targetDashboardSection .target-dashboard-kpi small{color:#78869a;font-size:11px}
+#targetDashboardSection .target-dashboard-alerts{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+#targetDashboardSection .target-alert-pill{display:inline-flex;align-items:center;padding:7px 11px;border-radius:99px;font-size:11px;font-weight:800}
+#targetDashboardSection .target-status-good{background:#e4f6ee;color:#16734b}
+#targetDashboardSection .target-status-warn{background:#fff4d9;color:#8a6200}
+#targetDashboardSection .target-status-bad{background:#fde8eb;color:#a51e3d}
+#targetDashboardSection .target-status-none{background:#edf1f6;color:#66758a}
+#targetDashboardSection .target-dashboard-scroll{border:1px solid #dfe7f1;border-radius:13px;background:#fff}
+#targetDashboardSection .target-dashboard-table{min-width:1120px}
+#targetDashboardSection .target-dashboard-table th{position:sticky;top:0;z-index:1;background:#102b4c;color:#fff}
+#targetDashboardSection .target-dashboard-table td{vertical-align:middle}
+#targetDashboardSection .target-dashboard-table tbody tr{transition:background .15s ease}
+#targetDashboardSection .target-dashboard-table tbody tr:hover{background:#eef5fc}
+#targetDashboardSection .target-progress-cell{min-width:115px}
+#targetDashboardSection .target-progress-track{height:9px;margin:0 0 5px;border-radius:99px;background:#e8edf4;overflow:hidden}
+#targetDashboardSection .target-progress-track span{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#be1745,#e77896);transition:width .55s ease}
+#targetDashboardSection .target-dashboard-scroll-hint{font-size:11px;color:#8390a2}
+#targetDashboardSection .msg{padding:10px 12px;border-radius:9px;background:#f2f6fb;color:#63748a}
+@media(max-width:950px){
+ #branchDailyTargetSection .staff-kpi-grid,#targetDashboardSection .target-dashboard-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:650px){
+ #branchDailyTargetSection.staff-dashboard{padding:12px}
+ #branchDailyTargetSection .staff-hero{min-height:170px;padding:22px 19px}
+ #branchDailyTargetSection .staff-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+ #branchDailyTargetSection .staff-kpi{padding:13px 11px}
+ #branchDailyTargetSection .target-card-top{align-items:flex-start}
+ #branchDailyTargetSection .target-gauge{flex-basis:96px;width:96px;height:96px}
+ #branchDailyTargetSection .target-gauge svg{width:96px;height:96px}
+ #branchDailyTargetSection .gauge-center strong{font-size:20px}
+ #branchDailyTargetSection .staff-month-summary{grid-template-columns:1fr}
+ #branchDailyTargetSection .staff-month-summary article{padding:13px 15px}
+ #branchDailyTargetSection .staff-trend-card{padding:14px}
+ #targetDashboardSection{padding:14px}
+ #targetDashboardSection .target-dashboard-kpis{grid-template-columns:1fr 1fr}
+ #targetDashboardSection .target-dashboard-controls>div{min-width:100%}
+}
+@media(prefers-reduced-motion:reduce){
+ #branchDailyTargetSection .staff-kpi,#branchDailyTargetSection .staff-progress-fill,#branchDailyTargetSection .branch-week-bar,#targetDashboardSection .target-progress-track span{transition:none}
+ #branchDailyTargetSection .staff-kpi:hover{transform:none}
+}
 
 
 
