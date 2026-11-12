@@ -5,10 +5,14 @@ const $ = id => document.getElementById(id);
 const names = ["Complete HC 599","My Health 999","Cardiac HC","EHC 2500","EHC Advanced 3500","Healthy Women 699","Healthy Men","EHC PRO 8499","Hairfall","Vitamin Profile","PCOD Mini","Onam Camp","Other Packages"];
 let db, user, profile, branches = [], reports = [], targets = [];
 let editingReportId = null;
+let overviewReports = [];
+let overviewPeriod = '7';
+let overviewNetwork = 'ALL';
 const now = new Date();
 const today = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0,10);
 $('date').value = today;
 $('branchTargetMonth').value = today.slice(0,7);
+if ($('performanceMonth')) $('performanceMonth').value = today.slice(0,7);
 document.querySelectorAll('.nav-button').forEach(button => {
   button.addEventListener('click', () => {
     const target = $(button.dataset.target);
@@ -65,6 +69,17 @@ if (!ready) {
   $('forgot').onclick = async () => { const email=$('email').value.trim(); if(!email){msg('loginMsg','Enter your email first.');return;} const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname}); msg('loginMsg',error?error.message:'If the account exists, password reset instructions will be sent.'); };
   $('logout').onclick = () => db.auth.signOut();
   $('refresh').onclick = () => { if (user) load(user); };
+  $('applyPerformanceMonth').onclick = async () => { if(user){ await loadReports(); if(profile.role!=='branch_staff'){ await loadBranchAnalytics(); await loadTargetDashboard(); await loadManagementExecutiveDashboard(); } } };
+  $('performanceMonth').addEventListener('change', () => { if(user) $('applyPerformanceMonth').click(); });
+  $('overviewRefresh').onclick = () => { if (user) loadReports(); };
+  $('overviewDashboard').addEventListener('click', event => {
+    const period=event.target.closest('[data-overview-period]');
+    const network=event.target.closest('[data-overview-network]');
+    const action=event.target.closest('[data-overview-target]');
+    if(period){overviewPeriod=period.dataset.overviewPeriod;$('overviewDashboard').querySelectorAll('[data-overview-period]').forEach(b=>b.classList.toggle('active',b===period));renderOverview();}
+    if(network){overviewNetwork=network.dataset.overviewNetwork;$('overviewDashboard').querySelectorAll('[data-overview-network]').forEach(b=>b.classList.toggle('active',b===network));renderOverview();}
+    if(action){const target=$(action.dataset.overviewTarget);if(target&&!target.classList.contains('hidden')){target.scrollIntoView({behavior:'smooth',block:'start'});}}
+  });
   $('salesForm').onsubmit = submit;
   $('generateReport').onclick = generateManagementReport;
   $('copyReport').onclick = copyManagementReport;
@@ -359,6 +374,8 @@ async function loadReports() {
 }).join('');
   $('reportMsg').textContent=profile.role==='branch_staff'?'Only permitted reports are displayed.':'Showing up to 100 recent reports from the latest 500 loaded rows. MTD summary uses paginated current-month records.';
   await renderTargets(monthReports);
+  overviewReports = monthReports || [];
+  renderOverview();
   refreshSidebarVisibility();
   await renderCompliance(reports);
   renderDailyTrend(monthReports);
@@ -1087,6 +1104,61 @@ $('targetMeta').textContent = targetMonth.slice(0, 7) + ' · ' + rows.filter(r =
     (groupTarget ? fmtPct(groupSales / groupTarget * 100) : '0.0%') +
     ' achievement)';
 
+}
+
+function renderOverview() {
+  const staff=profile?.role==='branch_staff';
+  const monthKey=$('performanceMonth')?.value || today.slice(0,7);
+  const branchMap=new Map(branches.map(b=>[String(b.id),b]));
+  const source=(overviewReports||[]).filter(r=>r.report_date && r.report_date.startsWith(monthKey));
+  const visibleBranches=staff?branches.filter(b=>String(b.id)===String(profile.branch_id)):branches;
+  const branchRows=visibleBranches.map(b=>{
+    const rows=source.filter(r=>String(r.branch_id)===String(b.id));
+    const sales=rows.reduce((a,r)=>a+Number(r.total_sales||0),0);
+    const patients=rows.reduce((a,r)=>a+Number(r.patient_count||0),0);
+    const targetRow=(targets||[]).find(t=>String(t.branch_id)===String(b.id));
+    const target=Number(targetRow?.target_amount||0);
+    return {...b,sales,patients,target,achievement:target?sales/target*100:0,reports:rows.length};
+  }).sort((a,b)=>b.sales-a.sales);
+  const totalSales=branchRows.reduce((a,r)=>a+r.sales,0);
+  const totalPatients=branchRows.reduce((a,r)=>a+r.patients,0);
+  const totalTarget=branchRows.reduce((a,r)=>a+r.target,0);
+  const achievement=totalTarget?totalSales/totalTarget*100:0;
+  const todaySales=(overviewReports||[]).filter(r=>r.report_date===today && (staff?String(r.branch_id)===String(profile.branch_id):true)).reduce((a,r)=>a+Number(r.total_sales||0),0);
+  const avgBill=totalPatients?totalSales/totalPatients:0;
+  const branchLabel=staff?(branchRows[0]?.branch_name||'Your branch'):'UNOMED + NEETHI Group';
+  $('overviewGreeting').textContent=staff?'YOUR BRANCH COMMAND CENTRE':'MANAGEMENT COMMAND CENTRE';
+  $('overviewHeroTitle').textContent=staff?`Welcome, ${profile.full_name?.split(' ')[0]||'Team'}!`:'Business performance at a glance';
+  $('overviewHeroSub').textContent=`${branchLabel} · ${monthKey} · Data visible to your signed-in account`;
+  $('overviewRolePill').textContent=String(profile?.role||'portal').replaceAll('_',' ').toUpperCase();
+  const kpis=[
+    {label:'TODAY\'S SALES',value:money(todaySales),meta:'Sales recorded today',tone:'blue',icon:'₹'},
+    {label:'MONTH SALES',value:money(totalSales),meta:`${monthKey} month-to-date`,tone:'red',icon:'↗'},
+    {label:'PATIENTS SERVED',value:totalPatients.toLocaleString('en-IN'),meta:'Patients in selected month',tone:'teal',icon:'♙'},
+    {label:'TARGET ACHIEVEMENT',value:fmtPct(achievement),meta:totalTarget?`${money(Math.max(totalTarget-totalSales,0))} balance`:'Monthly target not set',tone:'gold',icon:'◎'},
+    {label:'AVERAGE BILL',value:money(avgBill),meta:'Sales divided by patients',tone:'violet',icon:'⌁'}
+  ];
+  $('overviewKpis').innerHTML=kpis.map(k=>`<article class="overview-kpi ${k.tone}"><span class="overview-kpi-icon">${k.icon}</span><span class="overview-kpi-label">${k.label}</span><strong>${k.value}</strong><small>${k.meta}</small></article>`).join('');
+  const nets=['UNOMED','NEETHI'].map(n=>{const arr=branchRows.filter(b=>String(b.network).toUpperCase()===n);return {name:n,sales:arr.reduce((a,b)=>a+b.sales,0),target:arr.reduce((a,b)=>a+b.target,0),patients:arr.reduce((a,b)=>a+b.patients,0),count:arr.length};});
+  $('overviewNetworkGrid').innerHTML=staff?`<article class="overview-network-card own"><span class="overview-label">YOUR BRANCH</span><strong>${esc(branchLabel)}</strong><div class="overview-network-numbers"><b>${money(totalSales)}</b><span>${fmtPct(achievement)} achieved</span></div><div class="overview-progress"><i style="width:${Math.min(100,achievement)}%"></i></div><small>${money(totalTarget)} monthly target · ${totalPatients.toLocaleString('en-IN')} patients</small></article>`:nets.map(n=>`<article class="overview-network-card ${n.name.toLowerCase()}"><div class="overview-network-head"><span class="overview-label">${n.name} NETWORK</span><span>${n.count} branches</span></div><strong>${money(n.sales)}</strong><div class="overview-progress"><i style="width:${Math.min(100,n.target?n.sales/n.target*100:0)}%"></i></div><div class="overview-network-numbers"><span>${fmtPct(n.target?n.sales/n.target*100:0)} achieved</span><span>Target ${money(n.target)}</span></div><small>${n.patients.toLocaleString('en-IN')} patients</small></article>`).join('');
+  const dates=[];const nowDate=new Date();const [yy,mm]=monthKey.split('-').map(Number);const lastDay=new Date(yy,mm,0).getDate();
+  let count=overviewPeriod==='month'?lastDay:Number(overviewPeriod);let startDay=overviewPeriod==='month'?1:Math.max(1,nowDate.getDate()-count+1);if(monthKey!==today.slice(0,7)&&overviewPeriod!=='month')startDay=Math.max(1,lastDay-count+1);const endDay=overviewPeriod==='month'?lastDay:Math.min(lastDay,startDay+count-1);
+  for(let d=startDay;d<=endDay;d++){const key=`${monthKey}-${String(d).padStart(2,'0')}`;dates.push({key,sales:source.filter(r=>r.report_date===key).filter(r=>!staff||String(r.branch_id)===String(profile.branch_id)).reduce((a,r)=>a+Number(r.total_sales||0),0)});}
+  const max=Math.max(1,...dates.map(x=>x.sales));
+  $('overviewChartTitle').textContent=overviewPeriod==='month'?'Daily sales · full month':`Daily sales · last ${overviewPeriod} days`;
+  $('overviewTrend').innerHTML=dates.map(x=>`<div class="overview-trend-day" title="${x.key}: ${money(x.sales)}"><div class="overview-trend-bar-wrap"><i style="height:${x.sales?Math.max(3,x.sales/max*100):1}%"></i></div><small>${x.key.slice(8)}</small></div>`).join('');
+  const periodTotal=dates.reduce((a,x)=>a+x.sales,0);$('overviewTrendFoot').textContent=`Period sales: ${money(periodTotal)} · ${dates.filter(x=>x.sales>0).length} reporting days`;
+  const quick=staff?[['✍','Submit daily sales','entry'],['🎯','My branch target','branchDailyTargetSection'],['📅','View daily reports','dailySalesSection'],['🛠','Correct a submitted report','dailySalesSection']]:[['📊','Branch performance','targetSection'],['🎯','Target vs actual','targetDashboardSection'],['✅','Daily compliance','complianceSection'],['📄','Management report','managementReportSection'],['📅','Daily sales & corrections','dailySalesSection']];
+  $('overviewQuickActions').innerHTML=quick.filter(q=>$(q[2])&&!$(q[2]).classList.contains('hidden')).map(q=>`<button type="button" class="overview-action" data-overview-target="${q[2]}"><span>${q[0]}</span>${q[1]}<b>→</b></button>`).join('');
+  const pace=totalTarget?achievement:0;const best=branchRows[0];const weakest=[...branchRows].filter(r=>r.target>0).sort((a,b)=>a.achievement-b.achievement)[0];
+  $('overviewInsight').innerHTML=staff?`<strong>${pace>=100?'🏆 Target achieved':pace>=85?'👍 Good progress':'⚡ Keep building momentum'}</strong><br>${pace>=100?'Your branch has achieved its monthly target.':`You have achieved ${fmtPct(pace)} of your monthly target. Focus on consistent daily sales and patient follow-up.`}`:`<strong>${best?'🏆 Leading branch: '+esc(best.branch_name):'📊 Branch insights'}</strong><br>${weakest?`Needs attention: ${esc(weakest.branch_name)} at ${fmtPct(weakest.achievement)} achievement.`:'Set branch targets to unlock pace insights.'}`;
+  show('overviewBranchPanel',!staff);
+  const filtered=branchRows.filter(r=>overviewNetwork==='ALL'||String(r.network).toUpperCase()===overviewNetwork);
+  $('overviewBranchRows').innerHTML=filtered.map((r,i)=>`<div class="overview-branch-row"><span class="overview-rank">${i+1}</span><div class="overview-branch-name"><strong>${esc(r.branch_name)}</strong><small>${esc(r.network)} · ${r.patients.toLocaleString('en-IN')} patients</small></div><div class="overview-branch-progress"><div><i style="width:${Math.min(100,r.achievement)}%"></i></div><small>${fmtPct(r.achievement)} of ${money(r.target)}</small></div><strong class="overview-branch-sales">${money(r.sales)}</strong></div>`).join('')||'<p>No branch results for this filter.</p>';
+  const reportToday=(overviewReports||[]).filter(r=>r.report_date===today);const reported=new Set(reportToday.map(r=>String(r.branch_id)));const compliant=visibleBranches.filter(b=>reported.has(String(b.id))).length;
+  $('overviewCompliance').innerHTML=`<div class="overview-compliance-count"><strong>${compliant}/${visibleBranches.length}</strong><span>branches submitted today</span></div><div class="overview-progress"><i style="width:${visibleBranches.length?compliant/visibleBranches.length*100:0}%"></i></div><small>${visibleBranches.length-compliant} branch(es) without a visible report today</small>`;
+  const recent=(reports||[]).filter(r=>staff?String(r.branch_id)===String(profile.branch_id):true).slice(0,5);
+  $('overviewRecent').innerHTML=recent.map(r=>{const b=branchMap.get(String(r.branch_id));return `<div class="overview-recent-row"><span><strong>${esc(b?.branch_name||'Branch')}</strong><small>${esc(r.report_date)}</small></span><b>${money(r.total_sales)}</b></div>`;}).join('')||'<p>No recent reports available.</p>';
 }
 
 function renderDailyTrend(monthReports) {
