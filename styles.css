@@ -114,6 +114,46 @@ form{max-width:100%}.pkg{display:flex;align-items:center;justify-content:space-b
   content: none !important;
   display: none !important;
 }
+/* Remove the decorative photo from the branch-performance / overview banner.
+   Keep the navy banner, text, and controls. */
+.overview-hero,
+.branch-performance-banner,
+.branch-performance-hero,
+.staff-dashboard-hero,
+.branch-dashboard-hero {
+  background-image: none !important;
+  background-color: #102f52 !important;
+}
+
+/* Hide banner-only image elements, without affecting report or content images. */
+.overview-hero img,
+.overview-hero picture,
+.overview-hero video,
+.branch-performance-banner img,
+.branch-performance-banner picture,
+.branch-performance-hero img,
+.branch-performance-hero picture,
+.staff-dashboard-hero img,
+.staff-dashboard-hero picture,
+.branch-dashboard-hero img,
+.branch-dashboard-hero picture {
+  display: none !important;
+}
+
+/* Keep the banner clean and solid navy. */
+.overview-hero::before,
+.overview-hero::after,
+.branch-performance-banner::before,
+.branch-performance-banner::after,
+.branch-performance-hero::before,
+.branch-performance-hero::after,
+.staff-dashboard-hero::before,
+.staff-dashboard-hero::after,
+.branch-dashboard-hero::before,
+.branch-dashboard-hero::after {
+  background-image: none !important;
+  box-shadow: none !important;
+}
 
 
 
