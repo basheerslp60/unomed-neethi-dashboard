@@ -4,6 +4,7 @@ import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "./config.js";
 const $ = id => document.getElementById(id);
 const names = ["Complete HC 599","My Health 999","Cardiac HC","EHC 2500","EHC Advanced 3500","Healthy Women 699","Healthy Men","EHC PRO 8499","Hairfall","Vitamin Profile","PCOD Mini","Onam Camp","Other Packages"];
 let db, user, profile, branches = [], reports = [], targets = [];
+let complianceRowsCache = [], complianceNetworkFilter = 'ALL';
 let editingReportId = null;
 let overviewReports = [];
 let overviewPeriod = '7';
@@ -108,6 +109,14 @@ if (!ready) {
   $('complianceDate').value = today;
   $('complianceDate').addEventListener('change', () => renderCompliance(reports));
   $('copyCompliance').onclick = copyComplianceSummary;
+  $('complianceSearch').addEventListener('input', renderComplianceTable);
+  $('complianceSection').addEventListener('click', event => {
+    const filter=event.target.closest('[data-compliance-network]');
+    if(!filter) return;
+    complianceNetworkFilter=filter.dataset.complianceNetwork;
+    $('complianceSection').querySelectorAll('[data-compliance-network]').forEach(btn=>btn.classList.toggle('active',btn===filter));
+    renderComplianceTable();
+  });
   $('employeeRefresh').onclick = loadEmployeeModule;
   $('userAccessRefresh').onclick = loadPortalUsers;
   $('branchTargetMonth').addEventListener('change', loadBranchTargetEditor);
@@ -128,8 +137,6 @@ if (!ready) {
   $('targetDashboardRefresh').onclick = loadTargetDashboard;
   $('targetDashboardMonth').addEventListener('change', loadTargetDashboard);
   $('targetDashboardNetwork').addEventListener('change', renderTargetDashboard);
-  $('monthlyTargetNetwork').addEventListener('change', renderMonthlyTargetRows);
-  $('monthlyTargetSort').addEventListener('change', renderMonthlyTargetRows);
   $('execDashboardMonth').value = today.slice(0,7);
   $('execDashboardRefresh').onclick = loadManagementExecutiveDashboard;
   $('execDashboardMonth').addEventListener('change', loadManagementExecutiveDashboard);
@@ -624,22 +631,6 @@ function renderTargetDashboard() {
   $('targetDashboardMsg').textContent=`${rows.length} active branches · Best achievement: ${best?best.branch.branch_name+' ('+fmt(best.achievement)+')':'No targets configured'} · Projected sales are estimates, not guaranteed results. For a future month, projection uses reported sales through the selected month end.`;
 }
 
-function renderMonthlyTargetRows() {
-  const allRows=window.__monthlyTargetRows||[];
-  const network=$('monthlyTargetNetwork')?.value||'ALL';
-  const sort=$('monthlyTargetSort')?.value||'achievement';
-  const rows=allRows.filter(r=>network==='ALL'||String(r.network).toUpperCase()===network);
-  const sorters={achievement:(a,b)=>b.achievement-a.achievement||b.sales-a.sales,sales:(a,b)=>b.sales-a.sales,balance:(a,b)=>b.balance-a.balance,required:(a,b)=>b.required-a.required};
-  rows.sort(sorters[sort]||sorters.achievement);
-  $('targetRows').innerHTML=rows.map((r,i)=>{
-    const pct=Math.max(0,Number(r.achievement)||0),width=Math.min(100,pct);
-    const rankClass=i===0?'monthly-rank-first':i===1?'monthly-rank-second':i===2?'monthly-rank-third':'';
-    const networkClass=String(r.network).toUpperCase()==='UNOMED'?'monthly-network-unomed':'monthly-network-neethi';
-    return `<tr class="monthly-target-row ${r.alertClass}"><td><span class="monthly-rank ${rankClass}">${i+1}</span></td><td><strong class="monthly-branch-name">${esc(r.branch_name)}</strong>${r.missing?' <span class="pill">Target missing</span>':''}</td><td><span class="monthly-network-tag ${networkClass}">${esc(r.network)}</span></td><td class="monthly-sales-value">${money(r.sales)}</td><td>${Number(r.patients||0).toLocaleString('en-IN')}</td><td>${money(r.target)}</td><td><div class="monthly-achievement"><div class="monthly-achievement-top"><strong>${fmtPct(pct)}</strong><small>${r.target?'of monthly target':'Target not set'}</small></div><div class="monthly-progress-track"><i class="${r.alertClass}" style="width:${width}%"></i></div></div></td><td class="monthly-balance">${money(r.balance)}</td><td class="monthly-required">${money(r.required)}</td><td><span class="monthly-status ${r.alertClass}"><i></i>${esc(r.alert)}</span></td></tr>`;
-  }).join('')||'<tr><td colspan="10" class="monthly-empty">No branches found for this network.</td></tr>';
-  $('targetRows').dataset.visibleCount=String(rows.length);
-}
-
 async function loadManagementExecutiveDashboard() {
   if (!profile || profile.role==='branch_staff' || !db) return;
   const month=$('execDashboardMonth').value || today.slice(0,7);
@@ -817,7 +808,7 @@ async function renderCompliance(fallbackReports=[]) {
   $('complianceRows').innerHTML='<tr><td colspan="7">Checking submitted reports…</td></tr>';
   const {data,error}=await db.from('daily_reports').select('id,branch_id,report_date,total_sales,patient_count,status').eq('report_date',date);
   if(error) {
-  $('complianceRows').innerHTML = '<tr><td colspan="7">' + esc(error.message) + '</td></tr>';
+    $('complianceRows').innerHTML = '<tr><td colspan="7">' + esc(error.message) + '</td></tr>';
     $('complianceMsg').textContent='Compliance could not be verified. Check account permissions and try Refresh data.';
     return;
   }
@@ -832,31 +823,34 @@ async function renderCompliance(fallbackReports=[]) {
     const action=submitted?(matches.length>1?'Check multiple reports for duplicates':'No follow-up required'):matches.length?'Verify report status and correct it if needed':'Contact branch and request report submission';
     return {...b,matches:matches.length,submitted,sales,patients,status,cls,action};
   });
+  complianceRowsCache=rows;
   const submitted=rows.filter(r=>r.submitted).length, missing=rows.filter(r=>r.status==='Missing').length, review=rows.filter(r=>r.status==='Needs review').length;
-  $('complianceSummary').innerHTML =
-    '<div class="alert-chip alert-green">Submitted: ' + submitted + '/' + rows.length + '</div>' +
-    '<div class="alert-chip alert-red">Missing: ' + missing + '</div>' +
-    '<div class="alert-chip alert-yellow">Needs review: ' + review + '</div>';
-
-  // Render the branch-level compliance details into the table.
-  $('complianceRows').innerHTML = rows.map(r =>
-    '<tr>' +
-      '<td>' + esc(r.branch_name || 'Branch') + '</td>' +
-      '<td>' + esc(r.network || '') + '</td>' +
-      '<td><span class="alert-chip ' + r.cls + '">' + esc(r.status) + '</span></td>' +
-      '<td>' + r.matches + '</td>' +
-      '<td>' + money(r.sales) + '</td>' +
-      '<td>' + Number(r.patients || 0).toLocaleString('en-IN') + '</td>' +
-      '<td>' + esc(r.action) + '</td>' +
-    '</tr>'
-  ).join('') || '<tr><td colspan="7">No active branches found.</td></tr>';
-
+  $('complianceKpis').innerHTML = [
+    ['total','Total branches',rows.length,'Active branches'],
+    ['submitted','Submitted',submitted,'Reports received'],
+    ['review','Needs review',review,'Check report status'],
+    ['missing','Missing',missing,'Follow-up required']
+  ].map(k=>'<article class="compliance-kpi '+k[0]+'"><span>'+k[1]+'</span><strong>'+k[2]+'</strong><small>'+k[3]+'</small></article>').join('');
   window.__complianceReportText = [
     'DAILY REPORTING COMPLIANCE - ' + date,
     'Submitted: ' + submitted + '/' + rows.length + ' | Missing: ' + missing + ' | Needs review: ' + review,
-    ...rows.map(r => r.branch_name + ' (' + r.network + '): ' + r.status + ' | Reports: ' + r.matches + ' | Sales: ' + money(r.sales) + ' | Patients: ' + r.patients + ' | ' + r.action)
+    ...rows.map(r => (r.branch_name || 'Branch') + ' (' + r.network + '): ' + r.status + ' | Reports: ' + r.matches + ' | Sales: ' + money(r.sales) + ' | Patients: ' + r.patients + ' | ' + r.action)
   ].join('\n');
-  $('complianceMsg').textContent = 'Compliance checked for ' + date + '. Review the branch details below.';
+  renderComplianceTable();
+  $('complianceMsg').textContent = 'Compliance checked for ' + date + '. Status is based on records visible to your signed-in account.';
+}
+
+function renderComplianceTable() {
+  const query=String($('complianceSearch')?.value||'').trim().toLowerCase();
+  const rows=complianceRowsCache.filter(r=>{
+    const network=String(r.network||'').toUpperCase();
+    const networkMatch=complianceNetworkFilter==='ALL'||network===complianceNetworkFilter;
+    const nameMatch=String(r.branch_name||'').toLowerCase().includes(query);
+    return networkMatch&&nameMatch;
+  });
+  $('complianceVisibleCount').textContent='Showing '+rows.length+' of '+complianceRowsCache.length+' branches';
+  $('complianceRows').innerHTML=rows.map(r=>'<tr class="compliance-row '+(r.status==='Submitted'?'is-submitted':r.status==='Missing'?'is-missing':'is-review')+'">'+
+    '<td><strong>'+esc(r.branch_name||'Branch')+'</strong></td>'+ '<td><span class="compliance-network '+(String(r.network||'').toUpperCase()==='NEETHI'?'neethi':'unomed')+'">'+esc(r.network||'')+'</span></td>'+ '<td><span class="compliance-status '+(r.status==='Submitted'?'good':r.status==='Missing'?'bad':'warn')+'"><i></i>'+esc(r.status)+'</span></td>'+ '<td>'+r.matches+'</td>'+ '<td>'+money(r.sales)+'</td>'+ '<td>'+Number(r.patients||0).toLocaleString('en-IN')+'</td>'+ '<td class="compliance-action">'+esc(r.action)+'</td></tr>').join('')||'<tr><td colspan="7" class="compliance-empty">No branches match these filters.</td></tr>';
 }
 function copyComplianceSummary() {
   const text=window.__complianceReportText||'';
@@ -1116,15 +1110,21 @@ $('unomedExecBar').style.width = Math.min(100, un.target ? un.sales / un.target 
 $('neethiExecBar').style.width = Math.min(100, ne.target ? ne.sales / ne.target * 100 : 0) + '%';
 const alertCounts={green:rows.filter(r=>r.alertClass==='alert-green').length,yellow:rows.filter(r=>r.alertClass==='alert-yellow').length,red:rows.filter(r=>r.alertClass==='alert-red').length,none:rows.filter(r=>r.alertClass==='alert-none').length};
 $('targetMeta').textContent = targetMonth.slice(0, 7) + ' · ' + rows.filter(r => !r.missing).length + '/' + branches.length + ' branch targets loaded.';
-    window.__monthlyTargetRows = rows;
-    $('monthlyTargetNetwork').value = 'ALL';
-    $('monthlyTargetSort').value = 'achievement';
     $('alertSummary').innerHTML =
-      '<div class="monthly-alert-card monthly-alert-green"><span class="monthly-alert-icon">✓</span><div><strong>' + alertCounts.green + '</strong><span>On track / achieved</span></div></div>' +
-      '<div class="monthly-alert-card monthly-alert-yellow"><span class="monthly-alert-icon">!</span><div><strong>' + alertCounts.yellow + '</strong><span>Needs attention</span></div></div>' +
-      '<div class="monthly-alert-card monthly-alert-red"><span class="monthly-alert-icon">⚠</span><div><strong>' + alertCounts.red + '</strong><span>Critical branches</span></div></div>' +
-      '<div class="monthly-alert-card monthly-alert-neutral"><span class="monthly-alert-icon">◎</span><div><strong>' + alertCounts.none + '</strong><span>Targets missing</span></div></div>';
-    renderMonthlyTargetRows();
+      '<div class="alert-chip alert-green">🟢 On track / achieved: ' + alertCounts.green + '</div>' +
+      '<div class="alert-chip alert-yellow">🟡 Needs attention: ' + alertCounts.yellow + '</div>' +
+      '<div class="alert-chip alert-red">🔴 Critical: ' + alertCounts.red + '</div>';
+
+    $('targetRows').innerHTML = rows.map((r, i) =>
+      '<tr><td>' + (i + 1) + '</td><td>' + esc(r.branch_name) +
+      (r.missing ? ' <span class="pill">Target missing</span>' : '') +
+      '</td><td>' + esc(r.network) + '</td><td>' + money(r.sales) +
+      '</td><td>' + Number(r.patients || 0).toLocaleString('en-IN') + '</td><td>' + money(r.target) +
+      '</td><td>' + fmtPct(r.achievement) + '</td><td>' + money(r.balance) +
+      '</td><td>' + money(r.required) +
+      '</td><td><span class="alert-chip ' + r.alertClass + '">' + esc(r.alert) +
+      '</span></td></tr>'
+    ).join('');
 
     const summary = totalsByNetwork.map(n =>
       n.network + ': sales ' + money(n.sales) + ' / target ' + money(n.target) +
