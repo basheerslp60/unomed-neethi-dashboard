@@ -1,0 +1,56 @@
+/* Targeted repair for the executive Daily group sales chart */
+.trend-card #dailyTrend.daily-trend {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: stretch !important;
+  justify-content: flex-start;
+  gap: 9px;
+  width: 100%;
+  min-height: 205px;
+  padding: 14px 4px 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.trend-card #dailyTrend.daily-trend .trend-day {
+  display: flex !important;
+  flex: 1 0 34px;
+  flex-direction: column !important;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 30px;
+  min-height: 175px;
+}
+.trend-card #dailyTrend.daily-trend .trend-bar-wrap {
+  display: flex !important;
+  align-items: flex-end !important;
+  justify-content: center;
+  width: 100%;
+  height: 145px;
+  min-height: 145px;
+  overflow: hidden;
+  border: 1px solid #e5ebf4;
+  border-bottom: 2px solid #cbd8e8;
+  border-radius: 9px 9px 3px 3px;
+  background: linear-gradient(180deg, #f7faff 0%, #ffffff 100%);
+}
+.trend-card #dailyTrend.daily-trend .trend-bar {
+  display: block !important;
+  width: min(68%, 27px);
+  min-height: 3px;
+  border-radius: 7px 7px 0 0;
+  background: linear-gradient(180deg, #e34d73 0%, #bd1746 100%);
+  box-shadow: 0 3px 8px rgba(189, 23, 70, .18);
+}
+.trend-card #dailyTrend.daily-trend .trend-day small {
+  display: block;
+  color: #52657d;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+@media (max-width: 700px) {
+  .trend-card #dailyTrend.daily-trend { gap: 6px; }
+  .trend-card #dailyTrend.daily-trend .trend-day { flex-basis: 29px; }
+  .trend-card #dailyTrend.daily-trend .trend-bar-wrap { height: 120px; min-height: 120px; }
+}
