@@ -1,0 +1,48 @@
+/* Compact, readable daily sales entry + confirmation dialog */
+.sales-entry-card { border:1px solid #dce5ef; border-top:4px solid #c51f4b; border-radius:18px; padding:clamp(18px,2.4vw,30px); }
+.sales-entry-heading,.package-entry-title,.sales-entry-actions,.confirm-modal-head,.confirm-modal-actions,.confirm-package-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.sales-entry-heading h2 { margin:2px 0 5px; color:#102b4e; }
+.entry-helper,.package-entry-title p,.confirm-modal-head p:not(.eyebrow) { margin:0; color:#6c7d93; }
+.entry-step { background:#fff0f4; color:#a71942; border:1px solid #f3c7d4; border-radius:999px; padding:8px 13px; font-size:12px; font-weight:800; white-space:nowrap; }
+.sales-entry-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin:24px 0; }
+.entry-field { display:flex; flex-direction:column; gap:7px; min-width:0; }
+.entry-field label { color:#29415e; font-size:13px; font-weight:700; }
+.entry-field input,.entry-field select { width:100%; min-height:45px; padding:10px 12px; border:1px solid #cbd8e8; border-radius:10px; background:#fbfcff; color:#172b45; font:inherit; box-sizing:border-box; }
+.entry-field input:focus,.entry-field select:focus { outline:none; border-color:#c51f4b; box-shadow:0 0 0 3px rgba(197,31,75,.11); background:#fff; }
+.package-entry-panel { margin:8px 0 22px; padding:18px; border:1px solid #e1e8f1; border-radius:14px; background:linear-gradient(135deg,#f8faff,#fff8fa); }
+.package-entry-title h3 { margin:0 0 4px; color:#102b4e; }
+.package-entry-title span { background:#eaf0f8; color:#25476e; padding:7px 11px; border-radius:999px; font-size:12px; font-weight:800; white-space:nowrap; }
+.package-add-row { display:grid; grid-template-columns:minmax(220px,1fr) 120px auto; gap:12px; align-items:end; margin-top:17px; }
+.add-package-btn { min-height:45px; white-space:nowrap; }
+.package-selected-list { display:grid; gap:8px; margin-top:14px; }
+.package-empty { margin:0; padding:13px; color:#7a899d; background:#fff; border:1px dashed #cbd8e8; border-radius:9px; font-size:13px; }
+.selected-package-row { display:flex; align-items:center; gap:12px; padding:11px 13px; border:1px solid #e1e8f1; border-radius:9px; background:#fff; }
+.selected-package-row span { flex:1; color:#29415e; font-weight:600; }
+.selected-package-row strong { color:#102b4e; font-variant-numeric:tabular-nums; }
+.remove-package { border:0; background:#fff0f4; color:#a71942; border-radius:7px; padding:6px 10px; font-size:12px; font-weight:700; cursor:pointer; }
+.sales-entry-actions { padding-top:17px; border-top:1px solid #e7edf4; }
+.sales-entry-actions>span { color:#73839a; font-size:13px; }
+.sales-submit-btn { border:0; border-radius:10px; padding:13px 20px; min-height:46px; background:linear-gradient(105deg,#102b4e,#1d4772); color:#fff; font-weight:800; cursor:pointer; box-shadow:0 6px 15px rgba(16,43,78,.16); }
+.sales-submit-btn:hover { background:linear-gradient(105deg,#c51f4b,#a71942); }
+.sales-confirm-backdrop { position:fixed; inset:0; z-index:10000; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(8,25,47,.62); backdrop-filter:blur(4px); }
+.sales-confirm-backdrop.hidden { display:none !important; }
+.sales-confirm-dialog { width:min(680px,100%); max-height:min(88vh,850px); overflow:auto; background:#fff; border-radius:18px; padding:24px; box-shadow:0 24px 70px rgba(0,0,0,.28); border-top:5px solid #c51f4b; }
+.confirm-modal-head { align-items:flex-start; }
+.confirm-modal-head h2 { margin:3px 0 6px; color:#102b4e; }
+.confirm-close { border:0; background:#f0f3f8; color:#29415e; width:36px; height:36px; border-radius:50%; font-size:24px; line-height:1; cursor:pointer; }
+.confirm-summary-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin:20px 0; }
+.confirm-summary-grid>div { display:flex; flex-direction:column; gap:5px; padding:12px; border:1px solid #e4eaf2; border-radius:10px; background:#f8faff; }
+.confirm-summary-grid span { color:#71819a; font-size:12px; }
+.confirm-summary-grid strong { color:#173454; font-size:15px; overflow-wrap:anywhere; }
+.confirm-package-list { border:1px solid #e4eaf2; border-radius:11px; padding:13px; }
+.confirm-package-heading { padding-bottom:10px; border-bottom:1px solid #e8edf4; color:#102b4e; }
+.confirm-package-heading span { color:#71819a; font-size:12px; }
+.confirm-package-row { display:flex; justify-content:space-between; gap:12px; padding:9px 2px; border-bottom:1px solid #edf1f6; color:#29415e; }
+.confirm-package-row:last-child { border-bottom:0; }
+.confirm-package-row strong { color:#102b4e; }
+.confirm-no-packages { color:#71819a; font-size:13px; margin:12px 0 2px; }
+.confirm-modal-actions { justify-content:flex-end; margin-top:20px; padding-top:15px; border-top:1px solid #e8edf4; }
+@media(max-width:760px) { .sales-entry-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .package-add-row { grid-template-columns:1fr 100px; } .add-package-btn { grid-column:1/-1; width:100%; } }
+@media(max-width:480px) { .sales-entry-heading,.package-entry-title,.sales-entry-actions { align-items:flex-start; flex-direction:column; } .sales-entry-grid,.confirm-summary-grid { grid-template-columns:1fr; } .sales-entry-actions .sales-submit-btn { width:100%; } .confirm-modal-actions { flex-direction:column-reverse; } .confirm-modal-actions button { width:100%; } .sales-confirm-dialog { padding:18px; } }
+/* Keep the two brand marks side by side without a plus sign between them. */
+.brand-plus { display:none !important; }
