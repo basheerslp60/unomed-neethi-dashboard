@@ -137,6 +137,8 @@ if (!ready) {
   $('targetDashboardRefresh').onclick = loadTargetDashboard;
   $('targetDashboardMonth').addEventListener('change', loadTargetDashboard);
   $('targetDashboardNetwork').addEventListener('change', renderTargetDashboard);
+  $('monthlyTargetNetwork').addEventListener('change', renderMonthlyTargetRows);
+  $('monthlyTargetSort').addEventListener('change', renderMonthlyTargetRows);
   $('execDashboardMonth').value = today.slice(0,7);
   $('execDashboardRefresh').onclick = loadManagementExecutiveDashboard;
   $('execDashboardMonth').addEventListener('change', loadManagementExecutiveDashboard);
@@ -631,6 +633,23 @@ function renderTargetDashboard() {
   $('targetDashboardMsg').textContent=`${rows.length} active branches · Best achievement: ${best?best.branch.branch_name+' ('+fmt(best.achievement)+')':'No targets configured'} · Projected sales are estimates, not guaranteed results. For a future month, projection uses reported sales through the selected month end.`;
 }
 
+function renderMonthlyTargetRows() {
+  const allRows=window.__monthlyTargetRows||[];
+  const network=$('monthlyTargetNetwork')?.value||'ALL';
+  const sort=$('monthlyTargetSort')?.value||'achievement';
+  const rows=allRows.filter(r=>network==='ALL'||String(r.network).toUpperCase()===network);
+  const sorters={achievement:(a,b)=>b.achievement-a.achievement||b.sales-a.sales,sales:(a,b)=>b.sales-a.sales,balance:(a,b)=>b.balance-a.balance,required:(a,b)=>b.required-a.required};
+  rows.sort(sorters[sort]||sorters.achievement);
+  $('targetRows').innerHTML=rows.map((r,i)=>{
+    const pct=Math.max(0,Number(r.achievement)||0),width=Math.min(100,pct);
+    const rankClass=i===0?'monthly-rank-first':i===1?'monthly-rank-second':i===2?'monthly-rank-third':'';
+    const networkClass=String(r.network).toUpperCase()==='UNOMED'?'monthly-network-unomed':'monthly-network-neethi';
+    return `<tr class="monthly-target-row ${r.alertClass}"><td><span class="monthly-rank ${rankClass}">${i+1}</span></td><td><strong class="monthly-branch-name">${esc(r.branch_name)}</strong>${r.missing?' <span class="pill">Target missing</span>':''}</td><td><span class="monthly-network-tag ${networkClass}">${esc(r.network)}</span></td><td class="monthly-sales-value">${money(r.sales)}</td><td>${Number(r.patients||0).toLocaleString('en-IN')}</td><td>${money(r.target)}</td><td><div class="monthly-achievement"><div class="monthly-achievement-top"><strong>${fmtPct(pct)}</strong><small>${r.target?'of monthly target':'Target not set'}</small></div><div class="monthly-progress-track"><i class="${r.alertClass}" style="width:${width}%"></i></div></div></td><td class="monthly-balance">${money(r.balance)}</td><td class="monthly-required">${money(r.required)}</td><td><span class="monthly-status ${r.alertClass}"><i></i>${esc(r.alert)}</span></td></tr>`;
+  }).join('')||'<tr><td colspan="10" class="monthly-empty">No branches found for this network.</td></tr>';
+  $('targetRows').dataset.visibleCount=String(rows.length);
+}
+
+
 async function loadManagementExecutiveDashboard() {
   if (!profile || profile.role==='branch_staff' || !db) return;
   const month=$('execDashboardMonth').value || today.slice(0,7);
@@ -1110,21 +1129,15 @@ $('unomedExecBar').style.width = Math.min(100, un.target ? un.sales / un.target 
 $('neethiExecBar').style.width = Math.min(100, ne.target ? ne.sales / ne.target * 100 : 0) + '%';
 const alertCounts={green:rows.filter(r=>r.alertClass==='alert-green').length,yellow:rows.filter(r=>r.alertClass==='alert-yellow').length,red:rows.filter(r=>r.alertClass==='alert-red').length,none:rows.filter(r=>r.alertClass==='alert-none').length};
 $('targetMeta').textContent = targetMonth.slice(0, 7) + ' · ' + rows.filter(r => !r.missing).length + '/' + branches.length + ' branch targets loaded.';
+    window.__monthlyTargetRows = rows;
+    $('monthlyTargetNetwork').value = 'ALL';
+    $('monthlyTargetSort').value = 'achievement';
     $('alertSummary').innerHTML =
-      '<div class="alert-chip alert-green">🟢 On track / achieved: ' + alertCounts.green + '</div>' +
-      '<div class="alert-chip alert-yellow">🟡 Needs attention: ' + alertCounts.yellow + '</div>' +
-      '<div class="alert-chip alert-red">🔴 Critical: ' + alertCounts.red + '</div>';
-
-    $('targetRows').innerHTML = rows.map((r, i) =>
-      '<tr><td>' + (i + 1) + '</td><td>' + esc(r.branch_name) +
-      (r.missing ? ' <span class="pill">Target missing</span>' : '') +
-      '</td><td>' + esc(r.network) + '</td><td>' + money(r.sales) +
-      '</td><td>' + Number(r.patients || 0).toLocaleString('en-IN') + '</td><td>' + money(r.target) +
-      '</td><td>' + fmtPct(r.achievement) + '</td><td>' + money(r.balance) +
-      '</td><td>' + money(r.required) +
-      '</td><td><span class="alert-chip ' + r.alertClass + '">' + esc(r.alert) +
-      '</span></td></tr>'
-    ).join('');
+      '<div class="monthly-alert-card monthly-alert-green"><span class="monthly-alert-icon">✓</span><div><strong>' + alertCounts.green + '</strong><span>On track / achieved</span></div></div>' +
+      '<div class="monthly-alert-card monthly-alert-yellow"><span class="monthly-alert-icon">!</span><div><strong>' + alertCounts.yellow + '</strong><span>Needs attention</span></div></div>' +
+      '<div class="monthly-alert-card monthly-alert-red"><span class="monthly-alert-icon">⚠</span><div><strong>' + alertCounts.red + '</strong><span>Critical branches</span></div></div>' +
+      '<div class="monthly-alert-card monthly-alert-neutral"><span class="monthly-alert-icon">◎</span><div><strong>' + alertCounts.none + '</strong><span>Targets missing</span></div></div>';
+    renderMonthlyTargetRows();
 
     const summary = totalsByNetwork.map(n =>
       n.network + ': sales ' + money(n.sales) + ' / target ' + money(n.target) +
@@ -1200,6 +1213,8 @@ function renderDailyTrend(monthReports) {
   monthReports.forEach(r => {
     const d = r.report_date;
     if (!d) return;
+    // For the current month, ignore accidental future-dated reports in the trend chart.
+    if (monthKey === today.slice(0,7) && d > today) return;
     byDate.set(d, (byDate.get(d) || 0) + Number(r.total_sales || 0));
   });
 
