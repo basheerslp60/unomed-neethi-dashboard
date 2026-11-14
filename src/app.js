@@ -1208,6 +1208,7 @@ function renderOverview() {
 }
 
 function renderDailyTrend(monthReports) {
+  const monthKey = $('performanceMonth')?.value || today.slice(0,7);
   const byDate = new Map();
 
   monthReports.forEach(r => {
