@@ -14,13 +14,46 @@ const today = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOStr
 $('date').value = today;
 $('branchTargetMonth').value = today.slice(0,7);
 if ($('performanceMonth')) $('performanceMonth').value = today.slice(0,7);
-document.querySelectorAll('.nav-button').forEach(button => {
+function setPortalView(targetId) {
+  const layout = document.querySelector('.app-layout');
+  const content = document.querySelector('.app-content');
+  if (!layout || !content) return;
+  const overviewIds = new Set(['overviewTop']);
+  const overviewSupport = new Set(['overviewTop']);
+  const isOverview = overviewIds.has(targetId);
+  const overviewElements = [
+    $('overviewTop'),
+    content.querySelector('.heading'),
+    content.querySelector('.heading + div'),
+    $('overviewDashboard'),
+    $('stats'),
+    $('executiveSection')
+  ].filter(Boolean);
+  [...content.children].forEach(node => {
+    const keep = isOverview ? overviewElements.includes(node) : node.id === targetId;
+    node.classList.toggle('portal-view-hidden', !keep);
+  });
+  document.querySelectorAll('.nav-button[data-target]').forEach(button => {
+    button.classList.toggle('active', button.dataset.target === targetId);
+  });
+  layout.dataset.activeView = targetId;
+  content.scrollTop = 0;
+  if (window.matchMedia('(max-width: 760px)').matches) layout.classList.remove('sidebar-open');
+}
+document.querySelectorAll('.nav-button[data-target]').forEach(button => {
   button.addEventListener('click', () => {
     const target = $(button.dataset.target);
-    if (!target || target.classList.contains('hidden')) return;
-    document.querySelectorAll('.nav-button').forEach(item => item.classList.toggle('active', item === button));
-    target.scrollIntoView({behavior:'smooth',block:'start'});
+    if (!target || button.classList.contains('nav-hidden')) return;
+    setPortalView(button.dataset.target);
   });
+});
+$('sidebarToggle')?.addEventListener('click', () => {
+  const layout = document.querySelector('.app-layout');
+  if (window.matchMedia('(max-width: 760px)').matches) {
+    layout.classList.toggle('sidebar-open');
+  } else {
+    layout.classList.toggle('sidebar-collapsed');
+  }
 });
 // Compact package selector. Hidden per-package inputs preserve the existing database write format.
 $('packageSelect').innerHTML = '<option value="">Choose a package</option>' + names.map((n,i) => `<option value="${i}">${esc(n)}</option>`).join('');
@@ -225,7 +258,7 @@ async function load(u) {
   $('portalBranch').innerHTML = branches.map(b => '<option value="' + b.id + '">' + esc(b.network) + ' - ' + esc(b.branch_name) + '</option>').join('');
     updatePortalBranchVisibility();
   }
-  show('login',false); show('app',true); show('userTools',true); show('entry',p.role==='branch_staff');
+  show('login',false); show('app',true); show('userTools',true); setPortalView('overviewTop'); show('entry',p.role==='branch_staff');
   show('correctionBranchWrap',p.role!=='branch_staff');
   if(p.role==='branch_staff') $('correctionBranch').innerHTML='';
   else $('correctionBranch').innerHTML='<option value=>All permitted branches</option>'+branches.map(b=>`<option value="${esc(b.id)}">${esc(b.network)} - ${esc(b.branch_name)}</option>`).join('');
