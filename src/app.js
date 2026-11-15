@@ -4,7 +4,7 @@ import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "./config.js";
 const $ = id => document.getElementById(id);
 const names = ["Complete HC 599","My Health 999","Cardiac HC","EHC 2500","EHC Advanced 3500","Healthy Women 699","Healthy Men","EHC PRO 8499","Hairfall","Vitamin Profile","PCOD Mini","Onam Camp","Other Packages"];
 let db, user, profile, branches = [], reports = [], targets = [];
-let complianceRowsCache = [], complianceNetworkFilter = 'ALL';
+let complianceRowsCache = [], complianceNetworkFilter = 'ALL', complianceChecked = false;
 let editingReportId = null;
 let overviewReports = [];
 let overviewPeriod = '7';
@@ -14,6 +14,47 @@ const today = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOStr
 $('date').value = today;
 $('branchTargetMonth').value = today.slice(0,7);
 if ($('performanceMonth')) $('performanceMonth').value = today.slice(0,7);
+function portalNavigate(targetId) {
+  const button=document.querySelector(`.nav-button[data-target="${CSS.escape(targetId)}"]`);
+  if(!button || button.classList.contains('hidden') || button.classList.contains('nav-hidden')) return false;
+  setPortalView(targetId);
+  return true;
+}
+function renderPortalSearch(query='') {
+  const box=$('portalSearchResults');
+  if(!box) return;
+  const q=String(query||'').trim().toLowerCase();
+  if(!q){box.classList.add('hidden');box.innerHTML='';return;}
+  const matches=[...document.querySelectorAll('.nav-button[data-target]')]
+    .filter(b=>!b.classList.contains('hidden')&&!b.classList.contains('nav-hidden'))
+    .map(b=>({id:b.dataset.target,label:b.textContent.trim(),button:b}))
+    .filter(x=>x.label.toLowerCase().includes(q));
+  box.innerHTML=matches.length?matches.map(x=>`<button type="button" class="portal-search-result" role="option" data-search-target="${esc(x.id)}"><span>${esc(x.label)}</span><small>Open module ↗</small></button>`).join(''):'<p class="portal-empty-note">No matching modules. Try another keyword.</p>';
+  box.classList.remove('hidden');
+}
+function renderPortalNotifications() {
+  const list=$('portalNotificationsList'),badge=$('portalNotificationBadge');
+  if(!list||!badge) return;
+  const isManagement=profile&&profile.role!=='branch_staff';
+  const alerts=isManagement?complianceRowsCache.filter(r=>r.status==='Missing'||r.status==='Needs review'):[];
+  badge.textContent=String(alerts.length);badge.classList.toggle('hidden',alerts.length===0);
+  if(!alerts.length){list.innerHTML=complianceChecked?'<div class="portal-notification-empty"><strong>All clear</strong><p>No missing or review-pending daily reports are present in the latest compliance check.</p></div>':'<div class="portal-notification-empty"><strong>Compliance not checked yet</strong><p>Open Daily compliance to generate the latest branch submission alerts.</p></div>';return;}
+  list.innerHTML=`<div class="portal-notification-summary">${alerts.length} branch follow-up${alerts.length===1?'':'s'} from the latest compliance check</div>`+alerts.slice(0,12).map(r=>`<button type="button" class="portal-notification-item" data-notification-target="complianceSection"><span class="portal-notification-dot ${r.status==='Missing'?'is-missing':'is-review'}"></span><span><strong>${esc(r.branch_name||'Branch')}</strong><small>${esc(r.network||'')} · ${esc(r.status)} · ${esc(r.action||'Follow up required')}</small></span><b>›</b></button>`).join('')+(alerts.length>12?`<p class="portal-empty-note">+ ${alerts.length-12} more follow-ups</p>`:'');
+}
+function initPortalCommandBar(){
+  $('portalGlobalSearch')?.addEventListener('input',e=>renderPortalSearch(e.target.value));
+  $('portalGlobalSearch')?.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){$('portalSearchResults')?.classList.add('hidden');e.target.blur();}
+    if(e.key==='Enter'){const first=$('portalSearchResults')?.querySelector('[data-search-target]');if(first){portalNavigate(first.dataset.searchTarget);$('portalSearchResults').classList.add('hidden');e.target.value='';}}
+  });
+  $('portalSearchResults')?.addEventListener('click',e=>{const b=e.target.closest('[data-search-target]');if(!b)return;portalNavigate(b.dataset.searchTarget);$('portalSearchResults').classList.add('hidden');$('portalGlobalSearch').value='';});
+  $('portalNotificationsBtn')?.addEventListener('click',()=>{$('portalNotificationsPanel')?.classList.toggle('hidden');renderPortalNotifications();});
+  $('portalNotificationsClose')?.addEventListener('click',()=>$('portalNotificationsPanel')?.classList.add('hidden'));
+  $('portalNotificationsList')?.addEventListener('click',e=>{const b=e.target.closest('[data-notification-target]');if(b){portalNavigate(b.dataset.notificationTarget);$('portalNotificationsPanel').classList.add('hidden');}});
+  $('portalQuickLinks')?.addEventListener('click',e=>{const b=e.target.closest('[data-quick-target]');if(!b)return;portalNavigate(b.dataset.quickTarget);});
+  document.addEventListener('keydown',e=>{if(e.key==='/'&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)&&!e.ctrlKey&&!e.metaKey){e.preventDefault();$('portalGlobalSearch')?.focus();}});
+}
+
 function setPortalView(targetId) {
   const layout = document.querySelector('.app-layout');
   const content = document.querySelector('.app-content');
@@ -22,6 +63,8 @@ function setPortalView(targetId) {
   const overviewSupport = new Set(['overviewTop']);
   const isOverview = overviewIds.has(targetId);
   const overviewElements = [
+    $('portalCommandBar'),
+    $('portalQuickLinks'),
     $('overviewTop'),
     content.querySelector('.heading'),
     content.querySelector('.heading + div'),
@@ -30,7 +73,8 @@ function setPortalView(targetId) {
     $('executiveSection')
   ].filter(Boolean);
   [...content.children].forEach(node => {
-    const keep = isOverview ? overviewElements.includes(node) : node.id === targetId;
+    const alwaysVisible = node.id === 'portalCommandBar' || node.id === 'portalQuickLinks';
+    const keep = alwaysVisible || (isOverview ? overviewElements.includes(node) : node.id === targetId);
     node.classList.toggle('portal-view-hidden', !keep);
   });
   document.querySelectorAll('.nav-button[data-target]').forEach(button => {
@@ -55,6 +99,7 @@ $('sidebarToggle')?.addEventListener('click', () => {
     layout.classList.toggle('sidebar-collapsed');
   }
 });
+initPortalCommandBar();
 // Compact package selector. Hidden per-package inputs preserve the existing database write format.
 $('packageSelect').innerHTML = '<option value="">Choose a package</option>' + names.map((n,i) => `<option value="${i}">${esc(n)}</option>`).join('');
 $('packages').innerHTML = names.map((n,i) => `<input type="hidden" id="p${i}" value="0">`).join('') + '<p class="package-empty">No packages added yet. You can submit without package sales.</p>';
@@ -269,6 +314,9 @@ async function load(u) {
   const canViewFinancial = ['admin','management'].includes(String(p.role||'').toLowerCase());
   show('financialIntelligenceSection',canViewFinancial);
   document.querySelector('.financial-nav')?.classList.toggle('hidden',!canViewFinancial);
+  document.querySelector('.quick-financial')?.classList.toggle('hidden',!canViewFinancial);
+  document.querySelector('[data-quick-target="branchAnalyticsSection"]')?.classList.toggle('hidden',p.role==='branch_staff');
+  renderPortalNotifications();
   if(canViewFinancial){ $('financialBranch').innerHTML='<option value="">Select branch</option>'+branches.map(b=>`<option value="${esc(b.id)}">${esc(b.network)} — ${esc(b.branch_name)}</option>`).join(''); $('financialPeriod').value=today.slice(0,7); $('financialAnalysisTo').value=today.slice(0,7); $('financialAnalysisFrom').value=`${today.slice(0,4)}-01`; await loadFinancialReports(); await loadFinancialManagementAnalysis(); }
   show('complianceSection',p.role!=='branch_staff');
   // User & Branch Access Management is visible only to the Super Admin.
@@ -929,6 +977,8 @@ async function renderCompliance(fallbackReports=[]) {
     return {...b,matches:matches.length,submitted,sales,patients,status,cls,action};
   });
   complianceRowsCache=rows;
+  complianceChecked=true;
+  renderPortalNotifications();
   const submitted=rows.filter(r=>r.submitted).length, missing=rows.filter(r=>r.status==='Missing').length, review=rows.filter(r=>r.status==='Needs review').length;
   $('complianceKpis').innerHTML = [
     ['total','Total branches',rows.length,'Active branches'],
