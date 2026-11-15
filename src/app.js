@@ -502,6 +502,16 @@ function renderBranchAnalytics() {
     `<div class="stat-card"><span>Top sales branch</span><strong>${topSales?esc(topSales.branch.branch_name):'—'}</strong><small>${topSales?money(topSales.current.sales):'No sales recorded'}</small></div>`+
     `<div class="stat-card"><span>Top patient volume</span><strong>${topPatients?esc(topPatients.branch.branch_name):'—'}</strong><small>${topPatients?topPatients.current.patients.toLocaleString('en-IN')+' patients':'No patients recorded'}</small></div>`+
     `<div class="stat-card"><span>Best sales growth</span><strong>${bestGrowth?esc(bestGrowth.branch.branch_name):'—'}</strong><small>${bestGrowth?growthText(bestGrowth.salesChange):'No prior-period base'}</small></div>`;
+  // Premium branch comparison visual (created dynamically to avoid changing the login/index shell).
+  let visual=$('analyticsVisual');
+  if(!visual) {
+    visual=document.createElement('section');
+    visual.id='analyticsVisual';
+    visual.className='analytics-visual-panel';
+    $('analyticsKpis').insertAdjacentElement('afterend',visual);
+  }
+  const chartMax=Math.max(1,...results.map(r=>r.current.sales));
+  visual.innerHTML=`<div class="analytics-visual-head"><div><span class="analytics-visual-kicker">LIVE PERFORMANCE SNAPSHOT</span><h3>Branch sales comparison</h3><p>Current period sales by branch · ranked highest to lowest</p></div><div class="analytics-visual-total"><small>Network sales</small><strong>${money(totals.sales)}</strong></div></div><div class="analytics-bars">${results.map((r,i)=>{const pct=Math.max(r.current.sales?3:0,(r.current.sales/chartMax)*100);return `<div class="analytics-bar-row"><div class="analytics-bar-label"><span class="analytics-rank">${String(i+1).padStart(2,'0')}</span><strong>${esc(r.branch.branch_name)}</strong><small>${esc(r.branch.network)}</small></div><div class="analytics-bar-rail"><div class="analytics-bar-fill ${String(r.branch.network).toUpperCase()==='NEETHI'?'neethi':''}" style="width:${pct}%"></div></div><div class="analytics-bar-amount">${money(r.current.sales)}</div></div>`}).join('')}</div>`;
   $('analyticsRows').innerHTML=results.map((r,i)=>`<tr><td>${i+1}</td><td><button type="button" class="analytics-branch-link" data-analytics-branch="${esc(String(r.branch.id))}" aria-label="View ${esc(r.branch.branch_name)} daily details">${esc(r.branch.branch_name)} <span>↗</span></button></td><td>${esc(r.branch.network)}</td><td>${money(r.current.sales)}</td><td class="${r.salesChange===null?'':r.salesChange>=0?'analytics-positive':'analytics-negative'}">${growthText(r.salesChange)}</td><td>${r.current.patients.toLocaleString('en-IN')}</td><td class="${r.patientChange===null?'':r.patientChange>=0?'analytics-positive':'analytics-negative'}">${growthText(r.patientChange)}</td><td>${money(r.avg)}</td></tr>`).join('') || '<tr><td colspan="8">No active branches found.</td></tr>';
   $('analyticsDrilldown').classList.add('hidden');
   $('analyticsMsg').textContent=`${results.length} branches · ${data.current.length} current-period reports and ${data.previous.length} previous-period reports visible to this account. Select a branch name to open its day-wise sales and patient details. A “New” change means the previous period had zero sales or patients.`;
