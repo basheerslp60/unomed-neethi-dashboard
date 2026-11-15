@@ -899,3 +899,13 @@ footer {
 .financial-share-footer span{font-size:10px;color:#80643a}
 .financial-share-footer strong{font-size:15px;color:#5e4215}
 @media(max-width:560px){.financial-share-grid,.financial-share-footer{grid-template-columns:1fr}.financial-share-total{font-size:21px}}
+/* Management Financial Analysis */
+.financial-management{margin:24px 0;padding:18px;border:1px solid #cbdcf1;border-radius:16px;background:linear-gradient(145deg,#f7faff,#fff)}
+.financial-analysis-controls{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:14px;background:#eef4fb;border:1px solid #d9e5f3;border-radius:12px;align-items:end}
+.financial-analysis-controls>div{display:grid;gap:6px}.financial-analysis-controls input,.financial-analysis-controls select{width:100%;min-height:40px}
+.financial-export-actions{display:flex;gap:8px;flex-wrap:wrap}.financial-management-note{font-size:12px;color:#52657d;padding:10px 12px;background:#fff;border-left:3px solid #4776aa;border-radius:7px}
+.financial-management-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0}.financial-management-grid>article,.financial-management-panel{padding:15px;background:#fff;border:1px solid #dce6f4;border-radius:12px;min-width:0}.financial-management-grid h4,.financial-management-panel h4{margin:0 0 12px;color:#183b65}
+.financial-network-comparison{display:grid;grid-template-columns:1fr 1fr;gap:10px}.financial-network-card{padding:12px;border:1px solid #dce6f4;border-radius:10px;background:#f8fbff;display:grid;gap:7px}.financial-network-card h5{margin:0;color:#183b65}.financial-network-card>strong{font-size:22px;color:#152f50}.financial-network-card>span{font-size:10px;color:#718096}.financial-network-card>div{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#52657d}.financial-network-card b{color:#183b65}.financial-management-panel{margin-top:14px}.financial-management-panel .financial-table{min-width:1050px}
+@media(max-width:900px){.financial-analysis-controls{grid-template-columns:1fr 1fr}.financial-management-grid{grid-template-columns:1fr}}
+@media(max-width:560px){.financial-analysis-controls,.financial-network-comparison{grid-template-columns:1fr}.financial-export-actions{width:100%}.financial-export-actions button{flex:1}}
+@media print{body *{visibility:hidden!important}#financialManagementDashboard,#financialManagementDashboard *{visibility:visible!important}#financialManagementDashboard{position:absolute;left:0;top:0;width:100%;margin:0;padding:0;border:0}.financial-export-actions,.financial-analysis-controls{display:none!important}.financial-management-panel,.financial-management-grid>article{break-inside:avoid}}
