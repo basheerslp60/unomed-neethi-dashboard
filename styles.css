@@ -462,3 +462,142 @@ footer {
 .brand-plus { display:none !important; }
 
 
+
+
+/* Premium Branch Analytics dashboard — isolated from login and other portal modules */
+#branchAnalyticsSection {
+  overflow: hidden;
+  border: 1px solid #dce6f4;
+  background: linear-gradient(145deg,#ffffff 0%,#f8fbff 62%,#fff8fa 100%);
+  box-shadow: 0 18px 48px rgba(16,42,78,.09);
+}
+#branchAnalyticsSection .section-head { margin-bottom: 22px; }
+#branchAnalyticsSection .section-head h2 { font-size: clamp(24px,2.2vw,32px); letter-spacing:-.035em; }
+#branchAnalyticsSection .analytics-controls {
+  display:flex; flex-wrap:wrap; align-items:end; gap:14px;
+  padding:17px; margin:20px 0 16px; border:1px solid #e1e9f5;
+  border-radius:18px; background:rgba(255,255,255,.82);
+}
+#branchAnalyticsSection .analytics-controls > div { min-width:190px; }
+#branchAnalyticsSection .analytics-controls label { display:block; margin-bottom:7px; font-weight:700; color:#233d60; }
+#branchAnalyticsSection .analytics-controls select { min-width:220px; }
+#branchAnalyticsSection #analyticsRefresh {
+  border-radius:12px; padding:12px 20px; font-weight:800;
+  background:linear-gradient(135deg,#102d52,#24517e);
+  box-shadow:0 7px 18px rgba(16,45,82,.18);
+}
+#branchAnalyticsSection .analytics-period-label {
+  display:inline-flex; padding:9px 13px; border-radius:999px;
+  background:#edf4ff; color:#365779; font-weight:650; font-size:13px;
+}
+#branchAnalyticsSection #analyticsKpis {
+  display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin:18px 0;
+}
+#branchAnalyticsSection #analyticsKpis .stat-card {
+  position:relative; overflow:hidden; min-height:118px; padding:19px 20px;
+  border:1px solid #e0e9f5; border-radius:17px;
+  background:linear-gradient(145deg,#fff,#f7faff);
+  box-shadow:0 8px 22px rgba(24,54,92,.055);
+  transition:transform .2s ease,box-shadow .2s ease;
+}
+#branchAnalyticsSection #analyticsKpis .stat-card:hover {
+  transform:translateY(-3px); box-shadow:0 14px 28px rgba(24,54,92,.11);
+}
+#branchAnalyticsSection #analyticsKpis .stat-card span {
+  display:block; color:#607895; font-size:12px; font-weight:750;
+  text-transform:uppercase; letter-spacing:.055em; margin-bottom:9px;
+}
+#branchAnalyticsSection #analyticsKpis .stat-card strong {
+  display:block; color:#102e53; font-size:clamp(20px,2vw,27px);
+  line-height:1.15; letter-spacing:-.03em; overflow-wrap:anywhere;
+}
+#branchAnalyticsSection #analyticsKpis .stat-card small { display:block; margin-top:8px; color:#70849e; }
+#branchAnalyticsSection .analytics-visual-panel {
+  margin:22px 0 25px; padding:23px; border:1px solid #dfe8f4;
+  border-radius:20px; background:linear-gradient(135deg,#f7faff,#fff 58%,#fff8fa);
+}
+#branchAnalyticsSection .analytics-visual-head {
+  display:flex; justify-content:space-between; align-items:center; gap:18px; margin-bottom:20px;
+}
+#branchAnalyticsSection .analytics-visual-kicker {
+  color:#d21d50; font-size:11px; font-weight:850; letter-spacing:.13em;
+}
+#branchAnalyticsSection .analytics-visual-head h3 { margin:5px 0; color:#102e53; font-size:21px; }
+#branchAnalyticsSection .analytics-visual-head p { margin:0; color:#71849d; font-size:13px; }
+#branchAnalyticsSection .analytics-visual-total {
+  min-width:150px; padding:12px 16px; border-radius:14px;
+  background:#102e53; color:#fff; text-align:right;
+}
+#branchAnalyticsSection .analytics-visual-total small { display:block; color:#c7d8ed; font-size:11px; }
+#branchAnalyticsSection .analytics-visual-total strong { display:block; font-size:21px; }
+#branchAnalyticsSection .analytics-bars { display:grid; gap:13px; }
+#branchAnalyticsSection .analytics-bar-row {
+  display:grid; grid-template-columns:minmax(145px,190px) minmax(90px,1fr) minmax(90px,135px);
+  align-items:center; gap:14px;
+}
+#branchAnalyticsSection .analytics-bar-label { display:grid; grid-template-columns:28px 1fr; align-items:center; column-gap:8px; }
+#branchAnalyticsSection .analytics-rank {
+  grid-row:span 2; display:grid; place-items:center; width:27px; height:27px;
+  border-radius:9px; background:#eaf1fb; color:#365779; font-size:11px; font-weight:850;
+}
+#branchAnalyticsSection .analytics-bar-label strong { color:#1b385c; font-size:13px; }
+#branchAnalyticsSection .analytics-bar-label small { color:#8191a6; font-size:10px; }
+#branchAnalyticsSection .analytics-bar-rail {
+  height:13px; overflow:hidden; border-radius:999px; background:#eaf0f8;
+  box-shadow:inset 0 1px 2px rgba(16,42,78,.06);
+}
+#branchAnalyticsSection .analytics-bar-fill {
+  height:100%; min-width:0; border-radius:999px;
+  background:linear-gradient(90deg,#f05a7c,#c8174d);
+  box-shadow:0 2px 8px rgba(200,23,77,.22);
+  animation:analyticsGrow .7s ease both;
+}
+#branchAnalyticsSection .analytics-bar-fill.neethi {
+  background:linear-gradient(90deg,#5b9bea,#2456a0);
+  box-shadow:0 2px 8px rgba(36,86,160,.2);
+}
+#branchAnalyticsSection .analytics-bar-amount { text-align:right; color:#18385e; font-weight:800; font-size:13px; font-variant-numeric:tabular-nums; }
+#branchAnalyticsSection .scroll { border:1px solid #e0e8f2; border-radius:15px; overflow:auto; background:#fff; }
+#branchAnalyticsSection .analytics-table { width:100%; border-collapse:separate; border-spacing:0; }
+#branchAnalyticsSection .analytics-table thead th {
+  position:sticky; top:0; z-index:1; background:#eef3fa; color:#355273;
+  font-size:11px; font-weight:850; letter-spacing:.045em; text-transform:uppercase;
+}
+#branchAnalyticsSection .analytics-table td, #branchAnalyticsSection .analytics-table th { padding:14px 15px; }
+#branchAnalyticsSection .analytics-table tbody tr { transition:background .16s ease; }
+#branchAnalyticsSection .analytics-table tbody tr:hover { background:#f5f8fd; }
+#branchAnalyticsSection .analytics-branch-link {
+  border:0; border-radius:10px; padding:9px 12px; color:#fff;
+  background:linear-gradient(135deg,#102d52,#24517e); font-weight:750;
+  box-shadow:0 4px 11px rgba(16,45,82,.13);
+}
+#branchAnalyticsSection .analytics-positive { color:#168454; font-weight:800; }
+#branchAnalyticsSection .analytics-negative { color:#d13a54; font-weight:800; }
+#branchAnalyticsSection .analytics-drilldown {
+  margin-top:25px; padding:22px; border:1px solid #dce6f4; border-radius:19px;
+  background:linear-gradient(145deg,#f8fbff,#fff);
+}
+#branchAnalyticsSection .analytics-drilldown-head { display:flex; justify-content:space-between; align-items:center; gap:14px; }
+#branchAnalyticsSection .analytics-daily-chart { display:flex; align-items:stretch; gap:8px; overflow-x:auto; padding:15px 2px; }
+#branchAnalyticsSection .analytics-day { min-width:65px; flex:1; text-align:center; }
+#branchAnalyticsSection .analytics-day-value { color:#365779; font-size:10px; font-weight:750; white-space:nowrap; }
+#branchAnalyticsSection .analytics-day-track { height:112px; display:flex; align-items:end; margin:7px 0; border-radius:9px; background:#edf3fb; overflow:hidden; }
+#branchAnalyticsSection .analytics-day-bar { width:100%; border-radius:8px 8px 0 0; background:linear-gradient(180deg,#f05a7c,#c8174d); }
+#branchAnalyticsSection .analytics-day strong { display:block; color:#365779; font-size:11px; }
+#branchAnalyticsSection .analytics-day small { color:#8191a6; font-size:10px; }
+@keyframes analyticsGrow { from { transform:scaleX(.15); transform-origin:left; } to { transform:scaleX(1); transform-origin:left; } }
+@media(max-width:850px) {
+  #branchAnalyticsSection #analyticsKpis { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  #branchAnalyticsSection .analytics-bar-row { grid-template-columns:125px minmax(65px,1fr) 90px; gap:8px; }
+}
+@media(max-width:560px) {
+  #branchAnalyticsSection #analyticsKpis { grid-template-columns:1fr; }
+  #branchAnalyticsSection .analytics-visual-head { align-items:flex-start; flex-direction:column; }
+  #branchAnalyticsSection .analytics-visual-total { text-align:left; width:100%; }
+  #branchAnalyticsSection .analytics-bar-row { grid-template-columns:105px minmax(50px,1fr) 78px; gap:7px; }
+  #branchAnalyticsSection .analytics-bar-label strong { font-size:11px; }
+  #branchAnalyticsSection .analytics-bar-amount { font-size:11px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  #branchAnalyticsSection *, #branchAnalyticsSection *::before, #branchAnalyticsSection *::after { animation:none!important; transition:none!important; }
+}
