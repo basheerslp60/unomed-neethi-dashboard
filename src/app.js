@@ -98,6 +98,14 @@ if (!ready) {
     if(network){overviewNetwork=network.dataset.overviewNetwork;$('overviewDashboard').querySelectorAll('[data-overview-network]').forEach(b=>b.classList.toggle('active',b===network));renderOverview();}
     if(action){const target=$(action.dataset.overviewTarget);if(target&&!target.classList.contains('hidden')){target.scrollIntoView({behavior:'smooth',block:'start'});}}
   });
+  $('financialUploadBtn').onclick = uploadFinancialPdf;
+  $('financialRefresh').onclick = loadFinancialReports;
+  $('financialStatusFilter').onchange = loadFinancialReports;
+  $('financialCloseReview').onclick = () => $('financialReviewPanel').classList.add('hidden');
+  $('financialSaveMapping').onclick = saveFinancialMappings;
+  $('financialApprove').onclick = approveFinancialReport;
+  $('financialReportRows').addEventListener('click', event => { const b=event.target.closest('[data-financial-review]'); if(b) openFinancialReview(b.dataset.financialReview); });
+  $('financialLineRows').addEventListener('change', event => { const el=event.target; if(el.matches('[data-financial-category],[data-financial-behaviour],[data-financial-variable-share]')) updateFinancialLinePreview(); });
   $('salesForm').onsubmit = openSalesConfirmation;
   $('closeSalesConfirm').onclick = closeSalesConfirmation;
   $('editSalesReport').onclick = closeSalesConfirmation;
@@ -217,6 +225,10 @@ async function load(u) {
   show('branchAnalyticsSection',p.role!=='branch_staff');
   show('targetDashboardSection',p.role!=='branch_staff');
   show('managementExecutiveSection',p.role!=='branch_staff');
+  const canViewFinancial = ['admin','management'].includes(String(p.role||'').toLowerCase());
+  show('financialIntelligenceSection',canViewFinancial);
+  document.querySelector('.financial-nav')?.classList.toggle('hidden',!canViewFinancial);
+  if(canViewFinancial){ $('financialBranch').innerHTML='<option value="">Select branch</option>'+branches.map(b=>`<option value="${esc(b.id)}">${esc(b.network)} — ${esc(b.branch_name)}</option>`).join(''); $('financialPeriod').value=today.slice(0,7); await loadFinancialReports(); }
   show('complianceSection',p.role!=='branch_staff');
   // User & Branch Access Management is visible only to the Super Admin.
   show('userAccessSection',p.role==='admin');
@@ -1515,4 +1527,151 @@ async function saveEmployeeTarget(e) {
     employeeMessage('employeeTargetMsg','Monthly target saved successfully.',true);
     await loadEmployeeTargets();
   } catch(err) { employeeMessage('employeeTargetMsg',err.message||'Could not save target. Check target-table permissions and RLS policies.'); }
+}
+
+
+// ================= FINANCIAL INTELLIGENCE (Admin + Management only) =================
+const FINANCIAL_CATEGORIES = [
+  'Operating income','Discounts and adjustments','Direct laboratory costs','Outsourced tests / B2B','Subcontractor costs',
+  'Employee costs','Rent and premises','Head-office / shared overhead','Doctor / professional fees','Marketing and advertising',
+  'Office and administration','Travel and conveyance','Utilities and housekeeping','Repairs and maintenance','Other operating expenses',
+  'Non-operating income','Finance costs','Depreciation','Tax','Profit distribution / share','Other non-operating expense','Unmapped / review required'
+];
+const FINANCIAL_BEHAVIOURS=['Not applicable','Fixed','Variable','Semi-variable','Shared overhead','Profit distribution'];
+let activeFinancialReport=null, activeFinancialLines=[];
+function financialAllowed(){return ['admin','management'].includes(String(profile?.role||'').toLowerCase());}
+function normaliseAccount(s){return String(s||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();}
+function guessFinancialMapping(name,section){
+  const n=normaliseAccount(name);
+  if(/profit share|share distribution|partner share/.test(n)) return {category:'Profit distribution / share',behaviour:'Profit distribution',variablePct:0};
+  if(/test out source|outsourc/.test(n)) return {category:'Outsourced tests / B2B',behaviour:'Variable',variablePct:100};
+  if(/subcontract/.test(n)) return {category:'Subcontractor costs',behaviour:'Variable',variablePct:100};
+  if(/cost of goods|reagent|consumable|testing material/.test(n)) return {category:'Direct laboratory costs',behaviour:'Variable',variablePct:100};
+  if(/salary|salaries|wage|staff/.test(n)) return {category:'Employee costs',behaviour:'Semi-variable',variablePct:50};
+  if(/rent/.test(n)) return {category:'Rent and premises',behaviour:'Fixed',variablePct:0};
+  if(/ho expense|head office|corporate/.test(n)) return {category:'Head-office / shared overhead',behaviour:'Shared overhead',variablePct:50};
+  if(/dr fee|doctor fee|professional fee/.test(n)) return {category:'Doctor / professional fees',behaviour:'Semi-variable',variablePct:50};
+  if(/advertis|marketing|promotion/.test(n)) return {category:'Marketing and advertising',behaviour:'Semi-variable',variablePct:50};
+  if(/office supplies|printing|stationery|admin/.test(n)) return {category:'Office and administration',behaviour:'Semi-variable',variablePct:50};
+  if(/travel|conveyance/.test(n)) return {category:'Travel and conveyance',behaviour:'Variable',variablePct:100};
+  if(/clean|haritha|electric|water|utility/.test(n)) return {category:'Utilities and housekeeping',behaviour:'Semi-variable',variablePct:50};
+  if(section==='Operating Income') return {category:/discount/.test(n)?'Discounts and adjustments':'Operating income',behaviour:'Not applicable',variablePct:0};
+  if(section==='Non Operating Income') return {category:'Non-operating income',behaviour:'Not applicable',variablePct:0};
+  if(section==='Non Operating Expense') return {category:'Other non-operating expense',behaviour:'Not applicable',variablePct:0};
+  return {category:'Unmapped / review required',behaviour:'Semi-variable',variablePct:50};
+}
+function financialMessage(text,ok=false){const el=$('financialUploadMsg');if(el){el.textContent=text;el.style.color=ok?'#16764a':'#a21d37';}}
+async function extractZohoPdf(file){
+  const pdfjs=await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs');
+  pdfjs.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
+  const bytes=new Uint8Array(await file.arrayBuffer()); const pdf=await pdfjs.getDocument({data:bytes}).promise;
+  const lines=[];
+  for(let pageNo=1;pageNo<=pdf.numPages;pageNo++){
+    const page=await pdf.getPage(pageNo); const content=await page.getTextContent(); const grouped=new Map();
+    for(const item of content.items){if(!item.str?.trim())continue;const y=Math.round(item.transform?.[5]||0);let key=[...grouped.keys()].find(k=>Math.abs(k-y)<=2);if(key===undefined){key=y;grouped.set(key,[]);}grouped.get(key).push({x:item.transform?.[4]||0,text:item.str.trim()});}
+    [...grouped.entries()].sort((a,b)=>b[0]-a[0]).forEach(([y,items])=>lines.push({page:pageNo,text:items.sort((a,b)=>a.x-b.x).map(x=>x.text).join(' ').replace(/\s+/g,' ').trim()}));
+  }
+  const all=lines.map(x=>x.text); const periodText=all.find(x=>/From\s+\d{2}\/\d{2}\/\d{4}\s+To\s+\d{2}\/\d{2}\/\d{4}/i.test(x))||'';
+  const periodMatch=periodText.match(/From\s+(\d{2})\/(\d{2})\/(\d{4})\s+To\s+(\d{2})\/(\d{2})\/(\d{4})/i);
+  const locationLine=all.find(x=>/^Location\s*:/i.test(x))||'';
+  const amountRe=/\(?-?\s*\d[\d,]*\.\d{2}\)?\s*$/;
+  let section='', accounts=[]; const totals={};
+  const sectionNames=['Operating Income','Cost of Goods Sold','Operating Expense','Non Operating Income','Non Operating Expense','Other Comprehensive Income'];
+  for(const raw of all){
+    const line=raw.replace(/\s+/g,' ').trim(); if(!line)continue;
+    const sec=sectionNames.find(s=>line.toLowerCase()===s.toLowerCase()); if(sec){section=sec;continue;}
+    const totalMatch=line.match(/^(Total for (Operating Income|Cost of Goods Sold|Operating Expense|Non Operating Income|Non Operating Expense|Other Comprehensive Income)|Gross Profit|Operating Profit|Net Profit\/Loss)\s+([\d,.-]+\.\d{2})$/i);
+    if(totalMatch){const label=totalMatch[1];totals[label]=parseFinancialAmount(totalMatch[3]);continue;}
+    if(!amountRe.test(line))continue;
+    const match=line.match(/(\(?-?\s*\d[\d,]*\.\d{2}\)?)\s*$/); if(!match)continue;
+    let account=line.slice(0,match.index).trim(); account=account.replace(/^\d+\s+/,'').trim();
+    if(!account || /^(account|sales|discount|total|gross profit|operating profit|net profit|amount|date|location)$/i.test(account))continue;
+    if(/^(UNOMED MEDICAL|Profit and Loss|Basis:|From |Location:|Account Code)/i.test(account))continue;
+    const amount=parseFinancialAmount(match[1]);
+    if(section && !/^Other Comprehensive Income$/.test(section)) accounts.push({account_name:account,amount,section});
+  }
+  // Remove repeated PDF text-layer entries while preserving separate accounts with different values.
+  const unique=new Map();accounts.forEach(a=>unique.set([normaliseAccount(a.account_name),a.amount,a.section].join('|'),a));
+  return {accounts:[...unique.values()],totals,periodStart:periodMatch?`${periodMatch[3]}-${periodMatch[2]}-${periodMatch[1]}`:null,periodEnd:periodMatch?`${periodMatch[6]}-${periodMatch[5]}-${periodMatch[4]}`:null,location:locationLine.replace(/^Location\s*:\s*/i,''),pageCount:pdf.numPages};
+}
+function parseFinancialAmount(v){let s=String(v||'').replace(/[₹,\s()]/g,'');let n=Number(s);if(String(v).includes('('))n=-Math.abs(n);return Number.isFinite(n)?n:0;}
+async function uploadFinancialPdf(){
+  if(!financialAllowed()){financialMessage('Only Admin and Management users can upload financial statements.');return;}
+  const branchId=$('financialBranch').value, month=$('financialPeriod').value, file=$('financialPdf').files?.[0];
+  if(!branchId||!month||!file){financialMessage('Select a branch, financial month and PDF file.');return;}
+  if(file.type!=='application/pdf'&&!file.name.toLowerCase().endsWith('.pdf')){financialMessage('Please upload a PDF file.');return;}
+  if(file.size>15*1024*1024){financialMessage('PDF size must be 15 MB or less.');return;}
+  $('financialUploadBtn').disabled=true;financialMessage('Reading PDF and extracting Zoho account lines…');
+  try{
+    const extracted=await extractZohoPdf(file);if(!extracted.accounts.length)throw new Error('No account rows were detected. Please verify that this is a text-readable Zoho Books P&L PDF.');
+    const [yy,mm]=month.split('-').map(Number);const start=`${yy}-${String(mm).padStart(2,'0')}-01`;const end=`${yy}-${String(mm).padStart(2,'0')}-${String(new Date(yy,mm,0).getDate()).padStart(2,'0')}`;
+    if(extracted.periodStart&&extracted.periodStart!==start)throw new Error(`PDF period starts ${extracted.periodStart}, but selected month is ${month}. Please select the matching month.`);
+    const branch=branches.find(b=>String(b.id)===String(branchId));const path=`${branchId}/${month}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+    const {error:uploadError}=await db.storage.from('financial-pnl').upload(path,file,{contentType:'application/pdf',upsert:false});if(uploadError)throw uploadError;
+    const reportPayload={branch_id:branchId,period_start:extracted.periodStart||start,period_end:extracted.periodEnd||end,source_filename:file.name,storage_path:path,status:'review',uploaded_by:user.id,location_label:extracted.location||branch?.branch_name||'',extracted_totals:extracted.totals,extracted_page_count:extracted.pageCount};
+    const {data:report,error:reportError}=await db.from('financial_reports').insert(reportPayload).select('*').single();if(reportError)throw reportError;
+    const {data:savedMappings,error:mappingError}=await db.from('financial_account_mappings').select('account_name_normalized,category,expense_behaviour').eq('is_active',true);if(mappingError)throw mappingError;
+    const mappingMap=new Map((savedMappings||[]).map(m=>[m.account_name_normalized,m]));
+    const rows=extracted.accounts.map(a=>{const saved=mappingMap.get(normaliseAccount(a.account_name));const guess=saved?{category:saved.category,behaviour:saved.expense_behaviour,variablePct:Number(saved.variable_component_pct??50)}:guessFinancialMapping(a.account_name,a.section);return {report_id:report.id,account_name:a.account_name,amount:a.amount,section:a.section,mapped_category:guess.category,expense_behaviour:guess.behaviour,variable_component_pct:guess.variablePct??50,mapping_status:saved?'reviewed':guess.category==='Unmapped / review required'?'needs_review':'suggested'};});
+    const {error:lineError}=await db.from('financial_report_lines').insert(rows);if(lineError)throw lineError;
+    $('financialPdf').value='';financialMessage(`Extracted ${rows.length} account lines from ${extracted.pageCount} PDF page(s) for ${branch?.branch_name||'selected branch'}. Please review the mappings and totals.`,true);await loadFinancialReports();await openFinancialReview(report.id);
+  }catch(err){financialMessage(`Upload/extraction failed: ${err.message||err}. If the PDF was uploaded before the error, check the report register before retrying.`);}
+  finally{$('financialUploadBtn').disabled=false;}
+}
+async function loadFinancialReports(){
+  if(!financialAllowed()||!db)return;
+  $('financialReportRows').innerHTML='<tr><td colspan="9">Loading financial reports…</td></tr>';
+  try{
+    let q=db.from('financial_reports').select('*').order('period_start',{ascending:false}).order('created_at',{ascending:false}).limit(250);
+    const status=$('financialStatusFilter').value;if(status!=='ALL')q=q.eq('status',status);
+    const {data,error}=await q;if(error)throw error;const rows=data||[];const branchMap=new Map(branches.map(b=>[String(b.id),b]));
+    $('financialReportRows').innerHTML=rows.map(r=>{const b=branchMap.get(String(r.branch_id));const t=r.extracted_totals||{};return `<tr><td>${esc(String(r.period_start||'').slice(0,7))}</td><td>${esc(b?.branch_name||r.location_label||'Branch')}</td><td>${esc(b?.network||'—')}</td><td>${money(t['Total for Operating Income']||0)}</td><td>${money(t['Gross Profit']||0)}</td><td>${money(t['Operating Profit']||0)}</td><td>${money(t['Net Profit/Loss']||0)}</td><td><span class="financial-status ${esc(r.status)}">${esc(r.status)}</span></td><td><button type="button" class="secondary" data-financial-review="${esc(r.id)}">${r.status==='approved'?'View':'Review'}</button></td></tr>`;}).join('')||'<tr><td colspan="9">No financial statements uploaded yet.</td></tr>';
+    const approved=rows.filter(r=>r.status==='approved').length;const pending=rows.filter(r=>r.status==='review').length;
+    $('financialKpis').innerHTML=`<article><span>Reports loaded</span><strong>${rows.length}</strong></article><article><span>Awaiting review</span><strong>${pending}</strong></article><article><span>Approved</span><strong>${approved}</strong></article><article><span>Branches covered</span><strong>${new Set(rows.map(r=>r.branch_id)).size}</strong></article>`;
+  }catch(err){$('financialReportRows').innerHTML=`<tr><td colspan="9">Could not load reports: ${esc(err.message||err)}. Run the Financial Intelligence SQL setup first.</td></tr>`;}
+}
+async function openFinancialReview(reportId){
+  if(!financialAllowed())return;
+  try{
+    const {data:report,error}=await db.from('financial_reports').select('*').eq('id',reportId).single();if(error)throw error;
+    const {data:lines,error:lineError}=await db.from('financial_report_lines').select('*').eq('report_id',reportId).order('created_at');if(lineError)throw lineError;
+    activeFinancialReport=report;activeFinancialLines=lines||[];const branch=branches.find(b=>String(b.id)===String(report.branch_id));
+    $('financialReviewTitle').textContent=`${branch?.branch_name||'Branch'} — ${String(report.period_start).slice(0,7)} P&L`;$('financialReviewMeta').textContent=`${report.source_filename} · ${report.status.toUpperCase()} · ${activeFinancialLines.length} account lines`;
+    $('financialLineRows').innerHTML=activeFinancialLines.map((l,i)=>`<tr data-financial-line="${esc(l.id)}"><td><strong>${esc(l.account_name)}</strong></td><td>${money(l.amount)}</td><td>${esc(l.section||'—')}</td><td><select data-financial-category>${FINANCIAL_CATEGORIES.map(c=>`<option ${c===l.mapped_category?'selected':''}>${esc(c)}</option>`).join('')}</select></td><td><select data-financial-behaviour>${FINANCIAL_BEHAVIOURS.map(c=>`<option ${c===l.expense_behaviour?'selected':''}>${esc(c)}</option>`).join('')}</select></td><td><input type="number" min="0" max="100" step="1" data-financial-variable-share value="${Number(l.variable_component_pct??50)}" style="width:90px"></td></tr>`).join('');
+    renderFinancialReviewSummary(report,activeFinancialLines);$('financialReviewPanel').classList.remove('hidden');$('financialReviewMsg').textContent=report.status==='approved'?'This report is approved. Changes require a new review version.':'Review the suggested mappings and expense behaviour before approval.';
+    $('financialApprove').disabled=report.status==='approved';$('financialSaveMapping').disabled=report.status==='approved';
+  }catch(err){financialMessage('Could not open financial report: '+(err.message||err));}
+}
+function renderFinancialReviewSummary(report,lines){
+  const t=report.extracted_totals||{};const income=Number(t['Total for Operating Income']||0),cogs=Number(t['Total for Cost of Goods Sold']||0),gross=Number(t['Gross Profit']??income-cogs),opex=Number(t['Total for Operating Expense']||0),op=Number(t['Operating Profit']??gross-opex),nonInc=Number(t['Total for Non Operating Income']||0),nonExp=Number(t['Total for Non Operating Expense']||0),net=Number(t['Net Profit/Loss']??op+nonInc-nonExp);
+  const pct=n=>income?`${(n/income*100).toFixed(2)}%`:'—';
+  $('financialSummaryCards').innerHTML=[['Operating income',income],['Gross profit',gross],['Operating expenses',opex],['Operating profit',op],['Net profit / loss',net]].map(([k,v])=>`<article><span>${k}</span><strong>${money(v)}</strong><small>${pct(v)} of operating income</small></article>`).join('');
+  const costLines=lines.filter(l=>['Cost of Goods Sold','Operating Expense'].includes(l.section||'')&&!['Profit distribution','Not applicable'].includes(l.expense_behaviour));
+  const variable=costLines.reduce((s,l)=>s+Number(l.amount||0)*Number(l.variable_component_pct??50)/100,0);
+  const fixed=costLines.reduce((s,l)=>s+Number(l.amount||0)*(1-Number(l.variable_component_pct??50)/100),0);
+  const contribution=income-variable,cmr=income?contribution/income:0,breakeven=cmr>0?fixed/cmr:null;
+  const unclassified=lines.filter(l=>l.mapped_category==='Unmapped / review required').length;
+  $('financialAnalysis').innerHTML=`<h3>Preliminary management analysis</h3><div class="financial-analysis-grid"><div><span>Gross margin</span><strong>${pct(gross)}</strong></div><div><span>Operating margin</span><strong>${pct(op)}</strong></div><div><span>Net margin</span><strong>${pct(net)}</strong></div><div><span>Classified fixed-cost portion</span><strong>${money(fixed)}</strong></div><div><span>Classified variable-cost portion</span><strong>${money(variable)}</strong></div><div><span>Contribution margin ratio</span><strong>${(cmr*100).toFixed(2)}%</strong></div><div><span>Indicative break-even sales</span><strong>${breakeven===null?'Awaiting classification':money(breakeven)}</strong></div><div><span>Margin of safety</span><strong>${breakeven===null?'—':money(income-breakeven)}</strong></div></div><p class="financial-caution">Semi-variable and shared-overhead accounts use the editable variable-share percentage (default 50%) to split costs. Validate these percentages and HO allocations with management before relying on break-even. ${unclassified?unclassified+' account(s) remain unmapped. ':''}Share distributions are excluded from operating costs.</p>`;
+}
+function updateFinancialLinePreview(){if(activeFinancialReport){const lines=[...document.querySelectorAll('#financialLineRows tr')].map((tr,i)=>({...activeFinancialLines[i],mapped_category:tr.querySelector('[data-financial-category]')?.value,expense_behaviour:tr.querySelector('[data-financial-behaviour]')?.value,variable_component_pct:Math.min(100,Math.max(0,Number(tr.querySelector('[data-financial-variable-share]')?.value||0)))}));renderFinancialReviewSummary(activeFinancialReport,lines);}}
+async function saveFinancialMappings(){
+  if(!activeFinancialReport||activeFinancialReport.status==='approved')return;
+  try{
+    const rows=[...document.querySelectorAll('#financialLineRows tr')].map(tr=>({id:tr.dataset.financialLine,category:tr.querySelector('[data-financial-category]').value,behaviour:tr.querySelector('[data-financial-behaviour]').value}));
+    for(const r of rows){const line=activeFinancialLines.find(x=>x.id===r.id);const {error}=await db.from('financial_report_lines').update({mapped_category:r.category,expense_behaviour:r.behaviour,variable_component_pct:r.variable_component_pct,mapping_status:r.category==='Unmapped / review required'?'needs_review':'reviewed',reviewed_by:user.id}).eq('id',r.id);if(error)throw error;
+      const normalized=normaliseAccount(line.account_name);const existing=await db.from('financial_account_mappings').select('id').eq('account_name_normalized',normalized).maybeSingle();if(existing.error)throw existing.error;
+      const mapping={account_name:line.account_name,account_name_normalized:normalized,category:r.category,expense_behaviour:r.behaviour,variable_component_pct:r.variable_component_pct,updated_by:user.id};const saved=existing.data?await db.from('financial_account_mappings').update(mapping).eq('id',existing.data.id):await db.from('financial_account_mappings').insert({...mapping,created_by:user.id});if(saved.error)throw saved.error;
+    }
+    const {data:lines,error}=await db.from('financial_report_lines').select('*').eq('report_id',activeFinancialReport.id);if(error)throw error;activeFinancialLines=lines||[];renderFinancialReviewSummary(activeFinancialReport,activeFinancialLines);$('financialReviewMsg').textContent='Mappings saved. These account-name rules can be reused for future branch uploads.';
+  }catch(err){$('financialReviewMsg').textContent='Could not save mappings: '+(err.message||err);}
+}
+async function approveFinancialReport(){
+  if(!activeFinancialReport||!financialAllowed()||activeFinancialReport.status==='approved')return;
+  if(!confirm('Approve this branch financial statement? Approved reports will be locked for editing.'))return;
+  try{
+    const {data:lines,error:lineError}=await db.from('financial_report_lines').select('mapped_category,expense_behaviour').eq('report_id',activeFinancialReport.id);if(lineError)throw lineError;
+    if((lines||[]).some(l=>l.mapped_category==='Unmapped / review required'))throw new Error('Please map all accounts before approval.');
+    const {error}=await db.from('financial_reports').update({status:'approved',approved_by:user.id,approved_at:new Date().toISOString()}).eq('id',activeFinancialReport.id).eq('status','review');if(error)throw error;
+    $('financialReviewMsg').textContent='Financial report approved.';await loadFinancialReports();await openFinancialReview(activeFinancialReport.id);
+  }catch(err){$('financialReviewMsg').textContent='Approval failed: '+(err.message||err);}
 }
