@@ -17,6 +17,21 @@
   <button type="button" class="nav-button financial-nav hidden" data-target="financialIntelligenceSection">💹 Financial intelligence</button>
 </aside>
 <div class="app-content">
+<div id="portalCommandBar" class="portal-command-bar">
+  <div class="portal-global-search-wrap">
+    <span class="portal-search-icon" aria-hidden="true">⌕</span>
+    <input id="portalGlobalSearch" type="search" autocomplete="off" placeholder="Search dashboards and modules…" aria-label="Search portal modules">
+    <kbd> / </kbd>
+    <div id="portalSearchResults" class="portal-search-results hidden" role="listbox" aria-label="Search results"></div>
+  </div>
+  <div class="portal-command-actions">
+    <div class="portal-notification-wrap">
+      <button type="button" id="portalNotificationsBtn" class="portal-icon-button" aria-label="Notifications" title="Notifications">♧<span id="portalNotificationBadge" class="portal-notification-badge hidden">0</span></button>
+      <div id="portalNotificationsPanel" class="portal-notification-panel hidden" aria-live="polite"><div class="portal-popover-heading"><strong>Notifications</strong><button type="button" id="portalNotificationsClose" aria-label="Close notifications">×</button></div><div id="portalNotificationsList" class="portal-notification-list"><p class="portal-empty-note">Notifications will appear here when daily compliance is checked.</p></div></div>
+    </div>
+  </div>
+</div>
+<div id="portalQuickLinks" class="portal-quick-links" aria-label="Quick navigation"><span>QUICK ACCESS</span><button type="button" data-quick-target="overviewTop">Overview</button><button type="button" data-quick-target="entry">Daily sales entry</button><button type="button" data-quick-target="branchAnalyticsSection">Branch analytics</button><button type="button" data-quick-target="financialIntelligenceSection" class="quick-financial hidden">Financial intelligence</button></div>
 <div id="overviewTop"></div><div class="heading"><div><p class="eyebrow">OVERVIEW</p><h1 id="title">Sales overview</h1><p id="subtitle"></p></div><button id="refresh" class="secondary">Refresh data</button></div><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:16px 0;">   <label for="performanceMonth"><strong>Performance month:</strong></label>   <input id="performanceMonth" type="month">   <button id="applyPerformanceMonth" type="button" class="secondary">View month</button> </div>
 <section id="overviewDashboard" class="overview-dashboard" aria-live="polite">
   <div class="overview-hero"><div><p class="overview-kicker" id="overviewGreeting">BUSINESS SNAPSHOT</p><h2 id="overviewHeroTitle">Your performance at a glance</h2><p id="overviewHeroSub">A live view of sales, targets and branch activity.</p></div><div class="overview-brand-logos" aria-label="UNOMED and NEETHI official logos"><img src="./assets/unomed-logo.png" alt="UNOMED — Everyone Deserves Care"><span>+</span><img src="./assets/neethi-logo.png" alt="NEETHI THE LAB — Quality Meets Affordability"></div><div class="overview-hero-actions"><span id="overviewRolePill" class="overview-role-pill">PORTAL</span><button type="button" id="overviewRefresh" class="overview-refresh">↻ Refresh overview</button></div></div>
