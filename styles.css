@@ -601,3 +601,121 @@ footer {
 @media(prefers-reduced-motion:reduce) {
   #branchAnalyticsSection *, #branchAnalyticsSection *::before, #branchAnalyticsSection *::after { animation:none!important; transition:none!important; }
 }
+
+
+/* Premium Branch Analytics refinement — scoped; does not affect login or other modules */
+#branchAnalyticsSection {
+  background: linear-gradient(145deg, #ffffff 0%, #fbfdff 58%, #fffafd 100%);
+}
+#branchAnalyticsSection > .section-head {
+  padding: 8px 2px 18px;
+}
+#branchAnalyticsSection > .section-head h2 {
+  font-size: clamp(26px, 2.6vw, 38px);
+  letter-spacing: -.035em;
+}
+#branchAnalyticsSection .analytics-controls {
+  padding: 20px;
+  border: 1px solid #dce7f5;
+  border-radius: 20px;
+  background: linear-gradient(120deg, #f7faff, #ffffff 60%, #fff8fa);
+  box-shadow: 0 10px 28px rgba(24, 55, 91, .055);
+}
+#branchAnalyticsSection .analytics-controls label {
+  display:block;
+  margin:0 0 8px;
+  color:#294b70;
+  font-size:13px;
+  font-weight:800;
+}
+#branchAnalyticsSection .analytics-controls select {
+  min-width:220px;
+  min-height:48px;
+  border:1px solid #cad8eb;
+  border-radius:12px;
+  background:#fff;
+}
+#branchAnalyticsSection .analytics-controls button {
+  min-height:48px;
+  border-radius:13px;
+  background:linear-gradient(135deg,#102e53,#245783);
+  box-shadow:0 7px 16px rgba(16,46,83,.16);
+}
+#branchAnalyticsSection .analytics-period-label {
+  display:inline-flex;
+  margin:22px 0 18px;
+  padding:10px 16px;
+  border-radius:999px;
+  background:#edf4ff;
+  color:#31577f;
+  font-size:13px;
+  font-weight:800;
+}
+#branchAnalyticsSection #analyticsKpis .stat-card {
+  position:relative;
+  min-height:132px;
+  padding:23px;
+  overflow:hidden;
+  border:1px solid #dce7f5;
+  border-radius:20px;
+  background:linear-gradient(145deg,#fff,#f7faff);
+  box-shadow:0 9px 24px rgba(28,58,94,.055);
+  transition:transform .2s ease, box-shadow .2s ease;
+}
+#branchAnalyticsSection #analyticsKpis .stat-card:hover {
+  transform:translateY(-4px);
+  box-shadow:0 15px 30px rgba(28,58,94,.11);
+}
+#branchAnalyticsSection #analyticsKpis .stat-card::after {
+  content:"";
+  position:absolute;
+  right:-24px;
+  top:-28px;
+  width:92px;
+  height:92px;
+  border-radius:50%;
+  background:rgba(67,132,207,.065);
+}
+#branchAnalyticsSection .analytics-visual-panel {
+  box-shadow:0 12px 30px rgba(25,56,94,.055);
+}
+#branchAnalyticsSection .analytics-bar-row {
+  padding:5px 8px;
+  border-radius:12px;
+  transition:background .18s ease, transform .18s ease;
+}
+#branchAnalyticsSection .analytics-bar-row:hover {
+  background:rgba(231,239,250,.72);
+  transform:translateX(3px);
+}
+#branchAnalyticsSection .analytics-bar-rail {
+  height:15px;
+}
+#branchAnalyticsSection .analytics-bar-fill {
+  position:relative;
+}
+#branchAnalyticsSection .analytics-table tbody tr:nth-child(even) {
+  background:#fbfdff;
+}
+#branchAnalyticsSection .analytics-table tbody tr:hover {
+  background:#eef5ff;
+}
+#branchAnalyticsSection .analytics-branch-link {
+  cursor:pointer;
+  transition:transform .18s ease, box-shadow .18s ease;
+}
+#branchAnalyticsSection .analytics-branch-link:hover {
+  transform:translateY(-2px);
+  box-shadow:0 8px 17px rgba(16,45,82,.2);
+}
+@media(max-width:700px) {
+  #branchAnalyticsSection .analytics-controls {
+    display:grid;
+    grid-template-columns:1fr;
+  }
+  #branchAnalyticsSection .analytics-controls select,
+  #branchAnalyticsSection .analytics-controls button {
+    width:100%;
+    min-width:0;
+  }
+}
