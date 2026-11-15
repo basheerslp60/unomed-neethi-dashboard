@@ -1554,7 +1554,7 @@ async function loadFinancialManagementAnalysis(){
   try{
     const from=$('financialAnalysisFrom').value,to=$('financialAnalysisTo').value;
     let q=db.from('financial_reports').select('*').eq('status','approved').order('period_start',{ascending:true}).limit(2000);
-    if(from)q=q.gte('period_start',`${from}-01`);if(to){const [y,m]=to.split('-').map(Number);const end=new Date(y,m,0).toISOString().slice(0,10);q=q.lte('period_end',end);}
+    if(from)q=q.gte('period_start',`${from}-01`);if(to){const [y,m]=to.split('-').map(Number);const lastDay=new Date(y,m,0).getDate();const end=`${y}-${String(m).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;q=q.lte('period_end',end);}
     const {data:reports,error}=await q;if(error)throw error;
     financialAnalysisRows=reports||[];
     const ids=financialAnalysisRows.map(r=>r.id);
