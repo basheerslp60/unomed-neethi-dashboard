@@ -512,6 +512,29 @@ function renderBranchAnalytics() {
   }
   const chartMax=Math.max(1,...results.map(r=>r.current.sales));
   visual.innerHTML=`<div class="analytics-visual-head"><div><span class="analytics-visual-kicker">LIVE PERFORMANCE SNAPSHOT</span><h3>Branch sales comparison</h3><p>Current period sales by branch · ranked highest to lowest</p></div><div class="analytics-visual-total"><small>Network sales</small><strong>${money(totals.sales)}</strong></div></div><div class="analytics-bars">${results.map((r,i)=>{const pct=Math.max(r.current.sales?3:0,(r.current.sales/chartMax)*100);return `<div class="analytics-bar-row"><div class="analytics-bar-label"><span class="analytics-rank">${String(i+1).padStart(2,'0')}</span><strong>${esc(r.branch.branch_name)}</strong><small>${esc(r.branch.network)}</small></div><div class="analytics-bar-rail"><div class="analytics-bar-fill ${String(r.branch.network).toUpperCase()==='NEETHI'?'neethi':''}" style="width:${pct}%"></div></div><div class="analytics-bar-amount">${money(r.current.sales)}</div></div>`}).join('')}</div>`;
+  // Additional management charts: patient volume, average bill and network split.
+  let charts=$('analyticsExtraCharts');
+  if(!charts) {
+    charts=document.createElement('section');
+    charts.id='analyticsExtraCharts';
+    charts.className='analytics-extra-charts';
+    charts.addEventListener('click',event=>{const button=event.target.closest('[data-analytics-branch]');if(button)renderBranchDrilldown(button.dataset.analyticsBranch);});
+    visual.insertAdjacentElement('afterend',charts);
+  }
+  const chartCard=(title,subtitle,items,valueFn,formatFn,accent='')=>{
+    const max=Math.max(1,...items.map(valueFn));
+    return `<article class="analytics-mini-chart ${accent}"><div class="analytics-mini-head"><div><span class="analytics-visual-kicker">BRANCH COMPARISON</span><h3>${title}</h3><p>${subtitle}</p></div></div><div class="analytics-mini-list">${items.map((r,i)=>{const value=valueFn(r);const width=value>0?Math.max(3,value/max*100):0;return `<button type="button" class="analytics-mini-row analytics-mini-click" data-analytics-branch="${esc(String(r.branch.id))}" aria-label="Open ${esc(r.branch.branch_name)} daily details"><span class="analytics-mini-label"><span>${esc(r.branch.branch_name)}</span><strong>${formatFn(value)}</strong></span><span class="analytics-mini-track"><span class="analytics-mini-fill ${String(r.branch.network).toUpperCase()==='NEETHI'?'neethi':''}" style="width:${width}%"></span></span></button>`}).join('')}</div></article>`;
+  };
+  const byPatients=[...results].sort((a,b)=>b.current.patients-a.current.patients);
+  const byAverage=[...results].sort((a,b)=>b.avg-a.avg);
+  const networkTotals=['UNOMED','NEETHI'].map(name=>{
+    const group=results.filter(r=>String(r.branch.network).toUpperCase()===name);
+    const sales=group.reduce((n,r)=>n+r.current.sales,0);
+    const patients=group.reduce((n,r)=>n+r.current.patients,0);
+    return {name,sales,patients,average:patients?sales/patients:0};
+  });
+  const networkMax=Math.max(1,...networkTotals.map(n=>n.sales));
+  charts.innerHTML=`<div class="analytics-extra-heading"><div><span class="analytics-visual-kicker">MANAGEMENT INSIGHTS</span><h3>Patient volume & average bill analysis</h3><p>These charts follow the selected comparison period and network filter.</p></div></div><div class="analytics-extra-grid">${chartCard('Patient volume by branch','Patients served · highest to lowest',byPatients,r=>r.current.patients,v=>v.toLocaleString('en-IN'))}${chartCard('Average bill by branch','Sales divided by patients',byAverage,r=>r.avg,v=>money(v),'average')}</div><article class="analytics-network-chart"><div><span class="analytics-visual-kicker">NETWORK COMPARISON</span><h3>UNOMED vs NEETHI</h3><p>Sales contribution and patient volume for the selected period</p></div><div class="analytics-network-grid">${networkTotals.map(n=>`<div class="analytics-network-item"><div class="analytics-network-title"><strong>${n.name}</strong><b>${money(n.sales)}</b></div><div class="analytics-mini-track"><div class="analytics-mini-fill ${n.name==='NEETHI'?'neethi':''}" style="width:${n.sales/networkMax*100}%"></div></div><small>${n.patients.toLocaleString('en-IN')} patients · Avg bill ${money(n.average)}</small></div>`).join('')}</div></article>`;
   $('analyticsRows').innerHTML=results.map((r,i)=>`<tr><td>${i+1}</td><td><button type="button" class="analytics-branch-link" data-analytics-branch="${esc(String(r.branch.id))}" aria-label="View ${esc(r.branch.branch_name)} daily details">${esc(r.branch.branch_name)} <span>↗</span></button></td><td>${esc(r.branch.network)}</td><td>${money(r.current.sales)}</td><td class="${r.salesChange===null?'':r.salesChange>=0?'analytics-positive':'analytics-negative'}">${growthText(r.salesChange)}</td><td>${r.current.patients.toLocaleString('en-IN')}</td><td class="${r.patientChange===null?'':r.patientChange>=0?'analytics-positive':'analytics-negative'}">${growthText(r.patientChange)}</td><td>${money(r.avg)}</td></tr>`).join('') || '<tr><td colspan="8">No active branches found.</td></tr>';
   $('analyticsDrilldown').classList.add('hidden');
   $('analyticsMsg').textContent=`${results.length} branches · ${data.current.length} current-period reports and ${data.previous.length} previous-period reports visible to this account. Select a branch name to open its day-wise sales and patient details. A “New” change means the previous period had zero sales or patients.`;
