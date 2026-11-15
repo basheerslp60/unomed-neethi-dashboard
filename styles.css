@@ -627,3 +627,200 @@ footer {
 #branchAnalyticsSection .analytics-mini-click{width:100%;padding:0;border:0;background:transparent;text-align:left;cursor:pointer}
 #branchAnalyticsSection .analytics-mini-click:hover .analytics-mini-label span{color:#c8174d;text-decoration:underline}
 #branchAnalyticsSection .analytics-mini-click:focus-visible{outline:3px solid #8ab8ef;outline-offset:4px;border-radius:8px}
+
+
+/* =========================================================
+   UNOMED + NEETHI — Management Executive Dashboard visual fix
+   Additive CSS only. Does not change login, data, or JavaScript.
+   ========================================================= */
+#managementExecutiveSection{
+  display:grid; gap:20px; padding:clamp(18px,2.5vw,32px);
+  border:1px solid #dce6f4; border-radius:22px;
+  background:linear-gradient(145deg,#ffffff 0%,#f7faff 58%,#fff8fa 100%);
+  box-shadow:0 14px 36px rgba(16,43,78,.07);
+}
+#managementExecutiveSection .section-head{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:18px; flex-wrap:wrap; margin:0;
+}
+#managementExecutiveSection .section-head .eyebrow{
+  margin:0 0 7px; color:#c51f4b; font-size:11px;
+  font-weight:900; letter-spacing:.14em;
+}
+#managementExecutiveSection .section-head h2{
+  margin:0 0 7px; color:#102f55; font-size:clamp(23px,2.4vw,31px);
+  line-height:1.15;
+}
+#managementExecutiveSection .section-head p:not(.eyebrow){
+  margin:0; color:#71839b; font-size:14px;
+}
+#managementExecutiveSection #execDashboardExport{
+  border:1px solid #d3deed; border-radius:11px; padding:11px 16px;
+  background:#fff; color:#173b64; font-weight:800;
+  box-shadow:0 5px 14px rgba(16,43,78,.06); cursor:pointer;
+}
+#managementExecutiveSection #execDashboardExport:hover{
+  background:#eef4fc; transform:translateY(-1px);
+}
+#managementExecutiveSection .exec-dashboard-controls{
+  display:flex; align-items:end; flex-wrap:wrap; gap:13px;
+  padding:17px; border:1px solid #dce6f4; border-radius:17px;
+  background:rgba(255,255,255,.88);
+}
+#managementExecutiveSection .exec-dashboard-controls>div{min-width:175px}
+#managementExecutiveSection .exec-dashboard-controls label{
+  display:block; margin:0 0 7px; color:#294563; font-size:13px; font-weight:800;
+}
+#managementExecutiveSection .exec-dashboard-controls input,
+#managementExecutiveSection .exec-dashboard-controls select{
+  min-height:43px; width:100%; border:1px solid #cbd8e8;
+  border-radius:10px; padding:9px 12px; background:#fff; color:#173454;
+}
+#managementExecutiveSection #execDashboardRefresh{
+  min-height:43px; padding:0 18px; border:0; border-radius:11px;
+  background:linear-gradient(135deg,#102d52,#24517e); color:#fff;
+  font-weight:850; box-shadow:0 7px 17px rgba(16,45,82,.17); cursor:pointer;
+}
+#managementExecutiveSection #execDashboardRefresh:hover{filter:brightness(1.08);transform:translateY(-1px)}
+#managementExecutiveSection .analytics-period-label{
+  display:inline-flex; width:fit-content; max-width:100%; margin:0;
+  padding:9px 14px; border-radius:999px; background:#edf4ff;
+  color:#355779; font-size:13px; font-weight:750;
+}
+#managementExecutiveSection .exec-dashboard-kpis{
+  display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px;
+}
+#managementExecutiveSection .exec-kpi{
+  position:relative; overflow:hidden; min-width:0; min-height:125px;
+  display:flex; flex-direction:column; justify-content:center; gap:7px;
+  padding:20px; border:1px solid #dce6f4; border-radius:17px;
+  background:linear-gradient(145deg,#fff,#f8fbff);
+  box-shadow:0 7px 20px rgba(16,43,78,.055);
+  transition:transform .18s ease,box-shadow .18s ease;
+}
+#managementExecutiveSection .exec-kpi:after{
+  content:""; position:absolute; width:105px; height:105px; right:-34px; top:-44px;
+  border-radius:50%; background:#edf4fc;
+}
+#managementExecutiveSection .exec-kpi:hover,
+#managementExecutiveSection .exec-network-card:hover,
+#managementExecutiveSection .exec-panel:hover{
+  transform:translateY(-2px); box-shadow:0 12px 25px rgba(16,43,78,.09);
+}
+#managementExecutiveSection .exec-kpi span{
+  position:relative; z-index:1; color:#71839b; font-size:11px;
+  font-weight:900; letter-spacing:.07em; text-transform:uppercase;
+}
+#managementExecutiveSection .exec-kpi strong{
+  position:relative; z-index:1; color:#102f55;
+  font-size:clamp(22px,2.2vw,29px); line-height:1.1; overflow-wrap:anywhere;
+}
+#managementExecutiveSection .exec-kpi small{
+  position:relative; z-index:1; color:#71839b; font-size:12px;
+}
+#managementExecutiveSection .exec-network-grid{
+  display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px;
+}
+#managementExecutiveSection .exec-network-card{
+  display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px 16px;
+  align-items:center; padding:19px; border:1px solid #dce6f4;
+  border-radius:17px; background:#fff; box-shadow:0 6px 18px rgba(16,43,78,.05);
+  transition:transform .18s ease,box-shadow .18s ease;
+}
+#managementExecutiveSection .exec-network-card .eyebrow{
+  margin:0 0 6px; color:#c51f4b; font-size:11px; font-weight:900; letter-spacing:.1em;
+}
+#managementExecutiveSection .exec-network-card.exec-neethi .eyebrow{color:#3478c8}
+#managementExecutiveSection .exec-network-card>div:first-child>strong{
+  display:block; color:#102f55; font-size:23px; line-height:1.2;
+}
+#managementExecutiveSection .exec-network-card small{
+  display:block; margin-top:5px; color:#71839b; font-size:12px;
+}
+#managementExecutiveSection .exec-network-meta{text-align:right}
+#managementExecutiveSection .exec-network-meta b{color:#173b64;font-size:17px}
+#managementExecutiveSection .exec-network-track{
+  grid-column:1/-1; height:9px; overflow:hidden; border-radius:99px; background:#eaf0f8;
+}
+#managementExecutiveSection .exec-network-track span{
+  display:block; height:100%; border-radius:99px;
+  background:linear-gradient(90deg,#f0527b,#c51f4b);
+}
+#managementExecutiveSection .exec-network-card.exec-neethi .exec-network-track span{
+  background:linear-gradient(90deg,#5b9bea,#2457a0);
+}
+#managementExecutiveSection .exec-dashboard-grid{
+  display:grid; grid-template-columns:minmax(0,1.5fr) minmax(280px,1fr); gap:15px;
+}
+#managementExecutiveSection .exec-panel{
+  min-width:0; padding:19px; border:1px solid #dce6f4;
+  border-radius:18px; background:#fff; box-shadow:0 6px 18px rgba(16,43,78,.045);
+  transition:transform .18s ease,box-shadow .18s ease;
+}
+#managementExecutiveSection .exec-panel h3{
+  margin:0 0 15px; color:#173b64; font-size:18px;
+}
+#managementExecutiveSection .exec-daily-chart{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(42px,1fr));
+  align-items:end; gap:9px; min-height:220px; padding:12px 2px 0;
+  overflow-x:auto;
+}
+#managementExecutiveSection .exec-day{
+  display:flex; min-width:0; height:205px; flex-direction:column;
+  align-items:center; justify-content:flex-end; gap:7px;
+}
+#managementExecutiveSection .exec-day>small{color:#71839b;font-weight:800;font-size:11px}
+#managementExecutiveSection .exec-day-track{
+  display:flex; align-items:flex-end; justify-content:center;
+  width:100%; max-width:32px; height:145px; overflow:hidden;
+  border-radius:8px 8px 4px 4px; background:#edf2f9;
+}
+#managementExecutiveSection .exec-day-track span{
+  display:block; width:100%; min-height:3px; border-radius:7px 7px 3px 3px;
+  background:linear-gradient(180deg,#5b9bea,#173f70);
+}
+#managementExecutiveSection .exec-day>b{
+  max-width:100%; color:#49627e; font-size:9px; font-weight:750;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+#managementExecutiveSection .exec-highlights{display:grid; gap:10px}
+#managementExecutiveSection .exec-highlight{
+  display:grid; gap:5px; padding:12px 13px; border:1px solid #e4ebf5;
+  border-radius:12px; background:#f9fbfe;
+}
+#managementExecutiveSection .exec-highlight span{
+  color:#71839b; font-size:11px; font-weight:850; letter-spacing:.04em;
+  text-transform:uppercase;
+}
+#managementExecutiveSection .exec-highlight strong{color:#173b64;font-size:15px;line-height:1.35}
+#managementExecutiveSection .exec-highlight small{color:#71839b;font-size:11px}
+#managementExecutiveSection .exec-branch-panel{padding:0; overflow:hidden}
+#managementExecutiveSection .exec-branch-panel h3{margin:0;padding:19px 20px 14px}
+#managementExecutiveSection .exec-branch-panel .scroll{
+  border:0; border-top:1px solid #e5ebf3; border-radius:0;
+}
+#managementExecutiveSection .exec-branch-table{min-width:820px}
+#managementExecutiveSection .exec-branch-table th{
+  position:sticky; top:0; z-index:1; padding:14px;
+  background:#edf3fa; color:#355273; font-size:10px; font-weight:900;
+}
+#managementExecutiveSection .exec-branch-table td{padding:14px;color:#294563;font-size:12px}
+#managementExecutiveSection .exec-branch-table tbody tr:hover{background:#f5f8fd}
+#managementExecutiveSection #execDashboardMsg{margin:0;padding:12px 14px;border-radius:11px;background:#f2f6fc;color:#60758e}
+@media(max-width:900px){
+  #managementExecutiveSection .exec-dashboard-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #managementExecutiveSection .exec-dashboard-grid{grid-template-columns:1fr}
+}
+@media(max-width:620px){
+  #managementExecutiveSection{padding:15px}
+  #managementExecutiveSection .exec-dashboard-kpis,
+  #managementExecutiveSection .exec-network-grid{grid-template-columns:1fr}
+  #managementExecutiveSection .exec-dashboard-controls{align-items:stretch}
+  #managementExecutiveSection .exec-dashboard-controls>div{width:100%;min-width:0}
+  #managementExecutiveSection .exec-network-card{grid-template-columns:1fr}
+  #managementExecutiveSection .exec-network-meta{text-align:left}
+  #managementExecutiveSection .exec-network-track{grid-column:1}
+}
+@media(prefers-reduced-motion:reduce){
+  #managementExecutiveSection *{transition:none!important}
+}
