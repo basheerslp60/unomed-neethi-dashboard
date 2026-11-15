@@ -951,3 +951,10 @@ footer {
 .financial-distribution-title>strong{font-size:25px;color:#945700;background:#ffefcf;border:1px solid #efd39c;border-radius:12px;padding:10px 15px;white-space:nowrap}
 .financial-distribution-panel .financial-table thead th{background:#fff2d8;color:#754b0b}
 .financial-distribution-panel .financial-table tbody td:last-child{font-weight:800;color:#875000}
+
+/* Recipient-wise financial distribution summary */
+.financial-recipient-summary,.financial-monthly-distribution{margin-top:14px;padding:13px 14px;border:1px solid #f0d9a9;border-radius:12px;background:rgba(255,255,255,.78)}
+.financial-recipient-summary h5,.financial-monthly-distribution h5{margin:0 0 9px;color:#704300;font-size:13px;font-weight:800}
+.financial-recipient-summary .financial-table,.financial-monthly-distribution .financial-table{min-width:620px}
+.financial-monthly-distribution{background:#fffdf8}
+.financial-distribution-panel .financial-distribution-title{margin-bottom:8px}
