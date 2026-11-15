@@ -14,6 +14,7 @@
   <button type="button" class="nav-button" data-target="branchAnalyticsSection">📈 Branch analytics</button>
   <button type="button" class="nav-button" data-target="targetDashboardSection">🎯 Target vs actual</button>
   <button type="button" class="nav-button" data-target="managementExecutiveSection">📊 Executive dashboard</button>
+  <button type="button" class="nav-button financial-nav hidden" data-target="financialIntelligenceSection">💹 Financial intelligence</button>
 </aside>
 <div class="app-content">
 <div id="overviewTop"></div><div class="heading"><div><p class="eyebrow">OVERVIEW</p><h1 id="title">Sales overview</h1><p id="subtitle"></p></div><button id="refresh" class="secondary">Refresh data</button></div><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:16px 0;">   <label for="performanceMonth"><strong>Performance month:</strong></label>   <input id="performanceMonth" type="month">   <button id="applyPerformanceMonth" type="button" class="secondary">View month</button> </div>
@@ -152,6 +153,26 @@
   <div class="exec-dashboard-grid"><article class="exec-panel"><h3>Daily group sales</h3><div id="execDashboardDaily" class="exec-daily-chart"></div></article><article class="exec-panel"><h3>Management highlights</h3><div id="execDashboardHighlights" class="exec-highlights"></div></article></div>
   <div class="exec-panel exec-branch-panel"><h3>Branch performance ranking</h3><div class="scroll"><table class="analytics-table exec-branch-table"><thead><tr><th>Rank</th><th>Branch</th><th>Network</th><th>Sales</th><th>Patients</th><th>Average bill</th><th>Monthly target</th><th>Achievement</th></tr></thead><tbody id="execDashboardBranches"><tr><td colspan="8">Loading management performance…</td></tr></tbody></table></div></div>
   <p id="execDashboardMsg" class="msg" aria-live="polite">Figures reflect records available to the signed-in account.</p>
+</section>
+<section class="card hidden financial-intelligence" id="financialIntelligenceSection">
+  <div class="section-head"><div><p class="eyebrow">MANAGEMENT FINANCIAL CONTROL</p><h2>Financial Intelligence</h2><p>Upload Zoho Books Profit &amp; Loss statements, review account mappings and approve branch financial results.</p></div><span class="financial-access-pill">ADMIN · MANAGEMENT</span></div>
+  <div class="financial-upload-grid">
+    <div><label for="financialBranch">Branch</label><select id="financialBranch"><option value="">Select branch</option></select></div>
+    <div><label for="financialPeriod">Financial month</label><input id="financialPeriod" type="month"></div>
+    <div><label for="financialPdf">Zoho P&amp;L PDF</label><input id="financialPdf" type="file" accept="application/pdf,.pdf"></div>
+    <div class="financial-upload-action"><button type="button" id="financialUploadBtn">Upload &amp; extract PDF</button></div>
+  </div>
+  <p id="financialUploadMsg" class="msg" aria-live="polite">Upload the original branch Profit &amp; Loss PDF. The extracted values must be checked against Zoho before approval.</p>
+  <div id="financialKpis" class="financial-kpis"></div>
+  <div class="financial-subhead"><div><p class="eyebrow">REPORT REGISTER</p><h3>Branch financial statements</h3></div><div><label for="financialStatusFilter">Status</label><select id="financialStatusFilter"><option value="ALL">All reports</option><option value="review">Awaiting review</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select></div><button type="button" class="secondary" id="financialRefresh">Refresh reports</button></div>
+  <div class="scroll"><table class="financial-table"><thead><tr><th>Month</th><th>Branch</th><th>Network</th><th>Operating income</th><th>Gross profit</th><th>Operating profit</th><th>Net result</th><th>Status</th><th>Action</th></tr></thead><tbody id="financialReportRows"><tr><td colspan="9">No financial reports loaded.</td></tr></tbody></table></div>
+  <div id="financialReviewPanel" class="financial-review hidden">
+    <div class="financial-subhead"><div><p class="eyebrow">ACCOUNT MAPPING &amp; REVIEW</p><h3 id="financialReviewTitle">Review extracted accounts</h3><p id="financialReviewMeta"></p></div><button type="button" class="secondary" id="financialCloseReview">Close review</button></div>
+    <div id="financialSummaryCards" class="financial-summary-cards"></div>
+    <div class="scroll"><table class="financial-table"><thead><tr><th>Zoho account name</th><th>Amount</th><th>Section</th><th>Standard category</th><th>Expense behaviour</th><th>Variable share %</th></tr></thead><tbody id="financialLineRows"></tbody></table></div>
+    <div class="financial-review-actions"><p id="financialReviewMsg" class="msg"></p><button type="button" class="secondary" id="financialSaveMapping">Save mappings</button><button type="button" id="financialApprove">Approve financial report</button></div>
+    <div id="financialAnalysis" class="financial-analysis"></div>
+  </div>
 </section>
 <section class="card hidden" id="targetDashboardSection">
   <div class="section-head"><div><p class="eyebrow">MANAGEMENT PERFORMANCE CONTROL</p><h2>Branch target vs actual dashboard</h2><p>Track monthly target achievement, remaining sales requirement and projected month-end performance.</p></div></div>
