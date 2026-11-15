@@ -942,3 +942,12 @@ footer {
 @media(max-width:1100px){.financial-analysis-controls{grid-template-columns:repeat(3,minmax(0,1fr));}}
 @media(max-width:900px){.financial-intelligence{padding:14px}.financial-intelligence>.section-head{margin:-14px -14px 16px;padding:17px}.financial-management{padding:14px}.financial-analysis-controls{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media(max-width:560px){.financial-analysis-controls{grid-template-columns:1fr}.financial-intelligence>.section-head{border-radius:16px}.financial-export-actions{display:grid;grid-template-columns:1fr}.financial-export-actions button{width:100%}}
+
+/* Management financial distribution detail */
+.financial-distribution-panel{border-color:#edcf91;background:linear-gradient(145deg,#fffaf0 0%,#ffffff 72%)}
+.financial-distribution-title{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+.financial-distribution-title h4{margin:3px 0;color:#704300;font-size:18px}
+.financial-distribution-title p:not(.eyebrow){margin:3px 0;color:#80643a;font-size:12px}
+.financial-distribution-title>strong{font-size:25px;color:#945700;background:#ffefcf;border:1px solid #efd39c;border-radius:12px;padding:10px 15px;white-space:nowrap}
+.financial-distribution-panel .financial-table thead th{background:#fff2d8;color:#754b0b}
+.financial-distribution-panel .financial-table tbody td:last-child{font-weight:800;color:#875000}
