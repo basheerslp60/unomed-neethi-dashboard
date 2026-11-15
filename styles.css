@@ -958,3 +958,91 @@ footer {
 .financial-recipient-summary .financial-table,.financial-monthly-distribution .financial-table{min-width:620px}
 .financial-monthly-distribution{background:#fffdf8}
 .financial-distribution-panel .financial-distribution-title{margin-bottom:8px}
+
+
+/* Portal workspace navigation redesign: fixed sidebar + one active module */
+html, body { min-height:100%; }
+#app { min-height:0; }
+.app-layout {
+  display:grid;
+  grid-template-columns:250px minmax(0,1fr);
+  gap:18px;
+  align-items:stretch;
+  height:calc(100dvh - 132px);
+  min-height:520px;
+  overflow:hidden;
+}
+.side-nav {
+  position:relative;
+  top:auto;
+  height:100%;
+  max-height:none;
+  min-height:0;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+}
+.side-nav-title {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+}
+.sidebar-toggle {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:30px;
+  height:30px;
+  min-height:30px;
+  padding:0;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:#f4f7fb;
+  color:var(--navy);
+  font-size:21px;
+  line-height:1;
+}
+.app-content {
+  height:100%;
+  min-height:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  padding:2px 5px 28px 0;
+  scrollbar-gutter:stable;
+}
+.portal-view-hidden { display:none !important; }
+.nav-button { flex:0 0 auto; min-height:40px; border-radius:10px; }
+.nav-button.active { background:#eaf1fa; color:var(--navy); box-shadow:inset 4px 0 var(--red); font-weight:800; }
+.app-layout.sidebar-collapsed { grid-template-columns:76px minmax(0,1fr); }
+.app-layout.sidebar-collapsed .side-nav { padding:10px 7px; }
+.app-layout.sidebar-collapsed .side-nav-title span { display:none; }
+.app-layout.sidebar-collapsed .nav-button {
+  width:100%; min-height:44px; padding:9px 4px; overflow:hidden;
+  font-size:0; text-align:center; white-space:nowrap;
+}
+.app-layout.sidebar-collapsed .nav-button::first-letter { font-size:18px; }
+.app-layout.sidebar-collapsed .sidebar-toggle { transform:rotate(180deg); }
+@media (max-width:760px) {
+  .app-layout {
+    display:block;
+    position:relative;
+    height:calc(100dvh - 112px);
+    min-height:480px;
+    overflow:hidden;
+  }
+  .side-nav {
+    position:absolute;
+    z-index:30;
+    left:0; top:0; bottom:0;
+    width:min(285px,82vw);
+    height:100%;
+    max-height:none;
+    transform:translateX(-110%);
+    transition:transform .22s ease;
+    box-shadow:0 12px 34px rgba(13,35,65,.2);
+  }
+  .app-layout.sidebar-open .side-nav { transform:translateX(0); }
+  .app-content { height:100%; padding-right:2px; }
+  .app-layout.sidebar-collapsed { display:block; }
+}
