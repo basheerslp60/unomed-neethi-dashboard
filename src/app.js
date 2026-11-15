@@ -99,6 +99,13 @@ if (!ready) {
     if(action){const target=$(action.dataset.overviewTarget);if(target&&!target.classList.contains('hidden')){target.scrollIntoView({behavior:'smooth',block:'start'});}}
   });
   $('financialUploadBtn').onclick = uploadFinancialPdf;
+  $('financialAnalysisRefresh').onclick = loadFinancialManagementAnalysis;
+  $('financialAnalysisFrom').onchange = loadFinancialManagementAnalysis;
+  $('financialAnalysisTo').onchange = loadFinancialManagementAnalysis;
+  $('financialAnalysisNetwork').onchange = loadFinancialManagementAnalysis;
+  $('financialPlannedDistribution').oninput = renderFinancialManagementAnalysis;
+  $('financialAnalysisCsv').onclick = exportFinancialAnalysisCsv;
+  $('financialAnalysisPrint').onclick = () => window.print();
   $('financialRefresh').onclick = loadFinancialReports;
   $('financialStatusFilter').onchange = loadFinancialReports;
   $('financialCloseReview').onclick = () => $('financialReviewPanel').classList.add('hidden');
@@ -228,7 +235,7 @@ async function load(u) {
   const canViewFinancial = ['admin','management'].includes(String(p.role||'').toLowerCase());
   show('financialIntelligenceSection',canViewFinancial);
   document.querySelector('.financial-nav')?.classList.toggle('hidden',!canViewFinancial);
-  if(canViewFinancial){ $('financialBranch').innerHTML='<option value="">Select branch</option>'+branches.map(b=>`<option value="${esc(b.id)}">${esc(b.network)} — ${esc(b.branch_name)}</option>`).join(''); $('financialPeriod').value=today.slice(0,7); await loadFinancialReports(); }
+  if(canViewFinancial){ $('financialBranch').innerHTML='<option value="">Select branch</option>'+branches.map(b=>`<option value="${esc(b.id)}">${esc(b.network)} — ${esc(b.branch_name)}</option>`).join(''); $('financialPeriod').value=today.slice(0,7); $('financialAnalysisTo').value=today.slice(0,7); $('financialAnalysisFrom').value=`${today.slice(0,4)}-01`; await loadFinancialReports(); await loadFinancialManagementAnalysis(); }
   show('complianceSection',p.role!=='branch_staff');
   // User & Branch Access Management is visible only to the Super Admin.
   show('userAccessSection',p.role==='admin');
@@ -1539,6 +1546,42 @@ const FINANCIAL_CATEGORIES = [
 ];
 const FINANCIAL_BEHAVIOURS=['Not applicable','Fixed','Variable','Semi-variable','Shared overhead','Profit distribution'];
 let activeFinancialReport=null, activeFinancialLines=[];
+let financialAnalysisRows=[], financialAnalysisLines=[];
+async function loadFinancialManagementAnalysis(){
+  if(!financialAllowed()||!db)return;
+  $('financialManagementNote').textContent='Loading approved financial statements…';
+  try{
+    const from=$('financialAnalysisFrom').value,to=$('financialAnalysisTo').value;
+    let q=db.from('financial_reports').select('*').eq('status','approved').order('period_start',{ascending:true}).limit(2000);
+    if(from)q=q.gte('period_start',`${from}-01`);if(to){const [y,m]=to.split('-').map(Number);const end=new Date(y,m,0).toISOString().slice(0,10);q=q.lte('period_end',end);}
+    const {data:reports,error}=await q;if(error)throw error;
+    financialAnalysisRows=reports||[];
+    const ids=financialAnalysisRows.map(r=>r.id);
+    financialAnalysisLines=[];
+    if(ids.length){const {data:lines,error:le}=await db.from('financial_report_lines').select('report_id,account_name,amount,mapped_category,expense_behaviour,variable_component_pct,section').in('report_id',ids);if(le)throw le;financialAnalysisLines=lines||[];}
+    renderFinancialManagementAnalysis();
+  }catch(err){$('financialManagementNote').textContent='Could not load management analysis: '+(err.message||err);}
+}
+function financialTotals(r){const t=r.extracted_totals||{};const income=Number(t['Total for Operating Income']||0),cogs=Number(t['Total for Cost of Goods Sold']||0),gross=Number(t['Gross Profit']??income-cogs),opex=Number(t['Total for Operating Expense']||0),op=Number(t['Operating Profit']??gross-opex),nonInc=Number(t['Total for Non Operating Income']||0),nonExp=Number(t['Total for Non Operating Expense']||0);return {income,cogs,gross,opex,op,nonInc,nonExp};}
+function renderFinancialManagementAnalysis(){
+  if(!financialAllowed())return;
+  const network=$('financialAnalysisNetwork').value||'ALL';const selected=financialAnalysisRows.filter(r=>network==='ALL'||String(branches.find(b=>String(b.id)===String(r.branch_id))?.network||'').toUpperCase()===network);
+  const ids=new Set(selected.map(r=>r.id));const lines=financialAnalysisLines.filter(l=>ids.has(l.report_id));
+  const records=selected.map(r=>{const b=branches.find(x=>String(x.id)===String(r.branch_id));const t=financialTotals(r);const ll=lines.filter(l=>l.report_id===r.id);const shares=ll.filter(l=>l.mapped_category==='Profit distribution / share'||l.expense_behaviour==='Profit distribution').reduce((a,l)=>a+Number(l.amount||0),0);const nonOpOther=Math.max(0,t.nonExp-shares);const available=t.op+t.nonInc-nonOpOther;const retained=available-shares;let fixed=0,variable=0;ll.filter(l=>['Cost of Goods Sold','Operating Expense'].includes(l.section||'')&&!['Profit distribution','Not applicable'].includes(l.expense_behaviour)).forEach(l=>{const amount=Number(l.amount||0),v=Number(l.variable_component_pct??(l.expense_behaviour==='Variable'?100:l.expense_behaviour==='Fixed'?0:50));variable+=amount*v/100;fixed+=amount*(1-v/100);});const cmr=t.income?(t.income-variable)/t.income:0;return {...t,report:r,branch:b,shares,available,retained,fixed,variable,cmr,be:cmr>0?fixed/cmr:null};});
+  const sum=k=>records.reduce((a,r)=>a+Number(r[k]||0),0);const income=sum('income'),gross=sum('gross'),opex=sum('opex'),op=sum('op'),shares=sum('shares'),available=sum('available'),retained=sum('retained'),fixed=sum('fixed'),variable=sum('variable');const cmr=income?records.reduce((a,r)=>a+(r.income-r.variable),0)/income:0;const be=cmr>0?fixed/cmr:null;const planned=Math.max(0,Number($('financialPlannedDistribution').value||0));const adjusted=cmr>0?(fixed+planned)/cmr:null;
+  $('financialManagementKpis').innerHTML=[['Approved statements',records.length],['Operating income',money(income)],['Gross profit',money(gross)],['Operating profit',money(op)],['Profit distributed',money(shares)],['Retained after distribution',money(retained)]].map(([k,v])=>`<article><span>${k}</span><strong>${v}</strong></article>`).join('');
+  $('financialBreakEvenCards').innerHTML=[['Operating break-even',be===null?'—':money(be)],['Management-adjusted break-even',adjusted===null?'—':money(adjusted)],['Margin of safety',be===null?'—':money(income-be)],['Margin of safety %',be===null||!income?'—':`${((income-be)/income*100).toFixed(2)}%`],['Fixed expense portion',money(fixed)],['Variable expense portion',money(variable)],['Fixed expense ratio',income?`${(fixed/income*100).toFixed(2)}%`:'—'],['Variable expense ratio',income?`${(variable/income*100).toFixed(2)}%`:'—']].map(([k,v])=>`<div><span>${k}</span><strong>${v}</strong></div>`).join('');
+  const nets=['UNOMED','NEETHI'].map(n=>{const a=records.filter(r=>String(r.branch?.network||'').toUpperCase()===n);return {n,income:a.reduce((s,r)=>s+r.income,0),gross:a.reduce((s,r)=>s+r.gross,0),op:a.reduce((s,r)=>s+r.op,0),shares:a.reduce((s,r)=>s+s.shares,0),count:a.length};});
+  $('financialNetworkComparison').innerHTML=nets.map(n=>`<div class="financial-network-card"><h5>${n.n}</h5><strong>${money(n.income)}</strong><span>Operating income · ${n.count} approved statements</span><div>Gross profit <b>${money(n.gross)}</b></div><div>Operating profit <b>${money(n.op)}</b></div><div>Profit distributed <b>${money(n.shares)}</b></div></div>`).join('');
+  const byBranch=new Map();records.forEach(r=>{const key=String(r.report.branch_id);if(!byBranch.has(key))byBranch.set(key,{branch:r.branch?.branch_name||r.report.location_label||'Branch',network:r.branch?.network||'—',income:0,gross:0,opex:0,op:0,shares:0,retained:0,count:0});const a=byBranch.get(key);['income','gross','opex','op','shares','retained'].forEach(k=>a[k]+=r[k]);a.count++;});
+  const ranked=[...byBranch.values()].sort((a,b)=>b.op-a.op);$('financialProfitabilityRows').innerHTML=ranked.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.branch)}</td><td>${esc(r.network)}</td><td>${money(r.income)}</td><td>${money(r.gross)}</td><td>${money(r.opex)}</td><td>${money(r.op)}</td><td>${r.income?(r.op/r.income*100).toFixed(2)+'%':'—'}</td><td>${money(r.shares)}</td><td>${money(r.retained)}</td></tr>`).join('')||'<tr><td colspan="10">No approved reports in this period.</td></tr>';
+  const months=new Map();records.forEach(r=>{const m=String(r.report.period_start||'').slice(0,7);if(!months.has(m))months.set(m,{income:0,gross:0,opex:0,op:0,shares:0,retained:0});const a=months.get(m);['income','gross','opex','op','shares','retained'].forEach(k=>a[k]+=r[k]);});
+  $('financialMonthlyRows').innerHTML=[...months.entries()].sort((a,b)=>a[0].localeCompare(b[0])).map(([m,r])=>`<tr><td>${esc(m)}</td><td>${money(r.income)}</td><td>${money(r.gross)}</td><td>${money(r.opex)}</td><td>${money(r.op)}</td><td>${money(r.shares)}</td><td>${money(r.retained)}</td></tr>`).join('')||'<tr><td colspan="7">No approved monthly reports loaded.</td></tr>';
+  $('financialManagementNote').textContent=`Showing ${records.length} approved branch-month statement(s). ${selected.length<financialAnalysisRows.length?'Network filter applied. ':''}Profit share is excluded from operating expenses. Management-adjusted break-even includes only the optional planned distribution entered above. Multiple months are aggregated; use the monthly table for month-by-month and YTD review.`;
+}
+function exportFinancialAnalysisCsv(){
+ const headers=['Branch','Network','Month','Operating income','Gross profit','Operating expenses','Operating profit','Operating margin %','Profit distributed','Profit available before distribution','Retained after distribution'];const rows=financialAnalysisRows.filter(r=>$('financialAnalysisNetwork').value==='ALL'||String(branches.find(b=>String(b.id)===String(r.branch_id))?.network||'').toUpperCase()===$('financialAnalysisNetwork').value).map(r=>{const t=financialTotals(r),b=branches.find(x=>String(x.id)===String(r.branch_id)),ll=financialAnalysisLines.filter(l=>l.report_id===r.id),sh=ll.filter(l=>l.mapped_category==='Profit distribution / share'||l.expense_behaviour==='Profit distribution').reduce((a,l)=>a+Number(l.amount||0),0),available=t.op+t.nonInc-Math.max(0,t.nonExp-sh);return [b?.branch_name||r.location_label,b?.network,String(r.period_start||'').slice(0,7),t.income,t.gross,t.opex,t.op,t.income?t.op/t.income*100:0,sh,available,available-sh];});const csv=[headers,...rows].map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='UNOMED_NEETHI_Financial_Analysis.csv';a.click();URL.revokeObjectURL(url);
+}
 function financialAllowed(){return ['admin','management'].includes(String(profile?.role||'').toLowerCase());}
 function normaliseAccount(s){return String(s||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();}
 function guessFinancialMapping(name,section){
