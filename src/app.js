@@ -97,7 +97,7 @@ function setPortalView(targetId) {
     $('executiveSection')
   ].filter(Boolean);
   [...content.children].forEach(node => {
-    const alwaysVisible = node.id === 'portalCommandBar' || node.id === 'portalQuickLinks';
+    const alwaysVisible = node.id === 'portalCommandBar' || node.id === 'portalQuickLinks' || node.id === 'salesConfirmModal';
     const keep = alwaysVisible || (isOverview ? overviewElements.includes(node) : node.id === targetId);
     node.classList.toggle('portal-view-hidden', !keep);
   });
@@ -200,10 +200,6 @@ if (!ready) {
     if(network){overviewNetwork=network.dataset.overviewNetwork;$('overviewDashboard').querySelectorAll('[data-overview-network]').forEach(b=>b.classList.toggle('active',b===network));renderOverview();}
     if(action){const target=$(action.dataset.overviewTarget);if(target&&!target.classList.contains('hidden')){target.scrollIntoView({behavior:'smooth',block:'start'});}}
   });
-  $('approvalCentreRefresh')?.addEventListener('click', loadManagementApprovalCentre);
-  $('approvalOpenFinancial')?.addEventListener('click', () => portalNavigate('financialIntelligenceSection'));
-  $('approvalOpenCorrections')?.addEventListener('click', () => portalNavigate('dailySalesSection'));
-  $('approvalPendingRows')?.addEventListener('click', event => { const b=event.target.closest('[data-approval-review]'); if(b){ portalNavigate('financialIntelligenceSection'); openFinancialReview(b.dataset.approvalReview); } });
   $('financialUploadBtn').onclick = uploadFinancialPdf;
   $('financialAnalysisRefresh').onclick = loadFinancialManagementAnalysis;
   $('financialAnalysisFrom').onchange = loadFinancialManagementAnalysis;
@@ -349,12 +345,10 @@ async function load(u) {
   const canViewFinancial = ['admin','management'].includes(String(p.role||'').toLowerCase());
   show('financialIntelligenceSection',canViewFinancial);
   document.querySelector('.financial-nav')?.classList.toggle('hidden',!canViewFinancial);
-  show('managementApprovalSection',canViewFinancial);
-  document.querySelector('.approval-nav')?.classList.toggle('hidden',!canViewFinancial);
   document.querySelector('.quick-financial')?.classList.toggle('hidden',!canViewFinancial);
   document.querySelector('[data-quick-target="branchAnalyticsSection"]')?.classList.toggle('hidden',p.role==='branch_staff');
   renderPortalNotifications();
-  if(canViewFinancial){ await loadManagementApprovalCentre(); $('financialBranch').innerHTML='<option value="">Select branch</option>'+branches.map(b=>`<option value="${esc(b.id)}">${esc(b.network)} — ${esc(b.branch_name)}</option>`).join(''); $('financialPeriod').value=today.slice(0,7); $('financialAnalysisTo').value=today.slice(0,7); $('financialAnalysisFrom').value=`${today.slice(0,4)}-01`; await loadFinancialReports(); await loadFinancialManagementAnalysis(); }
+  if(canViewFinancial){ $('financialBranch').innerHTML='<option value="">Select branch</option>'+branches.map(b=>`<option value="${esc(b.id)}">${esc(b.network)} — ${esc(b.branch_name)}</option>`).join(''); $('financialPeriod').value=today.slice(0,7); $('financialAnalysisTo').value=today.slice(0,7); $('financialAnalysisFrom').value=`${today.slice(0,4)}-01`; await loadFinancialReports(); await loadFinancialManagementAnalysis(); }
   show('complianceSection',p.role!=='branch_staff');
   // User & Branch Access Management is visible only to the Super Admin.
   show('userAccessSection',p.role==='admin');
@@ -1763,23 +1757,6 @@ function renderFinancialManagementAnalysis(){
 }
 function exportFinancialAnalysisCsv(){
  const headers=['Branch','Network','Month','Operating income','Gross profit','Operating expenses','Operating profit','Operating margin %','Profit distributed','Profit available before distribution','Retained after distribution'];const rows=financialAnalysisRows.filter(r=>{const b=branches.find(x=>String(x.id)===String(r.branch_id));const network=$('financialAnalysisNetwork').value||'ALL',branch=$('financialAnalysisBranch').value||'ALL';return (network==='ALL'||String(b?.network||'').toUpperCase()===network)&&(branch==='ALL'||String(r.branch_id)===branch);}).map(r=>{const t=financialTotals(r),b=branches.find(x=>String(x.id)===String(r.branch_id)),ll=financialAnalysisLines.filter(l=>l.report_id===r.id),sh=ll.filter(l=>l.mapped_category==='Profit distribution / share'||l.expense_behaviour==='Profit distribution').reduce((a,l)=>a+Number(l.amount||0),0),available=t.op+t.nonInc-Math.max(0,t.nonExp-sh);return [b?.branch_name||r.location_label,b?.network,String(r.period_start||'').slice(0,7),t.income,t.gross,t.opex,t.op,t.income?t.op/t.income*100:0,sh,available,available-sh];});const csv=[headers,...rows].map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='UNOMED_NEETHI_Financial_Analysis.csv';a.click();URL.revokeObjectURL(url);
-}
-async function loadManagementApprovalCentre(){
-  if(!financialAllowed()||!db)return;
-  const pending=$('approvalPendingRows'), history=$('approvalHistoryRows'), note=$('approvalCentreMsg');
-  if(!pending||!history||!note)return;
-  pending.innerHTML='<tr><td colspan="7">Loading pending statements…</td></tr>';
-  try{
-    const {data,error}=await db.from('financial_reports').select('*').order('created_at',{ascending:false}).limit(250);
-    if(error)throw error;
-    const rows=data||[], branchMap=new Map(branches.map(b=>[String(b.id),b]));
-    const waiting=rows.filter(r=>r.status==='review');
-    const decided=rows.filter(r=>['approved','rejected'].includes(String(r.status||'').toLowerCase()));
-    $('approvalCentreKpis').innerHTML=[['Awaiting financial review',waiting.length],['Approved statements',rows.filter(r=>r.status==='approved').length],['Rejected statements',rows.filter(r=>r.status==='rejected').length]].map(([label,value])=>`<article><span>${label}</span><strong>${value}</strong></article>`).join('');
-    pending.innerHTML=waiting.map(r=>{const b=branchMap.get(String(r.branch_id));const t=r.extracted_totals||{};return `<tr><td>${esc(String(r.period_start||'').slice(0,7))}</td><td>${esc(b?.branch_name||r.location_label||'Branch')}</td><td>${esc(b?.network||'—')}</td><td>${money(t['Total for Operating Income']||0)}</td><td>${money(t['Operating Profit']||0)}</td><td>${esc(String(r.created_at||'').slice(0,10)||'—')}</td><td><button type="button" class="secondary" data-approval-review="${esc(r.id)}">Review</button></td></tr>`;}).join('')||'<tr><td colspan="7">No financial statements are awaiting review.</td></tr>';
-    history.innerHTML=decided.map(r=>{const b=branchMap.get(String(r.branch_id));return `<tr><td>${esc(String(r.period_start||'').slice(0,7))}</td><td>${esc(b?.branch_name||r.location_label||'Branch')}</td><td><span class="financial-status ${esc(r.status)}">${esc(r.status)}</span></td><td>${esc(r.approved_by||'—')}</td><td>${esc(r.approved_at||'—')}</td></tr>`;}).join('')||'<tr><td colspan="5">No approved or rejected statements found.</td></tr>';
-    note.textContent=`Loaded ${rows.length} financial statement(s). Pending approvals are based on status “review”. Daily sales corrections remain in the existing correction history workflow.`;
-  }catch(err){pending.innerHTML=`<tr><td colspan="7">Could not load approval queue: ${esc(err.message||err)}</td></tr>`;history.innerHTML='<tr><td colspan="5">Decision history unavailable.</td></tr>';note.textContent='Check financial_reports read permissions and Financial Intelligence setup.';}
 }
 function financialAllowed(){return ['admin','management'].includes(String(profile?.role||'').toLowerCase());}
 function normaliseAccount(s){return String(s||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();}
