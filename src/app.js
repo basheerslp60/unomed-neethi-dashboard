@@ -2,9 +2,29 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "./config.js";
 
 const $ = id => document.getElementById(id);
+// Reliable daily-sales review trigger: intercept the submit button click directly.
+// This keeps the existing form validation and confirmation dialog, while avoiding
+// cases where a later script or form handler prevents the submit event from firing.
+document.addEventListener('click', event => {
+  const submitButton = event.target.closest('#salesForm button[type="submit"], #salesForm .sales-submit-btn');
+  if (!submitButton) return;
+  event.preventDefault();
+  try {
+    openSalesConfirmation(event);
+  } catch (error) {
+    const message = error?.message || 'Could not open the report review. Please refresh and try again.';
+    const status = document.getElementById('salesMsg');
+    if (status) {
+      status.textContent = message;
+      status.style.color = '#a21d37';
+    }
+    console.error('Daily sales review error:', error);
+  }
+}, true);
 const names = ["Complete HC 599","My Health 999","Cardiac HC","EHC 2500","EHC Advanced 3500","Healthy Women 699","Healthy Men","EHC PRO 8499","Hairfall","Vitamin Profile","PCOD Mini","Onam Camp","Other Packages"];
 let db, user, profile, branches = [], reports = [], targets = [];
 let complianceRowsCache = [], complianceNetworkFilter = 'ALL', complianceChecked = false;
+let employeeTaskAlerts = [];
 let editingReportId = null;
 let overviewReports = [];
 let overviewPeriod = '7';
@@ -37,9 +57,13 @@ function renderPortalNotifications() {
   if(!list||!badge) return;
   const isManagement=profile&&profile.role!=='branch_staff';
   const alerts=isManagement?complianceRowsCache.filter(r=>r.status==='Missing'||r.status==='Needs review'):[];
-  badge.textContent=String(alerts.length);badge.classList.toggle('hidden',alerts.length===0);
-  if(!alerts.length){list.innerHTML=complianceChecked?'<div class="portal-notification-empty"><strong>All clear</strong><p>No missing or review-pending daily reports are present in the latest compliance check.</p></div>':'<div class="portal-notification-empty"><strong>Compliance not checked yet</strong><p>Open Daily compliance to generate the latest branch submission alerts.</p></div>';return;}
-  list.innerHTML=`<div class="portal-notification-summary">${alerts.length} branch follow-up${alerts.length===1?'':'s'} from the latest compliance check</div>`+alerts.slice(0,12).map(r=>`<button type="button" class="portal-notification-item" data-notification-target="complianceSection"><span class="portal-notification-dot ${r.status==='Missing'?'is-missing':'is-review'}"></span><span><strong>${esc(r.branch_name||'Branch')}</strong><small>${esc(r.network||'')} · ${esc(r.status)} · ${esc(r.action||'Follow up required')}</small></span><b>›</b></button>`).join('')+(alerts.length>12?`<p class="portal-empty-note">+ ${alerts.length-12} more follow-ups</p>`:'');
+  const taskAlerts=employeeTaskAlerts||[];
+  const total=alerts.length+taskAlerts.length;
+  badge.textContent=String(total);badge.classList.toggle('hidden',total===0);
+  const branchHtml=alerts.slice(0,12).map(r=>`<button type="button" class="portal-notification-item" data-notification-target="complianceSection"><span class="portal-notification-dot ${r.status==='Missing'?'is-missing':'is-review'}"></span><span><strong>${esc(r.branch_name||'Branch')}</strong><small>${esc(r.network||'')} · ${esc(r.status)} · ${esc(r.action||'Follow up required')}</small></span><b>›</b></button>`).join('');
+  const taskHtml=taskAlerts.slice(0,12).map(t=>`<button type="button" class="portal-notification-item" data-notification-target="employeeSection"><span class="portal-notification-dot is-missing"></span><span><strong>${esc(t.title)}</strong><small>${esc(t.employee_name||'Employee')} · ${t.due_date<today?'Overdue':'Due today'}</small></span><b>›</b></button>`).join('');
+  if(!total){list.innerHTML=complianceChecked?'<div class="portal-notification-empty"><strong>All clear</strong><p>No branch follow-ups or overdue employee tasks are currently visible.</p></div>':'<div class="portal-notification-empty"><strong>No current alerts</strong><p>Alerts appear when compliance checks or employee task deadlines identify follow-ups.</p></div>';return;}
+  list.innerHTML=(alerts.length?`<div class="portal-notification-summary">${alerts.length} branch compliance follow-up${alerts.length===1?'':'s'}</div>${branchHtml}`:'')+(taskAlerts.length?`<div class="portal-notification-summary">${taskAlerts.length} employee task deadline${taskAlerts.length===1?'':'s'}</div>${taskHtml}`:'');
 }
 function initPortalCommandBar(){
   $('portalGlobalSearch')?.addEventListener('input',e=>renderPortalSearch(e.target.value));
@@ -212,6 +236,10 @@ if (!ready) {
     renderComplianceTable();
   });
   $('employeeRefresh').onclick = loadEmployeeModule;
+  $('employeeTasksRefresh').onclick = loadEmployeeTasks;
+  $('employeeTaskForm').onsubmit = createEmployeeTask;
+  $('taskStatusFilter').addEventListener('change', loadEmployeeTasks);
+  $('employeeTaskRows').addEventListener('click', handleEmployeeTaskAction);
   $('userAccessRefresh').onclick = loadPortalUsers;
   $('branchTargetMonth').addEventListener('change', loadBranchTargetEditor);
   $('dailySalesRefresh').onclick = loadDailyBranchSales;
@@ -1524,6 +1552,51 @@ async function viewReportHistory(id) {
 }
 
 
+// Employee task assignment workflow. RLS policies in employee_tasks_scope.sql are authoritative.
+let employeeTaskRecords=[];
+async function loadEmployeeTasks(){
+  const body=$('employeeTaskRows'); if(!body||!db||!profile)return;
+  try{
+    const {data,error}=await db.from('employee_tasks').select('id,employee_id,branch_id,title,description,due_date,priority,status,created_at').order('due_date',{ascending:true}).limit(500);
+    if(error)throw error;
+    employeeTaskRecords=data||[];
+    const names=new Map(employeeRecords.map(e=>[String(e.id),e.full_name]));
+    const todayLocal=today;
+    const open=employeeTaskRecords.filter(t=>t.status!=='completed');
+    const overdue=open.filter(t=>t.due_date<todayLocal).length;
+    const dueToday=open.filter(t=>t.due_date===todayLocal).length;
+    $('employeeTaskSummary').innerHTML=`<article class="stat"><span>Open tasks</span><strong>${open.length}</strong></article><article class="stat"><span>Overdue</span><strong>${overdue}</strong></article><article class="stat"><span>Due today</span><strong>${dueToday}</strong></article><article class="stat"><span>Completed</span><strong>${employeeTaskRecords.filter(t=>t.status==='completed').length}</strong></article>`;
+    const filter=$('taskStatusFilter').value;
+    const rows=employeeTaskRecords.filter(t=>filter==='all'||(filter==='open'?t.status!=='completed':t.status===filter));
+    $('employeeTaskRows').innerHTML=rows.map(t=>{
+      const overdueFlag=t.status!=='completed'&&t.due_date<todayLocal;
+      const canUpdate=String(employeeRecords.find(e=>String(e.id)===String(t.employee_id))?.auth_user_id||'')===String(user.id)||canManageEmployees();
+      const options=['pending','in_progress','completed'].map(v=>`<option value="${v}" ${t.status===v?'selected':''}>${v.replace('_',' ')}</option>`).join('');
+      return `<tr><td><strong>${esc(t.title)}</strong>${t.description?`<br><small>${esc(t.description)}</small>`:''}</td><td>${esc(names.get(String(t.employee_id))||'Employee')}</td><td>${esc(t.due_date)}${overdueFlag?' <span class="pill" style="background:#fee2e2;color:#991b1b">Overdue</span>':''}</td><td>${esc(t.priority)}</td><td>${esc(t.status.replace('_',' '))}</td><td>${canUpdate?`<select data-task-status="${t.id}" aria-label="Update task status">${options}</select><button type="button" class="secondary" data-task-save="${t.id}">Update</button>`:'—'}</td></tr>`;
+    }).join('')||'<tr><td colspan="6">No tasks match this filter.</td></tr>';
+    // Only deadlines relevant to the signed-in user are surfaced for staff; managers see permitted tasks.
+    employeeTaskAlerts=employeeTaskRecords.filter(t=>t.status!=='completed'&&(t.due_date<todayLocal||t.due_date===todayLocal)).map(t=>({...t,employee_name:names.get(String(t.employee_id))||'Employee'}));
+    if(String(profile.role).toLowerCase()==='branch_staff') employeeTaskAlerts=employeeTaskAlerts.filter(t=>String(employeeRecords.find(e=>String(e.id)===String(t.employee_id))?.auth_user_id||'')===String(user.id));
+    else employeeTaskAlerts=employeeTaskAlerts.filter(t=>t.due_date<=todayLocal);
+    renderPortalNotifications();
+  }catch(err){$('employeeTaskRows').innerHTML=`<tr><td colspan="6">Task workflow setup required: ${esc(err.message||err)}. Run employee_tasks_scope.sql in Supabase, then refresh.</td></tr>`;employeeMessage('employeeTaskMsg','Task database setup required. Run employee_tasks_scope.sql in Supabase.');}
+}
+async function createEmployeeTask(e){
+  e.preventDefault(); if(!canManageEmployees()){employeeMessage('employeeTaskMsg','Only management or branch managers can assign tasks.');return;}
+  const emp=employeeRecords.find(x=>String(x.id)===$('taskEmployee').value);if(!emp){employeeMessage('employeeTaskMsg','Select an active employee.');return;}
+  const payload={employee_id:emp.id,branch_id:emp.branch_id,title:$('taskTitle').value.trim(),description:$('taskDescription').value.trim()||null,due_date:$('taskDueDate').value,priority:$('taskPriority').value,status:'pending',created_by:user.id};
+  try{const {error}=await db.from('employee_tasks').insert(payload);if(error)throw error;$('employeeTaskForm').reset();$('taskDueDate').value=today;employeeMessage('employeeTaskMsg','Task assigned successfully.',true);await loadEmployeeTasks();}
+  catch(err){employeeMessage('employeeTaskMsg',err.message||'Could not assign task. Check task-table RLS policies.');}
+}
+async function handleEmployeeTaskAction(e){
+  const btn=e.target.closest('[data-task-save]');if(!btn)return;
+  const id=btn.dataset.taskSave;const status=$(`task-status-${id}`)?.value||document.querySelector(`[data-task-status="${CSS.escape(id)}"]`)?.value;
+  if(!status)return;
+  const payload={status,completed_at:status==='completed'?new Date().toISOString():null,updated_at:new Date().toISOString()};
+  try{const {error}=await db.from('employee_tasks').update(payload).eq('id',id);if(error)throw error;employeeMessage('employeeTaskMsg','Task status updated.',true);await loadEmployeeTasks();}
+  catch(err){employeeMessage('employeeTaskMsg',err.message||'Could not update task.');}
+}
+
 // Employee performance module. Database security is enforced by the SQL RLS policies,
 // not by these UI visibility checks alone.
 let employeeRecords = [];
@@ -1545,10 +1618,14 @@ async function loadEmployeeModule() {
     $('employeeRows').innerHTML=employeeRecords.map(e=>`<tr><td>${esc(e.full_name)}</td><td>${esc(e.employee_code||'—')}</td><td>${esc(branchMap.get(String(e.branch_id))?.branch_name||'—')}</td><td>${esc(e.designation||'—')}</td><td><span class="pill">${e.active?'Active':'Inactive'}</span></td></tr>`).join('')||'<tr><td colspan="5">No employees yet. Management can add employees above.</td></tr>';
     $('activityEmployee').innerHTML=employeeRecords.filter(e=>e.active).map(e=>`<option value="${e.id}">${esc(e.full_name)} — ${esc(branchMap.get(String(e.branch_id))?.branch_name||'Branch')}</option>`).join('');
     $('targetEmployee').innerHTML=employeeRecords.filter(e=>e.active).map(e=>`<option value="${e.id}">${esc(e.full_name)} — ${esc(branchMap.get(String(e.branch_id))?.branch_name||'Branch')} (${esc(e.designation||'')})</option>`).join('');
+    $('taskEmployee').innerHTML=employeeRecords.filter(e=>e.active).map(e=>`<option value="${e.id}">${esc(e.full_name)} — ${esc(branchMap.get(String(e.branch_id))?.branch_name||'Branch')}</option>`).join('');
+    show('employeeTaskAdminPanel',canManageEmployees());
+    $('taskDueDate').value=today;
     await loadEmployeeTargets();
     const active=employeeRecords.filter(e=>e.active).length;
     $('employeeSummary').innerHTML=`<article class="stat"><span>Employees visible</span><strong>${employeeRecords.length}</strong></article><article class="stat"><span>Active employees</span><strong>${active}</strong></article><article class="stat"><span>Branches represented</span><strong>${new Set(employeeRecords.map(e=>e.branch_id)).size}</strong></article>`;
     await loadEmployeeActivities();
+    await loadEmployeeTasks();
   } catch(err) {
     $('employeeRows').innerHTML=`<tr><td colspan="5">Employee module not ready: ${esc(err.message||err)}</td></tr>`;
     $('activityRows').innerHTML='<tr><td colspan="9">Run employee_module_schema.sql in Supabase SQL Editor, then refresh.</td></tr>';
