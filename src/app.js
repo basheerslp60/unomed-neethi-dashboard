@@ -25,6 +25,9 @@ const names = ["Complete HC 599","My Health 999","Cardiac HC","EHC 2500","EHC Ad
 let db, user, profile, branches = [], reports = [], targets = [];
 let complianceRowsCache = [], complianceNetworkFilter = 'ALL', complianceChecked = false;
 let employeeTaskAlerts = [];
+let targetPaceAlerts = [];
+let financialReviewAlerts = [];
+let dailyMissingAlerts = [];
 let editingReportId = null;
 let overviewReports = [];
 let overviewPeriod = '7';
@@ -55,16 +58,58 @@ function renderPortalSearch(query='') {
 function renderPortalNotifications() {
   const list=$('portalNotificationsList'),badge=$('portalNotificationBadge');
   if(!list||!badge) return;
-  const isManagement=profile&&profile.role!=='branch_staff';
-  const alerts=isManagement?complianceRowsCache.filter(r=>r.status==='Missing'||r.status==='Needs review'):[];
+  const role=String(profile?.role||'').toLowerCase();
+  const isManagement=['admin','management','branch_manager'].includes(role);
+  const complianceAlerts=isManagement?complianceRowsCache.filter(r=>r.status==='Missing'||r.status==='Needs review'):[];
+  const missingAlerts=isManagement?dailyMissingAlerts:[];
+  const paceAlerts=isManagement?targetPaceAlerts:[];
+  const financeAlerts=['admin','management'].includes(role)?financialReviewAlerts:[];
   const taskAlerts=employeeTaskAlerts||[];
-  const total=alerts.length+taskAlerts.length;
+  const total=complianceAlerts.length+missingAlerts.length+paceAlerts.length+financeAlerts.length+taskAlerts.length;
   badge.textContent=String(total);badge.classList.toggle('hidden',total===0);
-  const branchHtml=alerts.slice(0,12).map(r=>`<button type="button" class="portal-notification-item" data-notification-target="complianceSection"><span class="portal-notification-dot ${r.status==='Missing'?'is-missing':'is-review'}"></span><span><strong>${esc(r.branch_name||'Branch')}</strong><small>${esc(r.network||'')} · ${esc(r.status)} · ${esc(r.action||'Follow up required')}</small></span><b>›</b></button>`).join('');
-  const taskHtml=taskAlerts.slice(0,12).map(t=>`<button type="button" class="portal-notification-item" data-notification-target="employeeSection"><span class="portal-notification-dot is-missing"></span><span><strong>${esc(t.title)}</strong><small>${esc(t.employee_name||'Employee')} · ${t.due_date<today?'Overdue':'Due today'}</small></span><b>›</b></button>`).join('');
-  if(!total){list.innerHTML=complianceChecked?'<div class="portal-notification-empty"><strong>All clear</strong><p>No branch follow-ups or overdue employee tasks are currently visible.</p></div>':'<div class="portal-notification-empty"><strong>No current alerts</strong><p>Alerts appear when compliance checks or employee task deadlines identify follow-ups.</p></div>';return;}
-  list.innerHTML=(alerts.length?`<div class="portal-notification-summary">${alerts.length} branch compliance follow-up${alerts.length===1?'':'s'}</div>${branchHtml}`:'')+(taskAlerts.length?`<div class="portal-notification-summary">${taskAlerts.length} employee task deadline${taskAlerts.length===1?'':'s'}</div>${taskHtml}`:'');
+  const item=(target,kind,title,detail)=>`<button type="button" class="portal-notification-item" data-notification-target="${target}"><span class="portal-notification-dot ${kind}"></span><span><strong>${esc(title)}</strong><small>${esc(detail)}</small></span><b>›</b></button>`;
+  const sections=[];
+  if(missingAlerts.length) sections.push(`<div class="portal-notification-summary">${missingAlerts.length} daily sales submission follow-up${missingAlerts.length===1?'':'s'}</div>${missingAlerts.slice(0,12).map(a=>item('complianceSection',a.status==='Missing'?'is-missing':'is-review',a.branch_name,a.status==='Missing'?'Today’s sales report not submitted':'Today’s report needs review')).join('')}`);
+  if(complianceAlerts.length && !missingAlerts.length) sections.push(`<div class="portal-notification-summary">${complianceAlerts.length} compliance follow-up${complianceAlerts.length===1?'':'s'}</div>${complianceAlerts.slice(0,12).map(r=>item('complianceSection',r.status==='Missing'?'is-missing':'is-review',r.branch_name||'Branch',`${r.network||''} · ${r.status} · ${r.action||'Follow up required'}`)).join('')}`);
+  if(paceAlerts.length) sections.push(`<div class="portal-notification-summary">${paceAlerts.length} branch${paceAlerts.length===1?'':'es'} behind monthly target pace</div>${paceAlerts.slice(0,12).map(a=>item('targetDashboardSection','is-review',a.branch_name,`${a.achievement.toFixed(1)}% achieved · expected ${a.expected.toFixed(1)}% · ${money(a.balance)} remaining`)).join('')}`);
+  if(financeAlerts.length) sections.push(`<div class="portal-notification-summary">${financeAlerts.length} financial report${financeAlerts.length===1?'':'s'} awaiting review</div>${financeAlerts.slice(0,12).map(a=>item('financialIntelligenceSection','is-review',a.branch_name,`${a.period} · Uploaded financial report needs approval`)).join('')}`);
+  if(taskAlerts.length) sections.push(`<div class="portal-notification-summary">${taskAlerts.length} employee task deadline${taskAlerts.length===1?'':'s'}</div>${taskAlerts.slice(0,12).map(t=>item('employeeSection','is-missing',t.title,`${t.employee_name||'Employee'} · ${t.due_date<today?'Overdue':'Due today'}`)).join('')}`);
+  if(!total){list.innerHTML='<div class="portal-notification-empty"><strong>All clear</strong><p>No pending daily submissions, target-pace warnings, financial reviews or employee task deadlines are currently visible to your account.</p></div>';return;}
+  list.innerHTML=sections.join('');
 }
+
+// Build role-scoped alerts from the existing tables. RLS remains authoritative;
+// failed or unavailable queries are omitted rather than treated as zero records.
+async function refreshPortalRoleAlerts(){
+  if(!db||!profile) return;
+  const role=String(profile.role||'').toLowerCase();
+  const manager=['admin','management','branch_manager'].includes(role);
+  dailyMissingAlerts=[];targetPaceAlerts=[];financialReviewAlerts=[];
+  if(manager){
+    const monthStart=`${today.slice(0,7)}-01`;
+    const [dayResult,targetResult,salesResult]=await Promise.all([
+      db.from('daily_reports').select('branch_id,status').eq('report_date',today),
+      db.from('branch_monthly_targets').select('branch_id,target_amount,target_month').eq('target_month',monthStart),
+      db.from('daily_reports').select('branch_id,total_sales,report_date').gte('report_date',monthStart).lte('report_date',today)
+    ]);
+    if(!dayResult.error){
+      const dayMap=new Map();(dayResult.data||[]).forEach(r=>{const k=String(r.branch_id);const arr=dayMap.get(k)||[];arr.push(r);dayMap.set(k,arr);});
+      dailyMissingAlerts=branches.map(b=>{const rows=dayMap.get(String(b.id))||[];const submitted=rows.some(r=>String(r.status||'').toLowerCase()==='submitted');return {...b,status:submitted?'Submitted':rows.length?'Needs review':'Missing'};}).filter(b=>b.status!=='Submitted');
+    }
+    if(!targetResult.error&&!salesResult.error){
+      const [year,month]=today.slice(0,7).split('-').map(Number);const daysInMonth=new Date(year,month,0).getDate();const elapsed=Number(today.slice(8,10));const expected=elapsed/daysInMonth*100;
+      const salesMap=new Map();(salesResult.data||[]).forEach(r=>salesMap.set(String(r.branch_id),(salesMap.get(String(r.branch_id))||0)+Number(r.total_sales||0)));
+      const branchMap=new Map(branches.map(b=>[String(b.id),b]));
+      targetPaceAlerts=(targetResult.data||[]).filter(t=>Number(t.target_amount)>0).map(t=>{const target=Number(t.target_amount);const sales=salesMap.get(String(t.branch_id))||0;const achievement=sales/target*100;return {...(branchMap.get(String(t.branch_id))||{}),achievement,expected,balance:Math.max(0,target-sales)};}).filter(a=>a.branch_name&&a.achievement<Math.max(0,a.expected-5)).sort((a,b)=>a.achievement-b.achievement);
+    }
+  }
+  if(['admin','management'].includes(role)){
+    const {data,error}=await db.from('financial_reports').select('id,branch_id,period_start,status,location_label').eq('status','review').order('period_start',{ascending:false}).limit(100);
+    if(!error){const map=new Map(branches.map(b=>[String(b.id),b]));financialReviewAlerts=(data||[]).map(r=>({branch_name:map.get(String(r.branch_id))?.branch_name||r.location_label||'Branch',period:String(r.period_start||'').slice(0,7)}));}
+  }
+  renderPortalNotifications();
+}
+
 function initPortalCommandBar(){
   $('portalGlobalSearch')?.addEventListener('input',e=>renderPortalSearch(e.target.value));
   $('portalGlobalSearch')?.addEventListener('keydown',e=>{
@@ -72,7 +117,7 @@ function initPortalCommandBar(){
     if(e.key==='Enter'){const first=$('portalSearchResults')?.querySelector('[data-search-target]');if(first){portalNavigate(first.dataset.searchTarget);$('portalSearchResults').classList.add('hidden');e.target.value='';}}
   });
   $('portalSearchResults')?.addEventListener('click',e=>{const b=e.target.closest('[data-search-target]');if(!b)return;portalNavigate(b.dataset.searchTarget);$('portalSearchResults').classList.add('hidden');$('portalGlobalSearch').value='';});
-  $('portalNotificationsBtn')?.addEventListener('click',()=>{$('portalNotificationsPanel')?.classList.toggle('hidden');renderPortalNotifications();});
+  $('portalNotificationsBtn')?.addEventListener('click',()=>{const panel=$('portalNotificationsPanel');panel?.classList.toggle('hidden');renderPortalNotifications();if(panel&&!panel.classList.contains('hidden'))refreshPortalRoleAlerts();});
   $('portalNotificationsClose')?.addEventListener('click',()=>$('portalNotificationsPanel')?.classList.add('hidden'));
   $('portalNotificationsList')?.addEventListener('click',e=>{const b=e.target.closest('[data-notification-target]');if(b){portalNavigate(b.dataset.notificationTarget);$('portalNotificationsPanel').classList.add('hidden');}});
   $('portalQuickLinks')?.addEventListener('click',e=>{const b=e.target.closest('[data-quick-target]');if(!b)return;portalNavigate(b.dataset.quickTarget);});
@@ -98,7 +143,6 @@ function setPortalView(targetId) {
   ].filter(Boolean);
   [...content.children].forEach(node => {
     // Dialog overlays must remain outside workspace visibility switching.
-    // Otherwise portal-view-hidden overrides the modal's display:flex when a staff workspace is active.
     const alwaysVisible = node.id === 'portalCommandBar' || node.id === 'portalQuickLinks' || node.id === 'salesConfirmModal';
     const keep = alwaysVisible || (isOverview ? overviewElements.includes(node) : node.id === targetId);
     node.classList.toggle('portal-view-hidden', !keep);
@@ -365,6 +409,7 @@ async function load(u) {
   if (p.role === 'admin') await loadPortalUsers();
   await loadEmployeeModule();
   if (p.role !== 'branch_staff') { await loadBranchAnalytics(); await loadTargetDashboard(); await loadManagementExecutiveDashboard(); }
+  await refreshPortalRoleAlerts();
 }
 
 
