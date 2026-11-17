@@ -97,7 +97,9 @@ function setPortalView(targetId) {
     $('executiveSection')
   ].filter(Boolean);
   [...content.children].forEach(node => {
-    const alwaysVisible = node.id === 'portalCommandBar' || node.id === 'portalQuickLinks';
+    // Dialog overlays must remain outside workspace visibility switching.
+    // Otherwise portal-view-hidden overrides the modal's display:flex when a staff workspace is active.
+    const alwaysVisible = node.id === 'portalCommandBar' || node.id === 'portalQuickLinks' || node.id === 'salesConfirmModal';
     const keep = alwaysVisible || (isOverview ? overviewElements.includes(node) : node.id === targetId);
     node.classList.toggle('portal-view-hidden', !keep);
   });
