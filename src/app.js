@@ -236,10 +236,13 @@ if (!ready) {
     renderComplianceTable();
   });
   $('employeeRefresh').onclick = loadEmployeeModule;
-  $('employeeTasksRefresh').onclick = loadEmployeeTasks;
-  $('employeeTaskForm').onsubmit = createEmployeeTask;
-  $('taskStatusFilter').addEventListener('change', loadEmployeeTasks);
-  $('employeeTaskRows').addEventListener('click', handleEmployeeTaskAction);
+  // Employee task controls are not rendered in every role-specific portal view.
+  // Bind only when the corresponding element exists so one missing task control
+  // cannot abort initialization of daily sales and other modules.
+  if ($('employeeTasksRefresh')) $('employeeTasksRefresh').onclick = loadEmployeeTasks;
+  if ($('employeeTaskForm')) $('employeeTaskForm').onsubmit = createEmployeeTask;
+  if ($('taskStatusFilter')) $('taskStatusFilter').addEventListener('change', loadEmployeeTasks);
+  if ($('employeeTaskRows')) $('employeeTaskRows').addEventListener('click', handleEmployeeTaskAction);
   $('userAccessRefresh').onclick = loadPortalUsers;
   $('branchTargetMonth').addEventListener('change', loadBranchTargetEditor);
   $('dailySalesRefresh').onclick = loadDailyBranchSales;
