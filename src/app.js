@@ -55,7 +55,7 @@ function renderPortalSearch(query='') {
 function renderPortalNotifications() {
   const list=$('portalNotificationsList'),badge=$('portalNotificationBadge');
   if(!list||!badge) return;
-  const isManagement=profile&&['admin','management'].includes(String(profile.role||'').toLowerCase());
+  const isManagement=profile&&profile.role!=='branch_staff';
   const alerts=isManagement?complianceRowsCache.filter(r=>r.status==='Missing'||r.status==='Needs review'):[];
   const taskAlerts=employeeTaskAlerts||[];
   const total=alerts.length+taskAlerts.length;
@@ -349,7 +349,7 @@ async function load(u) {
   document.querySelector('[data-quick-target="branchAnalyticsSection"]')?.classList.toggle('hidden',p.role==='branch_staff');
   renderPortalNotifications();
   if(canViewFinancial){ $('financialBranch').innerHTML='<option value="">Select branch</option>'+branches.map(b=>`<option value="${esc(b.id)}">${esc(b.network)} — ${esc(b.branch_name)}</option>`).join(''); $('financialPeriod').value=today.slice(0,7); $('financialAnalysisTo').value=today.slice(0,7); $('financialAnalysisFrom').value=`${today.slice(0,4)}-01`; await loadFinancialReports(); await loadFinancialManagementAnalysis(); }
-  show('complianceSection',['admin','management'].includes(String(p.role||'').toLowerCase()));
+  show('complianceSection',p.role!=='branch_staff');
   // User & Branch Access Management is visible only to the Super Admin.
   show('userAccessSection',p.role==='admin');
   show('branchTargetAdminSection',p.role==='admin');
@@ -1608,6 +1608,10 @@ function employeeMessage(id,text,ok=false) { const el=$(id); if(el){el.textConte
 async function loadEmployeeModule() {
   if(!profile || !db) return;
   show('employeeSection', true);
+  // The first sidebar visibility pass runs before employee data loads. Refresh
+  // it now that the employee section has been made visible, otherwise the
+  // Employee module link remains marked nav-hidden for Admin/Management.
+  refreshSidebarVisibility();
   show('employeeAdminPanel', canManageEmployees());
   show('employeeTargetPanel', canManageEmployees());
   $('employeeBranch').innerHTML = branches.map(b => '<option value="' + b.id + '">' + esc(b.branch_name) + '</option>').join('');
