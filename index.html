@@ -15,6 +15,7 @@
   <button type="button" class="nav-button" data-target="targetDashboardSection">🎯 Target vs actual</button>
   <button type="button" class="nav-button" data-target="managementExecutiveSection">📊 Executive dashboard</button>
   <button type="button" class="nav-button financial-nav hidden" data-target="financialIntelligenceSection">💹 Financial intelligence</button>
+  <button type="button" class="nav-button approval-nav hidden" data-target="managementApprovalSection">🛡️ Management approvals</button>
 </aside>
 <div class="app-content">
 <div id="portalCommandBar" class="portal-command-bar">
@@ -181,6 +182,16 @@
   <div class="exec-dashboard-grid"><article class="exec-panel"><h3>Daily group sales</h3><div id="execDashboardDaily" class="exec-daily-chart"></div></article><article class="exec-panel"><h3>Management highlights</h3><div id="execDashboardHighlights" class="exec-highlights"></div></article></div>
   <div class="exec-panel exec-branch-panel"><h3>Branch performance ranking</h3><div class="scroll"><table class="analytics-table exec-branch-table"><thead><tr><th>Rank</th><th>Branch</th><th>Network</th><th>Sales</th><th>Patients</th><th>Average bill</th><th>Monthly target</th><th>Achievement</th></tr></thead><tbody id="execDashboardBranches"><tr><td colspan="8">Loading management performance…</td></tr></tbody></table></div></div>
   <p id="execDashboardMsg" class="msg" aria-live="polite">Figures reflect records available to the signed-in account.</p>
+</section>
+<section class="card hidden" id="managementApprovalSection">
+  <div class="section-head"><div><p class="eyebrow">ADMIN · MANAGEMENT CONTROL</p><h2>Management Approval Centre</h2><p>Central queue for financial statements awaiting review, with links to existing daily report correction history.</p></div><button type="button" id="approvalCentreRefresh">↻ Refresh approvals</button></div>
+  <div class="stats" id="approvalCentreKpis"><article><span>Awaiting financial review</span><strong>—</strong></article><article><span>Approved statements</span><strong>—</strong></article><article><span>Rejected statements</span><strong>—</strong></article></div>
+  <div class="financial-subhead"><div><p class="eyebrow">ACTION REQUIRED</p><h3>Financial statements awaiting review</h3></div><button type="button" class="secondary" id="approvalOpenFinancial">Open Financial Intelligence</button></div>
+  <p id="approvalCentreMsg" class="msg" aria-live="polite">Loading approval queue…</p>
+  <div class="scroll"><table class="financial-table"><thead><tr><th>Period</th><th>Branch</th><th>Network</th><th>Operating income</th><th>Operating profit</th><th>Uploaded</th><th>Action</th></tr></thead><tbody id="approvalPendingRows"><tr><td colspan="7">Loading…</td></tr></tbody></table></div>
+  <div class="financial-subhead" style="margin-top:24px"><div><p class="eyebrow">DECISION REGISTER</p><h3>Approved / rejected financial statements</h3></div></div>
+  <div class="scroll"><table class="financial-table"><thead><tr><th>Period</th><th>Branch</th><th>Status</th><th>Reviewer user ID</th><th>Reviewed at</th></tr></thead><tbody id="approvalHistoryRows"><tr><td colspan="5">No decisions loaded.</td></tr></tbody></table></div>
+  <article class="financial-management-panel" style="margin-top:24px"><p class="eyebrow">DAILY REPORT AUDIT</p><h3>Daily sales correction history</h3><p>Daily report corrections currently use the existing edit-and-history workflow; they do not have a separate pending-approval status. Open the Daily Sales module to inspect before/after values and the recorded change history.</p><button type="button" class="secondary" id="approvalOpenCorrections">Open daily sales &amp; correction history</button></article>
 </section>
 <section class="card hidden financial-intelligence" id="financialIntelligenceSection">
   <div class="section-head"><div><p class="eyebrow">MANAGEMENT FINANCIAL CONTROL</p><h2>Financial Intelligence</h2><p>Upload Zoho Books Profit &amp; Loss statements, review account mappings and approve branch financial results.</p></div><span class="financial-access-pill">ADMIN · MANAGEMENT</span></div>
