@@ -17,10 +17,29 @@ function handleSalesReview(event) {
     console.error('Daily sales review error:', error);
   }
 }
-// The module is loaded at the end of index.html, so bind directly to the real button.
-// Keep form-submit handling as a separate keyboard/Enter fallback.
-$('reviewSalesSubmit')?.addEventListener('click', handleSalesReview);
+// Capture the review click before other handlers can swallow it.
+// This also survives later UI re-renders of the sales-entry form.
+document.addEventListener('click', event => {
+  const target = event.target instanceof Element ? event.target.closest('#reviewSalesSubmit') : null;
+  if (!target) return;
+  event.preventDefault();
+  event.stopPropagation();
+  handleSalesReview(event);
+}, true);
+
+// Keep keyboard/Enter submission routed through the same review step.
 $('salesForm')?.addEventListener('submit', handleSalesReview);
+
+// Keep the confirmation modal attached to body so parent containers cannot
+// clip it or interfere with its visibility.
+const salesModalElement = $('salesConfirmModal');
+if (salesModalElement && salesModalElement.parentElement !== document.body) {
+  document.body.appendChild(salesModalElement);
+}
+if (salesModalElement) {
+  salesModalElement.classList.add('hidden');
+  salesModalElement.setAttribute('aria-hidden', 'true');
+}
 
 const names = ["Complete HC 599","My Health 999","Cardiac HC","EHC 2500","EHC Advanced 3500","Healthy Women 699","Healthy Men","EHC PRO 8499","Hairfall","Vitamin Profile","PCOD Mini","Onam Camp","Other Packages"];
 let db, user, profile, branches = [], reports = [], targets = [];
