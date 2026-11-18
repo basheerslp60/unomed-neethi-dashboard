@@ -2,24 +2,23 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "./config.js";
 
 const $ = id => document.getElementById(id);
-// Attach the review action immediately. The module is loaded at the end of
-// index.html, so the button already exists and does not depend on auth/init.
-const reviewSalesButton = $('reviewSalesSubmit');
-if (reviewSalesButton) {
-  reviewSalesButton.addEventListener('click', event => {
-    event.preventDefault();
-    try {
-      openSalesConfirmation(event);
-    } catch (error) {
-      const status = $('salesMsg');
-      if (status) {
-        status.textContent = error?.message || 'Could not open the report review. Please refresh and try again.';
-        status.style.color = '#a21d37';
-      }
-      console.error('Daily sales review error:', error);
+// Bind the review workflow immediately, independently of authentication setup.
+// The button is type=button; Enter-key submission is handled by the form listener.
+function handleSalesReview(event) {
+  event?.preventDefault?.();
+  try {
+    openSalesConfirmation(event);
+  } catch (error) {
+    const status = $('salesMsg');
+    if (status) {
+      status.textContent = error?.message || 'Could not open the report review. Please refresh and try again.';
+      status.style.color = '#a21d37';
     }
-  });
+    console.error('Daily sales review error:', error);
+  }
 }
+$('reviewSalesSubmit')?.addEventListener('click', handleSalesReview);
+$('salesForm')?.addEventListener('submit', handleSalesReview);
 
 const names = ["Complete HC 599","My Health 999","Cardiac HC","EHC 2500","EHC Advanced 3500","Healthy Women 699","Healthy Men","EHC PRO 8499","Hairfall","Vitamin Profile","PCOD Mini","Onam Camp","Other Packages"];
 let db, user, profile, branches = [], reports = [], targets = [];
@@ -189,7 +188,7 @@ if (!ready) {
   $('forgot').onclick = async () => { const email=$('email').value.trim(); if(!email){msg('loginMsg','Enter your email first.');return;} const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname}); msg('loginMsg',error?error.message:'If the account exists, password reset instructions will be sent.'); };
   $('logout').onclick = () => db.auth.signOut();
   $('refresh').onclick = () => { if (user) load(user); };
-  $('applyPerformanceMonth').onclick = async () => { if(user){ await loadReports(); { await loadBranchAnalytics(); if(profile.role!=='branch_staff'){ await loadTargetDashboard(); await loadManagementExecutiveDashboard(); } } } };
+  $('applyPerformanceMonth').onclick = async () => { if(user){ await loadReports(); if(profile.role!=='branch_staff'){ await loadBranchAnalytics(); await loadTargetDashboard(); await loadManagementExecutiveDashboard(); } } };
   $('performanceMonth').addEventListener('change', () => { if(user) $('applyPerformanceMonth').click(); });
   $('overviewRefresh').onclick = () => { if (user) loadReports(); };
   $('overviewDashboard').addEventListener('click', event => {
@@ -216,8 +215,7 @@ if (!ready) {
   $('financialApprove').onclick = approveFinancialReport;
   $('financialReportRows').addEventListener('click', event => { const b=event.target.closest('[data-financial-review]'); if(b) openFinancialReview(b.dataset.financialReview); });
   $('financialLineRows').addEventListener('change', event => { const el=event.target; if(el.matches('[data-financial-category],[data-financial-behaviour],[data-financial-variable-share]')) updateFinancialLinePreview(); });
-  // Keep Enter-key submission working through the same review step.
-  $('salesForm').addEventListener('submit', openSalesConfirmation);
+  // Review button and Enter-key handlers are attached before auth initialization.
   $('salesConfirmModal').setAttribute('aria-hidden','true');
   $('closeSalesConfirm').onclick = closeSalesConfirmation;
   $('editSalesReport').onclick = closeSalesConfirmation;
@@ -341,23 +339,14 @@ async function load(u) {
   if(p.role==='branch_staff') $('correctionBranch').innerHTML='';
   else $('correctionBranch').innerHTML='<option value=>All permitted branches</option>'+branches.map(b=>`<option value="${esc(b.id)}">${esc(b.network)} - ${esc(b.branch_name)}</option>`).join('');
   show('managementReportSection',p.role!=='branch_staff');
-  show('branchAnalyticsSection',true);
-  if(p.role==='branch_staff' && $('analyticsPeriod')) $('analyticsPeriod').value='monthly';
-  if(p.role==='branch_staff') {
-    const analyticsHeading=$('branchAnalyticsSection')?.querySelector('.section-head h2');
-    const analyticsDescription=$('branchAnalyticsSection')?.querySelector('.section-head p:not(.eyebrow)');
-    if(analyticsHeading) analyticsHeading.textContent='Your branch month-to-month analytics';
-    if(analyticsDescription) analyticsDescription.textContent='Compare your branch’s sales and patient performance with the same period in the previous month.';
-  }
+  show('branchAnalyticsSection',p.role!=='branch_staff');
   show('targetDashboardSection',p.role!=='branch_staff');
   show('managementExecutiveSection',p.role!=='branch_staff');
   const canViewFinancial = ['admin','management'].includes(String(p.role||'').toLowerCase());
   show('financialIntelligenceSection',canViewFinancial);
   document.querySelector('.financial-nav')?.classList.toggle('hidden',!canViewFinancial);
   document.querySelector('.quick-financial')?.classList.toggle('hidden',!canViewFinancial);
-  document.querySelector('[data-quick-target="branchAnalyticsSection"]')?.classList.remove('hidden');
-  document.querySelector('[data-target="branchAnalyticsSection"]')?.classList.remove('hidden');
-  $('analyticsNetwork')?.closest('div')?.classList.toggle('hidden',p.role==='branch_staff');
+  document.querySelector('[data-quick-target="branchAnalyticsSection"]')?.classList.toggle('hidden',p.role==='branch_staff');
   renderPortalNotifications();
   if(canViewFinancial){ $('financialBranch').innerHTML='<option value="">Select branch</option>'+branches.map(b=>`<option value="${esc(b.id)}">${esc(b.network)} — ${esc(b.branch_name)}</option>`).join(''); $('financialPeriod').value=today.slice(0,7); $('financialAnalysisTo').value=today.slice(0,7); $('financialAnalysisFrom').value=`${today.slice(0,4)}-01`; await loadFinancialReports(); await loadFinancialManagementAnalysis(); }
   show('complianceSection',p.role!=='branch_staff');
@@ -373,8 +362,7 @@ async function load(u) {
   refreshSidebarVisibility();
   if (p.role === 'admin') await loadPortalUsers();
   await loadEmployeeModule();
-  await loadBranchAnalytics();
-  if (p.role !== 'branch_staff') { await loadTargetDashboard(); await loadManagementExecutiveDashboard(); }
+  if (p.role !== 'branch_staff') { await loadBranchAnalytics(); await loadTargetDashboard(); await loadManagementExecutiveDashboard(); }
 }
 
 
@@ -550,8 +538,10 @@ async function loadReports() {
 }).join('');
   $('reportMsg').textContent=profile.role==='branch_staff'?'Only permitted reports are displayed.':'Showing up to 100 recent reports from the latest 500 loaded rows. MTD summary uses paginated current-month records.';
   await renderTargets(monthReports);
+  if(profile.role==='branch_staff') await loadStaffMonthComparison();
   overviewReports = monthReports || [];
   renderOverview();
+  await loadTop5BranchLeaderboard();
   refreshSidebarVisibility();
   await renderCompliance(reports);
   renderDailyTrend(monthReports);
@@ -600,7 +590,7 @@ async function fetchAnalyticsReports(start,end) {
   return all;
 }
 async function loadBranchAnalytics() {
-  if(!profile || !db) return;
+  if(!profile || profile.role==='branch_staff' || !db) return;
   const rows=$('analyticsRows');
   rows.innerHTML='<tr><td colspan="8">Loading branch comparison…</td></tr>';
   $('analyticsMsg').textContent='Loading report records permitted for this account…';
@@ -620,10 +610,9 @@ async function loadBranchAnalytics() {
 }
 function renderBranchAnalytics() {
   const data=window.__branchAnalyticsData;
-  if(!data || !profile) return;
-  const staff=profile.role==='branch_staff';
-  const network=staff?'ALL':$('analyticsNetwork').value;
-  const visible=branches.filter(b=>(staff?String(b.id)===String(profile.branch_id):true) && (network==='ALL' || String(b.network).toUpperCase()===network));
+  if(!data || !profile || profile.role==='branch_staff') return;
+  const network=$('analyticsNetwork').value;
+  const visible=branches.filter(b=>network==='ALL' || String(b.network).toUpperCase()===network);
   const sumFor=(rows,branchId)=>rows.filter(r=>String(r.branch_id)===String(branchId)).reduce((a,r)=>({sales:a.sales+Number(r.total_sales||0),patients:a.patients+Number(r.patient_count||0)}),{sales:0,patients:0});
   const results=visible.map(b=>{
     const c=sumFor(data.current,b.id), p=sumFor(data.previous,b.id);
@@ -643,10 +632,10 @@ function renderBranchAnalytics() {
   $('analyticsKpis').innerHTML=
     `<div class="stat-card"><span>Total sales</span><strong>${money(totals.sales)}</strong><small>${growthText(salesGrowth)} vs previous period</small></div>`+
     `<div class="stat-card"><span>Total patients</span><strong>${totals.patients.toLocaleString('en-IN')}</strong><small>${growthText(patientGrowth)} vs previous period</small></div>`+
-    `<div class="stat-card"><span>${staff?'Your branch average bill':'Network average bill'}</span><strong>${money(totals.patients?totals.sales/totals.patients:0)}</strong><small>Sales divided by patients</small></div>`+
-    `<div class="stat-card"><span>${staff?'Your branch':'Top sales branch'}</span><strong>${topSales?esc(topSales.branch.branch_name):'—'}</strong><small>${topSales?money(topSales.current.sales):'No sales recorded'}</small></div>`+
-    `<div class="stat-card"><span>${staff?'Your patients':'Top patient volume'}</span><strong>${topPatients?esc(topPatients.branch.branch_name):'—'}</strong><small>${topPatients?topPatients.current.patients.toLocaleString('en-IN')+' patients':'No patients recorded'}</small></div>`+
-    `<div class="stat-card"><span>${staff?'Your sales growth':'Best sales growth'}</span><strong>${bestGrowth?esc(bestGrowth.branch.branch_name):'—'}</strong><small>${bestGrowth?growthText(bestGrowth.salesChange):'No prior-period base'}</small></div>`;
+    `<div class="stat-card"><span>Network average bill</span><strong>${money(totals.patients?totals.sales/totals.patients:0)}</strong><small>Sales divided by patients</small></div>`+
+    `<div class="stat-card"><span>Top sales branch</span><strong>${topSales?esc(topSales.branch.branch_name):'—'}</strong><small>${topSales?money(topSales.current.sales):'No sales recorded'}</small></div>`+
+    `<div class="stat-card"><span>Top patient volume</span><strong>${topPatients?esc(topPatients.branch.branch_name):'—'}</strong><small>${topPatients?topPatients.current.patients.toLocaleString('en-IN')+' patients':'No patients recorded'}</small></div>`+
+    `<div class="stat-card"><span>Best sales growth</span><strong>${bestGrowth?esc(bestGrowth.branch.branch_name):'—'}</strong><small>${bestGrowth?growthText(bestGrowth.salesChange):'No prior-period base'}</small></div>`;
   // Premium branch comparison visual (created dynamically to avoid changing the login/index shell).
   let visual=$('analyticsVisual');
   if(!visual) {
@@ -656,7 +645,7 @@ function renderBranchAnalytics() {
     $('analyticsKpis').insertAdjacentElement('afterend',visual);
   }
   const chartMax=Math.max(1,...results.map(r=>r.current.sales));
-  visual.innerHTML=`<div class="analytics-visual-head"><div><span class="analytics-visual-kicker">LIVE PERFORMANCE SNAPSHOT</span><h3>${staff?'Your branch sales trend':'Branch sales comparison'}</h3><p>${staff?'Your branch · current period vs previous period':'Current period sales by branch · ranked highest to lowest'}</p></div><div class="analytics-visual-total"><small>${staff?'Your branch sales':'Network sales'}</small><strong>${money(totals.sales)}</strong></div></div><div class="analytics-bars">${results.map((r,i)=>{const pct=Math.max(r.current.sales?3:0,(r.current.sales/chartMax)*100);return `<div class="analytics-bar-row"><div class="analytics-bar-label"><span class="analytics-rank">${String(i+1).padStart(2,'0')}</span><strong>${esc(r.branch.branch_name)}</strong><small>${esc(r.branch.network)}</small></div><div class="analytics-bar-rail"><div class="analytics-bar-fill ${String(r.branch.network).toUpperCase()==='NEETHI'?'neethi':''}" style="width:${pct}%"></div></div><div class="analytics-bar-amount">${money(r.current.sales)}</div></div>`}).join('')}</div>`;
+  visual.innerHTML=`<div class="analytics-visual-head"><div><span class="analytics-visual-kicker">LIVE PERFORMANCE SNAPSHOT</span><h3>Branch sales comparison</h3><p>Current period sales by branch · ranked highest to lowest</p></div><div class="analytics-visual-total"><small>Network sales</small><strong>${money(totals.sales)}</strong></div></div><div class="analytics-bars">${results.map((r,i)=>{const pct=Math.max(r.current.sales?3:0,(r.current.sales/chartMax)*100);return `<div class="analytics-bar-row"><div class="analytics-bar-label"><span class="analytics-rank">${String(i+1).padStart(2,'0')}</span><strong>${esc(r.branch.branch_name)}</strong><small>${esc(r.branch.network)}</small></div><div class="analytics-bar-rail"><div class="analytics-bar-fill ${String(r.branch.network).toUpperCase()==='NEETHI'?'neethi':''}" style="width:${pct}%"></div></div><div class="analytics-bar-amount">${money(r.current.sales)}</div></div>`}).join('')}</div>`;
   // Additional management charts: patient volume, average bill and network split.
   let charts=$('analyticsExtraCharts');
   if(!charts) {
@@ -668,7 +657,7 @@ function renderBranchAnalytics() {
   }
   const chartCard=(title,subtitle,items,valueFn,formatFn,accent='')=>{
     const max=Math.max(1,...items.map(valueFn));
-    return `<article class="analytics-mini-chart ${accent}"><div class="analytics-mini-head"><div><span class="analytics-visual-kicker">BRANCH COMPARISON</span><h3>${title}</h3><p>${subtitle}</p></div></div><div class="analytics-mini-list">${items.map((r,i)=>{const value=valueFn(r);const width=value>0?Math.max(3,value/max*100):0;return `<button type="button" class="analytics-mini-row analytics-mini-click" ${staff?"disabled":""} data-analytics-branch="${esc(String(r.branch.id))}" aria-label="Open ${esc(r.branch.branch_name)} daily details"><span class="analytics-mini-label"><span>${esc(r.branch.branch_name)}</span><strong>${formatFn(value)}</strong></span><span class="analytics-mini-track"><span class="analytics-mini-fill ${String(r.branch.network).toUpperCase()==='NEETHI'?'neethi':''}" style="width:${width}%"></span></span></button>`}).join('')}</div></article>`;
+    return `<article class="analytics-mini-chart ${accent}"><div class="analytics-mini-head"><div><span class="analytics-visual-kicker">BRANCH COMPARISON</span><h3>${title}</h3><p>${subtitle}</p></div></div><div class="analytics-mini-list">${items.map((r,i)=>{const value=valueFn(r);const width=value>0?Math.max(3,value/max*100):0;return `<button type="button" class="analytics-mini-row analytics-mini-click" data-analytics-branch="${esc(String(r.branch.id))}" aria-label="Open ${esc(r.branch.branch_name)} daily details"><span class="analytics-mini-label"><span>${esc(r.branch.branch_name)}</span><strong>${formatFn(value)}</strong></span><span class="analytics-mini-track"><span class="analytics-mini-fill ${String(r.branch.network).toUpperCase()==='NEETHI'?'neethi':''}" style="width:${width}%"></span></span></button>`}).join('')}</div></article>`;
   };
   const byPatients=[...results].sort((a,b)=>b.current.patients-a.current.patients);
   const byAverage=[...results].sort((a,b)=>b.avg-a.avg);
@@ -680,9 +669,9 @@ function renderBranchAnalytics() {
   });
   const networkMax=Math.max(1,...networkTotals.map(n=>n.sales));
   charts.innerHTML=`<div class="analytics-extra-heading"><div><span class="analytics-visual-kicker">MANAGEMENT INSIGHTS</span><h3>Patient volume & average bill analysis</h3><p>These charts follow the selected comparison period and network filter.</p></div></div><div class="analytics-extra-grid">${chartCard('Patient volume by branch','Patients served · highest to lowest',byPatients,r=>r.current.patients,v=>v.toLocaleString('en-IN'))}${chartCard('Average bill by branch','Sales divided by patients',byAverage,r=>r.avg,v=>money(v),'average')}</div><article class="analytics-network-chart"><div><span class="analytics-visual-kicker">NETWORK COMPARISON</span><h3>UNOMED vs NEETHI</h3><p>Sales contribution and patient volume for the selected period</p></div><div class="analytics-network-grid">${networkTotals.map(n=>`<div class="analytics-network-item"><div class="analytics-network-title"><strong>${n.name}</strong><b>${money(n.sales)}</b></div><div class="analytics-mini-track"><div class="analytics-mini-fill ${n.name==='NEETHI'?'neethi':''}" style="width:${n.sales/networkMax*100}%"></div></div><small>${n.patients.toLocaleString('en-IN')} patients · Avg bill ${money(n.average)}</small></div>`).join('')}</div></article>`;
-  $('analyticsRows').innerHTML=results.map((r,i)=>`<tr><td>${i+1}</td><td><button type="button" class="analytics-branch-link" ${staff?"disabled":""} data-analytics-branch="${esc(String(r.branch.id))}" aria-label="View ${esc(r.branch.branch_name)} daily details">${esc(r.branch.branch_name)} <span>↗</span></button></td><td>${esc(r.branch.network)}</td><td>${money(r.current.sales)}</td><td class="${r.salesChange===null?'':r.salesChange>=0?'analytics-positive':'analytics-negative'}">${growthText(r.salesChange)}</td><td>${r.current.patients.toLocaleString('en-IN')}</td><td class="${r.patientChange===null?'':r.patientChange>=0?'analytics-positive':'analytics-negative'}">${growthText(r.patientChange)}</td><td>${money(r.avg)}</td></tr>`).join('') || '<tr><td colspan="8">No active branches found.</td></tr>';
+  $('analyticsRows').innerHTML=results.map((r,i)=>`<tr><td>${i+1}</td><td><button type="button" class="analytics-branch-link" data-analytics-branch="${esc(String(r.branch.id))}" aria-label="View ${esc(r.branch.branch_name)} daily details">${esc(r.branch.branch_name)} <span>↗</span></button></td><td>${esc(r.branch.network)}</td><td>${money(r.current.sales)}</td><td class="${r.salesChange===null?'':r.salesChange>=0?'analytics-positive':'analytics-negative'}">${growthText(r.salesChange)}</td><td>${r.current.patients.toLocaleString('en-IN')}</td><td class="${r.patientChange===null?'':r.patientChange>=0?'analytics-positive':'analytics-negative'}">${growthText(r.patientChange)}</td><td>${money(r.avg)}</td></tr>`).join('') || '<tr><td colspan="8">No active branches found.</td></tr>';
   $('analyticsDrilldown').classList.add('hidden');
-  $('analyticsMsg').textContent=`${staff?'Your branch only · ':`${results.length} branches · `}${data.current.length} current-period reports and ${data.previous.length} previous-period reports visible to this account.${staff?' Other branches’ data is not displayed.':' Select a branch name to open its day-wise sales and patient details.'} A “New” change means the previous period had zero sales or patients.`;
+  $('analyticsMsg').textContent=`${results.length} branches · ${data.current.length} current-period reports and ${data.previous.length} previous-period reports visible to this account. Select a branch name to open its day-wise sales and patient details. A “New” change means the previous period had zero sales or patients.`;
 }
 function renderBranchDrilldown(branchId) {
   const data=window.__branchAnalyticsData;
@@ -1143,30 +1132,15 @@ async function renderTargets(monthReports) {
     $('branchMtdSales').textContent=money(sales);
     $('branchBalanceTarget').textContent=own?money(balance):'—';
     $('branchRequiredDaily').textContent=own?money(required):'—';
-    // Privacy-preserving group rank: the RPC returns only this branch's rank and gap to the next position.
+    // The Top 5 leaderboard RPC exposes only branch, network and achievement.
+    // Current branch rank is derived from that limited result; no other sales data is exposed.
     const rankValueEl = $('branchRankValue');
     const rankGapEl = $('branchRankGap');
+    const top5Rows = window.__top5BranchRows || [];
+    const ownRank = top5Rows.find(r => r.is_current_branch === true || String(r.branch_id) === String(profile.branch_id));
     if (rankValueEl && rankGapEl) {
-      rankValueEl.textContent = '—';
-      rankGapEl.textContent = 'Loading group position…';
-      try {
-        const { data: rankData, error: rankError } = await db.rpc('get_my_group_branch_rank', { p_as_of_date: today });
-        if (rankError) throw rankError;
-        const rankRow = Array.isArray(rankData) ? rankData[0] : rankData;
-        const rankNo = Number(rankRow?.rank_no || 0);
-        if (rankNo > 0) {
-          rankValueEl.textContent = rankNo === 1 ? '🥇 1' : rankNo === 2 ? '🥈 2' : rankNo === 3 ? '🥉 3' : String(rankNo);
-          const gap = Number(rankRow?.gap_to_next_pct || 0);
-          rankGapEl.textContent = rankNo === 1 ? 'You’re at the top! Maintain your lead.' : `+${gap.toFixed(1)} percentage points to next rank`;
-        } else {
-          rankValueEl.textContent = '—';
-          rankGapEl.textContent = 'Rank unavailable';
-        }
-      } catch (rankErr) {
-        console.warn('Branch rank unavailable:', rankErr);
-        rankValueEl.textContent = '—';
-        rankGapEl.textContent = 'Rank will appear after setup';
-      }
+      rankValueEl.textContent = ownRank ? String(ownRank.rank_no) : 'Outside top 5';
+      rankGapEl.textContent = ownRank ? 'Your branch is in the group Top 5.' : 'Keep improving to enter the group Top 5.';
     }
     $('branchTodaySales').textContent=money(todaySales);
     const patientsEl = $('branchPatients');
@@ -1262,7 +1236,6 @@ if (trend) {
     `;
 }
 
- 
     return;
   }
   targets=targetData||[];
@@ -1404,16 +1377,74 @@ function renderOverview() {
   const pace=totalTarget?achievement:0;const best=branchRows[0];const weakest=[...branchRows].filter(r=>r.target>0).sort((a,b)=>a.achievement-b.achievement)[0];
   $('overviewInsight').innerHTML=staff?`<strong>${pace>=100?'🏆 Target achieved':pace>=85?'👍 Good progress':'⚡ Keep building momentum'}</strong><br>${pace>=100?'Your branch has achieved its monthly target.':`You have achieved ${fmtPct(pace)} of your monthly target. Focus on consistent daily sales and patient follow-up.`}`:`<strong>${best?'🏆 Leading branch: '+esc(best.branch_name):'📊 Branch insights'}</strong><br>${weakest?`Needs attention: ${esc(weakest.branch_name)} at ${fmtPct(weakest.achievement)} achievement.`:'Set branch targets to unlock pace insights.'}`;
   show('overviewBranchPanel',!staff);
-  const filtered=branchRows
-    .filter(r=>overviewNetwork==='ALL'||String(r.network).toUpperCase()===overviewNetwork)
-    .filter(r=>r.target>0)
-    .sort((a,b)=>b.achievement-a.achievement)
-    .slice(0,5);
-  $('overviewBranchRows').innerHTML=filtered.map((r,i)=>`<div class="overview-branch-row"><span class="overview-rank">${i+1}</span><div class="overview-branch-name"><strong>${esc(r.branch_name)}</strong><small>${esc(r.network)}</small></div><div class="overview-branch-progress"><div><i style="width:${Math.min(100,r.achievement)}%"></i></div><small>${fmtPct(r.achievement)} achieved</small></div><strong class="overview-branch-sales">${fmtPct(r.achievement)}</strong></div>`).join('')||'<p>No branch results with an assigned target.</p>';
+  const filtered=branchRows.filter(r=>overviewNetwork==='ALL'||String(r.network).toUpperCase()===overviewNetwork);
+  $('overviewBranchRows').innerHTML=filtered.map((r,i)=>`<div class="overview-branch-row"><span class="overview-rank">${i+1}</span><div class="overview-branch-name"><strong>${esc(r.branch_name)}</strong><small>${esc(r.network)} · ${r.patients.toLocaleString('en-IN')} patients</small></div><div class="overview-branch-progress"><div><i style="width:${Math.min(100,r.achievement)}%"></i></div><small>${fmtPct(r.achievement)} of ${money(r.target)}</small></div><strong class="overview-branch-sales">${money(r.sales)}</strong></div>`).join('')||'<p>No branch results for this filter.</p>';
   const reportToday=(overviewReports||[]).filter(r=>r.report_date===today);const reported=new Set(reportToday.map(r=>String(r.branch_id)));const compliant=visibleBranches.filter(b=>reported.has(String(b.id))).length;
   $('overviewCompliance').innerHTML=`<div class="overview-compliance-count"><strong>${compliant}/${visibleBranches.length}</strong><span>branches submitted today</span></div><div class="overview-progress"><i style="width:${visibleBranches.length?compliant/visibleBranches.length*100:0}%"></i></div><small>${visibleBranches.length-compliant} branch(es) without a visible report today</small>`;
   const recent=(reports||[]).filter(r=>staff?String(r.branch_id)===String(profile.branch_id):true).slice(0,5);
   $('overviewRecent').innerHTML=recent.map(r=>{const b=branchMap.get(String(r.branch_id));return `<div class="overview-recent-row"><span><strong>${esc(b?.branch_name||'Branch')}</strong><small>${esc(r.report_date)}</small></span><b>${money(r.total_sales)}</b></div>`;}).join('')||'<p>No recent reports available.</p>';
+}
+
+async function loadTop5BranchLeaderboard() {
+  const host=$('top5BranchRows'), note=$('top5BranchMsg');
+  if(!host || !db || !profile) return;
+  host.innerHTML='<p class="overview-empty">Loading branch leaderboard…</p>';
+  if($('top5PeriodLabel')) $('top5PeriodLabel').textContent=`As of ${today}`;
+  try {
+    const {data,error}=await db.rpc('get_top_group_branches',{p_as_of_date:today});
+    if(error) throw error;
+    const rows=Array.isArray(data)?data:[];
+    window.__top5BranchRows=rows;
+    host.innerHTML=rows.length?rows.slice(0,5).map((r,i)=>`<div class="overview-top5-row"><span class="overview-top5-rank">${Number(r.rank_no||i+1)}</span><div class="overview-top5-branch"><strong>${esc(r.branch_name||'Branch')}</strong><small>${esc(r.network||'')}</small></div><strong class="overview-top5-achievement">${Number(r.achievement_pct||0).toFixed(1)}%</strong></div>`).join(''):'<p class="overview-empty">No monthly branch targets are configured for this month.</p>';
+    if(note) note.textContent='Only rank, branch, network and target achievement are shown.';
+    const rankValueEl=$('branchRankValue'), rankGapEl=$('branchRankGap');
+    if(profile.role==='branch_staff' && rankValueEl && rankGapEl){
+      const own=rows.find(r=>r.is_current_branch===true);
+      rankValueEl.textContent=own?String(own.rank_no):'Outside top 5';
+      rankGapEl.textContent=own?'Your branch is in the group Top 5.':'Keep improving to enter the group Top 5.';
+    }
+  } catch(err) {
+    window.__top5BranchRows=[];
+    host.innerHTML='<p class="overview-empty">Leaderboard setup is incomplete.</p>';
+    if(note) note.textContent=`${err.message||'Could not load the Top 5 leaderboard.'} Run the supplied Supabase SQL setup file, then refresh.`;
+    console.warn('Top 5 branch leaderboard unavailable:',err);
+  }
+}
+
+async function loadStaffMonthComparison() {
+  const host=$('staffMonthComparisonCards'), note=$('staffMonthComparisonMsg');
+  if(!host || !db || profile?.role!=='branch_staff' || !profile.branch_id) return;
+  const [year,month,day]=today.split('-').map(Number);
+  const currentStart=`${year}-${String(month).padStart(2,'0')}-01`;
+  const prevMonthDate=new Date(year,month-2,1);
+  const prevStart=`${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth()+1).padStart(2,'0')}-01`;
+  const prevLast=new Date(prevMonthDate.getFullYear(),prevMonthDate.getMonth()+1,0).getDate();
+  const compareDay=Math.min(day,prevLast);
+  const currentEnd=today;
+  const prevEnd=`${prevStart.slice(0,7)}-${String(compareDay).padStart(2,'0')}`;
+  host.innerHTML='<p class="chart-loading">Loading your branch comparison…</p>';
+  try {
+    const fetchPeriod=async(start,end)=>{
+      const {data,error}=await db.from('daily_reports').select('report_date,total_sales,patient_count')
+        .eq('branch_id',profile.branch_id).gte('report_date',start).lte('report_date',end);
+      if(error) throw error;
+      return data||[];
+    };
+    const [current,previous]=await Promise.all([fetchPeriod(currentStart,currentEnd),fetchPeriod(prevStart,prevEnd)]);
+    const sum=rows=>rows.reduce((a,r)=>({sales:a.sales+Number(r.total_sales||0),patients:a.patients+Number(r.patient_count||0),days:a.days+1}),{sales:0,patients:0,days:0});
+    const c=sum(current),p=sum(previous);
+    const change=(now,before)=>before>0?((now-before)/before)*100:null;
+    const salesChange=change(c.sales,p.sales),patientChange=change(c.patients,p.patients);
+    const averageChange=change(c.patients?c.sales/c.patients:0,p.patients?p.sales/p.patients:0);
+    const changeLabel=v=>v===null?'—':`${v>=0?'+':''}${v.toFixed(1)}%`;
+    const metric=(label,now,before,delta)=>`<article class="staff-month-comparison-card"><span>${label}</span><strong>${now}</strong><small>Previous: ${before}</small><b class="${delta!==null&&delta<0?'is-down':'is-up'}">${changeLabel(delta)}</b></article>`;
+    host.innerHTML=metric('Sales',money(c.sales),money(p.sales),salesChange)+metric('Patients',c.patients.toLocaleString('en-IN'),p.patients.toLocaleString('en-IN'),patientChange)+metric('Average bill',money(c.patients?c.sales/c.patients:0),money(p.patients?p.sales/p.patients:0),averageChange);
+    $('staffMonthComparisonPeriod').textContent=`${currentStart}–${currentEnd} compared with ${prevStart}–${prevEnd} · same elapsed day count`;
+    if(note) note.textContent='Figures are limited to your assigned branch. Percentage change compares this month with the same elapsed period last month.';
+  } catch(err) {
+    host.innerHTML='<p class="overview-empty">Could not load the monthly comparison.</p>';
+    if(note) note.textContent=`${err.message||'Monthly comparison query failed.'} Check daily_reports read access for your assigned branch.`;
+  }
 }
 
 function renderDailyTrend(monthReports) {
@@ -1554,8 +1585,8 @@ async function submit(e) {
   if(!editingReportId && profile.role!=='branch_staff') { msg('salesMsg','Only branch staff can submit new reports.'); return; }
   const branch=branches.find(b=>b.id===profile.branch_id);
   if(!editingReportId && !branch) { msg('salesMsg','No valid active branch assigned.'); return; }
-  const btn=$('salesForm').querySelector('button[type="submit"],button:not([type])');
-  btn.disabled=true; msg('salesMsg',editingReportId?'Saving corrections…':'Submitting…');
+  const btn=$('reviewSalesSubmit') || $('salesForm')?.querySelector('button[type="submit"],button:not([type])');
+  if(btn) btn.disabled=true; msg('salesMsg',editingReportId?'Saving corrections…':'Submitting…');
   try {
     const packages=names.map((name,i)=>({package_name:name,quantity:Number($('p'+i).value||0)})).filter(x=>x.quantity>0);
     if(editingReportId) {
@@ -1572,7 +1603,7 @@ async function submit(e) {
       msg('salesMsg','Report submitted.',true); $('salesForm').reset(); $('date').value=today; names.forEach((_,i)=>$('p'+i).value=0); renderSelectedPackages(); await loadReports(); await loadCorrectionReports();
     }
   } catch(err) { msg('salesMsg',err.message||'Submission failed'); }
-  finally { btn.disabled=false; }
+  finally { if(btn) btn.disabled=false; }
 }
 
 async function loadCorrectionReports() {
@@ -1602,7 +1633,7 @@ async function beginEditReport(id) {
   $('date').value=r.report_date||today; $('sales').value=Number(r.total_sales||0); $('patients').value=Number(r.patient_count||0); $('home').value=Number(r.home_collections||0); $('reviews').value=Number(r.google_reviews||0);
   names.forEach((name,i)=>{const row=(ps||[]).find(x=>x.package_name===name);$('p'+i).value=Number(row?.quantity||0);});
   renderSelectedPackages(); $('cancelCorrection').classList.remove('hidden');
-  const submitBtn=$('salesForm').querySelector('button[type="submit"],button:not([type])'); submitBtn.textContent='Save corrections';
+  const submitBtn=$('reviewSalesSubmit'); if(submitBtn) submitBtn.textContent='Review corrections';
   $('correctionMsg').textContent=`Editing report ${r.report_date}. Update the fields in Daily Sales Entry and save.`;
   $('salesMsg').textContent='Correction mode: changes will update this existing report.';
   $('entry').classList.remove('hidden'); $('entry').scrollIntoView({behavior:'smooth',block:'start'});
@@ -1612,7 +1643,7 @@ function cancelReportCorrection(clearMessage=true) {
   editingReportId=null;
   $('cancelCorrection').classList.add('hidden');
   $('salesForm').reset(); $('date').value=today; names.forEach((_,i)=>$('p'+i).value=0); renderSelectedPackages();
-  const submitBtn=$('salesForm').querySelector('button[type="submit"],button:not([type])'); submitBtn.textContent='Submit daily report';
+  const submitBtn=$('reviewSalesSubmit'); if(submitBtn) submitBtn.textContent='Review & submit report →';
   if(clearMessage) $('salesMsg').textContent='Correction cancelled.';
 }
 
