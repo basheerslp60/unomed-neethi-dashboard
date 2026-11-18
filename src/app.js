@@ -2,25 +2,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "./config.js";
 
 const $ = id => document.getElementById(id);
-// Reliable daily-sales review trigger: intercept the submit button click directly.
-// This keeps the existing form validation and confirmation dialog, while avoiding
-// cases where a later script or form handler prevents the submit event from firing.
-document.addEventListener('click', event => {
-  const submitButton = event.target.closest('#salesForm button[type="submit"], #salesForm .sales-submit-btn');
-  if (!submitButton) return;
-  event.preventDefault();
-  try {
-    openSalesConfirmation(event);
-  } catch (error) {
-    const message = error?.message || 'Could not open the report review. Please refresh and try again.';
-    const status = document.getElementById('salesMsg');
-    if (status) {
-      status.textContent = message;
-      status.style.color = '#a21d37';
-    }
-    console.error('Daily sales review error:', error);
-  }
-}, true);
 const names = ["Complete HC 599","My Health 999","Cardiac HC","EHC 2500","EHC Advanced 3500","Healthy Women 699","Healthy Men","EHC PRO 8499","Hairfall","Vitamin Profile","PCOD Mini","Onam Camp","Other Packages"];
 let db, user, profile, branches = [], reports = [], targets = [];
 let complianceRowsCache = [], complianceNetworkFilter = 'ALL', complianceChecked = false;
@@ -216,7 +197,8 @@ if (!ready) {
   $('financialApprove').onclick = approveFinancialReport;
   $('financialReportRows').addEventListener('click', event => { const b=event.target.closest('[data-financial-review]'); if(b) openFinancialReview(b.dataset.financialReview); });
   $('financialLineRows').addEventListener('change', event => { const el=event.target; if(el.matches('[data-financial-category],[data-financial-behaviour],[data-financial-variable-share]')) updateFinancialLinePreview(); });
-  $('salesForm').onsubmit = openSalesConfirmation;
+  $('salesForm').addEventListener('submit', openSalesConfirmation);
+  $('salesConfirmModal').setAttribute('aria-hidden','true');
   $('closeSalesConfirm').onclick = closeSalesConfirmation;
   $('editSalesReport').onclick = closeSalesConfirmation;
   $('confirmSalesSubmit').onclick = () => submitConfirmedSales();
@@ -1474,17 +1456,42 @@ function downloadManagementReport() {
 }
 
 function openSalesConfirmation(e) {
-  e.preventDefault();
-  const form=$('salesForm');
-  if(!form.reportValidity()) return;
-  const branch=branches.find(b=>b.id===profile?.branch_id);
-  const selected=names.map((name,i)=>({name,qty:Number($('p'+i).value||0)})).filter(x=>x.qty>0);
-  const rows=selected.length ? selected.map(x=>`<div class="confirm-package-row"><span>${esc(x.name)}</span><strong>${x.qty}</strong></div>`).join('') : '<p class="confirm-no-packages">No package sales entered</p>';
-  $('salesConfirmContent').innerHTML = `<div class="confirm-summary-grid"><div><span>Branch</span><strong>${esc(branch?.branch_name||'Assigned branch')}</strong></div><div><span>Report date</span><strong>${esc($('date').value)}</strong></div><div><span>Total sales</span><strong>${money($('sales').value)}</strong></div><div><span>Patients</span><strong>${Number($('patients').value||0)}</strong></div><div><span>Home collections</span><strong>${Number($('home').value||0)}</strong></div><div><span>Google reviews</span><strong>${Number($('reviews').value||0)}</strong></div></div><div class="confirm-package-list"><div class="confirm-package-heading"><strong>Package counts</strong><span>${selected.length} selected</span></div>${rows}</div>`;
-  $('salesConfirmModal').classList.remove('hidden');
-  $('confirmSalesSubmit').focus();
+  e?.preventDefault?.();
+  const form = $('salesForm');
+  const modal = $('salesConfirmModal');
+  const content = $('salesConfirmContent');
+  if (!form || !modal || !content) {
+    msg('salesMsg', 'Review window could not be loaded. Please refresh the page.');
+    return;
+  }
+  if (!form.reportValidity()) return;
+
+  const branch = branches.find(b => b.id === profile?.branch_id);
+  const selected = names.map((name, i) => ({
+    name,
+    qty: Number($('p' + i)?.value || 0)
+  })).filter(x => x.qty > 0);
+  const rows = selected.length
+    ? selected.map(x => `<div class="confirm-package-row"><span>${esc(x.name)}</span><strong>${x.qty}</strong></div>`).join('')
+    : '<p class="confirm-no-packages">No package sales entered</p>';
+
+  content.innerHTML = `<div class="confirm-summary-grid">
+    <div><span>Branch</span><strong>${esc(branch?.branch_name || 'Assigned branch')}</strong></div>
+    <div><span>Report date</span><strong>${esc($('date')?.value || '')}</strong></div>
+    <div><span>Total sales</span><strong>${money($('sales')?.value || 0)}</strong></div>
+    <div><span>Patients</span><strong>${Number($('patients')?.value || 0)}</strong></div>
+    <div><span>Home collections</span><strong>${Number($('home')?.value || 0)}</strong></div>
+    <div><span>Google reviews</span><strong>${Number($('reviews')?.value || 0)}</strong></div>
+  </div><div class="confirm-package-list">
+    <div class="confirm-package-heading"><strong>Package counts</strong><span>${selected.length} selected</span></div>${rows}
+  </div>`;
+
+  modal.classList.remove('hidden');
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('sales-confirm-open');
+  $('confirmSalesSubmit')?.focus();
 }
-function closeSalesConfirmation() { $('salesConfirmModal').classList.add('hidden'); }
+function closeSalesConfirmation() { const modal=$('salesConfirmModal'); if(modal){ modal.classList.add('hidden'); modal.setAttribute('aria-hidden','true'); } document.body.classList.remove('sales-confirm-open'); }
 async function submitConfirmedSales() {
   const btn=$('confirmSalesSubmit');
   if(btn.disabled) return;
