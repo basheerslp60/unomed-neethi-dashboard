@@ -2,24 +2,24 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "./config.js";
 
 const $ = id => document.getElementById(id);
-// Global capture-phase handler for the Sales Entry review action.
-// This runs even if a later initialization handler fails to attach.
-document.addEventListener('click', event => {
-  const target = event.target instanceof Element ? event.target : event.target?.parentElement;
-  const reviewButton = target?.closest('#salesForm button[type="submit"], #salesForm .sales-submit-btn');
-  if (!reviewButton) return;
-  event.preventDefault();
-  try {
-    openSalesConfirmation(event);
-  } catch (error) {
-    const status = $('salesMsg');
-    if (status) {
-      status.textContent = error?.message || 'Could not open the report review. Please refresh and try again.';
-      status.style.color = '#a21d37';
+// Attach the review action immediately. The module is loaded at the end of
+// index.html, so the button already exists and does not depend on auth/init.
+const reviewSalesButton = $('reviewSalesSubmit');
+if (reviewSalesButton) {
+  reviewSalesButton.addEventListener('click', event => {
+    event.preventDefault();
+    try {
+      openSalesConfirmation(event);
+    } catch (error) {
+      const status = $('salesMsg');
+      if (status) {
+        status.textContent = error?.message || 'Could not open the report review. Please refresh and try again.';
+        status.style.color = '#a21d37';
+      }
+      console.error('Daily sales review error:', error);
     }
-    console.error('Daily sales review error:', error);
-  }
-}, true);
+  });
+}
 
 const names = ["Complete HC 599","My Health 999","Cardiac HC","EHC 2500","EHC Advanced 3500","Healthy Women 699","Healthy Men","EHC PRO 8499","Hairfall","Vitamin Profile","PCOD Mini","Onam Camp","Other Packages"];
 let db, user, profile, branches = [], reports = [], targets = [];
