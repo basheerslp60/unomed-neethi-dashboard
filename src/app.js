@@ -1139,8 +1139,8 @@ async function renderTargets(monthReports) {
     const top5Rows = window.__top5BranchRows || [];
     const ownRank = top5Rows.find(r => r.is_current_branch === true || String(r.branch_id) === String(profile.branch_id));
     if (rankValueEl && rankGapEl) {
-      rankValueEl.textContent = ownRank ? String(ownRank.rank_no) : 'Outside top 5';
-      rankGapEl.textContent = ownRank ? 'Your branch is in the group Top 5.' : 'Keep improving to enter the group Top 5.';
+      rankValueEl.textContent = ownRank ? `#${ownRank.rank_no}` : 'Not ranked';
+      rankGapEl.textContent = ownRank ? (Number(ownRank.rank_no) === 1 ? 'You are the group leader.' : `Need +${Number(ownRank.gap_to_next_pct || 0).toFixed(1)} percentage points to reach #${Number(ownRank.rank_no) - 1}.`) : 'A monthly target is required to calculate your rank.';
     }
     $('branchTodaySales').textContent=money(todaySales);
     const patientsEl = $('branchPatients');
@@ -1395,13 +1395,13 @@ async function loadTop5BranchLeaderboard() {
     if(error) throw error;
     const rows=Array.isArray(data)?data:[];
     window.__top5BranchRows=rows;
-    host.innerHTML=rows.length?rows.slice(0,5).map((r,i)=>`<div class="overview-top5-row"><span class="overview-top5-rank">${Number(r.rank_no||i+1)}</span><div class="overview-top5-branch"><strong>${esc(r.branch_name||'Branch')}</strong><small>${esc(r.network||'')}</small></div><strong class="overview-top5-achievement">${Number(r.achievement_pct||0).toFixed(1)}%</strong></div>`).join(''):'<p class="overview-empty">No monthly branch targets are configured for this month.</p>';
+    host.innerHTML=rows.length?rows.filter(r=>Number(r.rank_no)<=5).map((r,i)=>`<div class="overview-top5-row"><span class="overview-top5-rank">${Number(r.rank_no||i+1)}</span><div class="overview-top5-branch"><strong>${esc(r.branch_name||'Branch')}</strong><small>${esc(r.network||'')}</small></div><strong class="overview-top5-achievement">${Number(r.achievement_pct||0).toFixed(1)}%</strong></div>`).join(''):'<p class="overview-empty">No monthly branch targets are configured for this month.</p>';
     if(note) note.textContent='Only rank, branch, network and target achievement are shown.';
     const rankValueEl=$('branchRankValue'), rankGapEl=$('branchRankGap');
     if(profile.role==='branch_staff' && rankValueEl && rankGapEl){
       const own=rows.find(r=>r.is_current_branch===true);
-      rankValueEl.textContent=own?String(own.rank_no):'Outside top 5';
-      rankGapEl.textContent=own?'Your branch is in the group Top 5.':'Keep improving to enter the group Top 5.';
+      rankValueEl.textContent=own?`#${own.rank_no}`:'Not ranked';
+      rankGapEl.textContent=own?(Number(own.rank_no)===1?'You are the group leader.':`Need +${Number(own.gap_to_next_pct||0).toFixed(1)} percentage points to reach #${Number(own.rank_no)-1}.`):'A monthly target is required to calculate your rank.';
     }
   } catch(err) {
     window.__top5BranchRows=[];
