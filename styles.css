@@ -1067,3 +1067,100 @@ html, body { min-height:100%; }
 .employee-tasks-panel{margin-top:18px;padding-top:4px}.employee-tasks-panel .section-head{align-items:center}.employee-tasks-panel .section-head h3{margin:2px 0 5px}.employee-tasks-panel .section-head p:not(.eyebrow){margin:0;color:#718198;font-size:12px}.employee-tasks-panel table td{vertical-align:middle}.employee-tasks-panel td select{min-width:112px;max-width:130px;margin:0 6px 5px 0}.employee-tasks-panel td button{min-height:30px;padding:6px 10px;font-size:11px}.employee-tasks-panel .pill{display:inline-block;padding:3px 7px;border-radius:12px;font-size:10px;font-weight:750}
 
 @media(max-width:700px){#branchDailyTargetSection .target-card-top{flex-wrap:wrap;gap:10px}#branchDailyTargetSection .target-required-copy{flex:1 1 100%}#branchDailyTargetSection .branch-rank-compact{flex:1 1 auto;align-items:flex-start;text-align:left;padding:4px 0}#branchDailyTargetSection .target-gauge{flex:0 0 96px;width:96px;height:96px}#branchDailyTargetSection .target-gauge svg{width:96px;height:96px}}
+
+
+/* Compact premium branch-rank tracker */
+#branchDailyTargetSection .rank-compact-premium{
+  flex:0 1 330px;
+  min-width:245px;
+  max-width:350px;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  justify-content:center;
+  gap:8px;
+  padding:10px 12px;
+  border:1px solid rgba(21,155,135,.16);
+  border-radius:14px;
+  background:linear-gradient(135deg,rgba(255,255,255,.96),rgba(239,249,246,.92));
+  box-shadow:0 5px 16px rgba(16,43,76,.055);
+  text-align:left;
+}
+#branchDailyTargetSection .rank-compact-heading,
+#branchDailyTargetSection .rank-compact-main{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+#branchDailyTargetSection .rank-live-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  padding:4px 7px;
+  border-radius:999px;
+  background:#e6f5f0;
+  color:#087f70;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.07em;
+}
+#branchDailyTargetSection .rank-live-pill i{
+  width:6px;height:6px;border-radius:50%;background:#159b87;
+  box-shadow:0 0 0 3px rgba(21,155,135,.12);
+}
+#branchDailyTargetSection .rank-compact-main{justify-content:flex-start}
+#branchDailyTargetSection .rank-number{
+  flex:0 0 62px;
+  width:62px;height:58px;
+  display:grid;place-items:center;
+  border-radius:12px;
+  background:linear-gradient(145deg,#e5f5ef,#d6eee6);
+  color:#078875;
+  font-size:30px!important;
+  font-weight:950;
+  line-height:1;
+  box-shadow:inset 0 0 0 1px rgba(21,155,135,.10);
+  transition:transform .2s ease,background .2s ease;
+}
+#branchDailyTargetSection .rank-compact-premium:hover .rank-number{
+  transform:translateY(-1px);
+  background:linear-gradient(145deg,#d9f1e8,#c9e9de);
+}
+#branchDailyTargetSection .rank-next-copy{
+  flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px;
+}
+#branchDailyTargetSection .rank-next-kicker{
+  color:#718096;font-size:9px;font-weight:900;letter-spacing:.07em;
+}
+#branchDailyTargetSection .rank-next-kicker b{color:#087f70;font-size:11px;margin-left:3px}
+#branchDailyTargetSection #branchRankNextBranch{
+  color:#102b4c;font-size:13px;font-weight:850;line-height:1.2;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+#branchDailyTargetSection .rank-compact-premium #branchRankGap{
+  display:block;max-width:none;margin:0;color:#087f70;font-size:10px;line-height:1.25;
+}
+#branchDailyTargetSection .rank-details-toggle{
+  flex:0 0 auto;border:1px solid #d5e6e2;border-radius:8px;
+  background:#fff;color:#176b61;padding:6px 8px;
+  font-size:10px;font-weight:800;cursor:pointer;
+  transition:background .18s ease,border-color .18s ease,transform .18s ease;
+}
+#branchDailyTargetSection .rank-details-toggle:hover{
+  background:#eaf7f2;border-color:#9bcfc1;transform:translateY(-1px);
+}
+#branchDailyTargetSection .rank-details-panel{
+  display:flex;flex-wrap:wrap;gap:5px 12px;
+  padding:7px 9px;border-radius:9px;
+  background:rgba(231,245,240,.8);
+  color:#55716c;font-size:10px;font-weight:650;
+}
+#branchDailyTargetSection .rank-details-panel[hidden]{display:none}
+@media(max-width:900px){
+  #branchDailyTargetSection .rank-compact-premium{flex:1 1 100%;max-width:none;min-width:0}
+}
+@media(prefers-reduced-motion:reduce){
+  #branchDailyTargetSection .rank-number,
+  #branchDailyTargetSection .rank-details-toggle{transition:none}
+}
