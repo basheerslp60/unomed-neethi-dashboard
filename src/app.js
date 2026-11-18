@@ -97,7 +97,7 @@ function setPortalView(targetId) {
     $('executiveSection')
   ].filter(Boolean);
   [...content.children].forEach(node => {
-    const alwaysVisible = node.id === 'portalCommandBar' || node.id === 'portalQuickLinks';
+    const alwaysVisible = node.id === 'portalCommandBar' || node.id === 'portalQuickLinks' || node.id === 'salesConfirmModal';
     const keep = alwaysVisible || (isOverview ? overviewElements.includes(node) : node.id === targetId);
     node.classList.toggle('portal-view-hidden', !keep);
   });
