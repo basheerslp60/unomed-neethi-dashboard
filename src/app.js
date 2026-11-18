@@ -17,14 +17,9 @@ function handleSalesReview(event) {
     console.error('Daily sales review error:', error);
   }
 }
-document.addEventListener('click', event => {
-  const target = event.target instanceof Element ? event.target : event.target?.parentElement;
-  const reviewButton = target?.closest('#reviewSalesSubmit, #salesForm .sales-submit-btn');
-  if (!reviewButton || reviewButton.id === 'confirmSalesSubmit') return;
-  event.preventDefault();
-  event.stopPropagation();
-  handleSalesReview(event);
-}, true);
+// The module is loaded at the end of index.html, so bind directly to the real button.
+// Keep form-submit handling as a separate keyboard/Enter fallback.
+$('reviewSalesSubmit')?.addEventListener('click', handleSalesReview);
 $('salesForm')?.addEventListener('submit', handleSalesReview);
 
 const names = ["Complete HC 599","My Health 999","Cardiac HC","EHC 2500","EHC Advanced 3500","Healthy Women 699","Healthy Men","EHC PRO 8499","Hairfall","Vitamin Profile","PCOD Mini","Onam Camp","Other Packages"];
@@ -337,6 +332,14 @@ async function load(u) {
   if(be) { msg('loginMsg',be.message); return; }
   branches=b||[];
   $('who').textContent=p.full_name+' · '+p.role;
+  // Load exact group rank immediately; do not make it depend on the rest of loadReports().
+  if (p.role === 'branch_staff') {
+    const rankValue = $('branchRankValue');
+    const rankGap = $('branchRankGap');
+    if (rankValue) rankValue.textContent = '…';
+    if (rankGap) rankGap.textContent = 'Checking group position…';
+    void loadTop5BranchLeaderboard();
+  }
   if (p.role === 'admin') {
   $('portalBranch').innerHTML = branches.map(b => '<option value="' + b.id + '">' + esc(b.network) + ' - ' + esc(b.branch_name) + '</option>').join('');
     updatePortalBranchVisibility();
@@ -548,7 +551,6 @@ async function loadReports() {
   if(profile.role==='branch_staff') await loadStaffMonthComparison();
   overviewReports = monthReports || [];
   renderOverview();
-  await loadTop5BranchLeaderboard();
   refreshSidebarVisibility();
   await renderCompliance(reports);
   renderDailyTrend(monthReports);
@@ -1402,9 +1404,14 @@ async function loadTop5BranchLeaderboard() {
     }
   } catch(err) {
     window.__top5BranchRows=[];
-    host.innerHTML='<p class="overview-empty">Leaderboard setup is incomplete.</p>';
-    if(note) note.textContent=`${err.message||'Could not load the Top 5 leaderboard.'} Run the supplied Supabase SQL setup file, then refresh.`;
-    console.warn('Top 5 branch leaderboard unavailable:',err);
+    host.innerHTML='<p class="overview-empty">Leaderboard unavailable. Check the database setup.</p>';
+    if(note) note.textContent=`Top 5 query failed: ${err.message||'Unknown Supabase error'}. Install the supplied migration and check its execution result.`;
+    const rankValueEl=$('branchRankValue'), rankGapEl=$('branchRankGap');
+    if(profile?.role==='branch_staff') {
+      if(rankValueEl) rankValueEl.textContent='Unavailable';
+      if(rankGapEl) rankGapEl.textContent=`Ranking query failed: ${err.message||'Check Supabase SQL setup.'}`;
+    }
+    console.error('Top 5 branch leaderboard unavailable:',err);
   }
 }
 
