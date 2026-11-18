@@ -2,25 +2,25 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "./config.js";
 
 const $ = id => document.getElementById(id);
-// Reliable daily-sales review trigger: intercept the submit button click directly.
-// This keeps the existing form validation and confirmation dialog, while avoiding
-// cases where a later script or form handler prevents the submit event from firing.
-document.addEventListener('click', event => {
-  const submitButton = event.target.closest('#salesForm button[type="submit"], #salesForm .sales-submit-btn');
-  if (!submitButton) return;
-  event.preventDefault();
-  try {
-    openSalesConfirmation(event);
-  } catch (error) {
-    const message = error?.message || 'Could not open the report review. Please refresh and try again.';
-    const status = document.getElementById('salesMsg');
-    if (status) {
-      status.textContent = message;
-      status.style.color = '#a21d37';
+// Attach the review action immediately. The module is loaded at the end of
+// index.html, so the button already exists and does not depend on auth/init.
+const reviewSalesButton = $('reviewSalesSubmit');
+if (reviewSalesButton) {
+  reviewSalesButton.addEventListener('click', event => {
+    event.preventDefault();
+    try {
+      openSalesConfirmation(event);
+    } catch (error) {
+      const status = $('salesMsg');
+      if (status) {
+        status.textContent = error?.message || 'Could not open the report review. Please refresh and try again.';
+        status.style.color = '#a21d37';
+      }
+      console.error('Daily sales review error:', error);
     }
-    console.error('Daily sales review error:', error);
-  }
-}, true);
+  });
+}
+
 const names = ["Complete HC 599","My Health 999","Cardiac HC","EHC 2500","EHC Advanced 3500","Healthy Women 699","Healthy Men","EHC PRO 8499","Hairfall","Vitamin Profile","PCOD Mini","Onam Camp","Other Packages"];
 let db, user, profile, branches = [], reports = [], targets = [];
 let complianceRowsCache = [], complianceNetworkFilter = 'ALL', complianceChecked = false;
@@ -97,7 +97,7 @@ function setPortalView(targetId) {
     $('executiveSection')
   ].filter(Boolean);
   [...content.children].forEach(node => {
-    const alwaysVisible = node.id === 'portalCommandBar' || node.id === 'portalQuickLinks' || node.id === 'salesConfirmModal';
+    const alwaysVisible = node.id === 'portalCommandBar' || node.id === 'portalQuickLinks';
     const keep = alwaysVisible || (isOverview ? overviewElements.includes(node) : node.id === targetId);
     node.classList.toggle('portal-view-hidden', !keep);
   });
@@ -216,7 +216,9 @@ if (!ready) {
   $('financialApprove').onclick = approveFinancialReport;
   $('financialReportRows').addEventListener('click', event => { const b=event.target.closest('[data-financial-review]'); if(b) openFinancialReview(b.dataset.financialReview); });
   $('financialLineRows').addEventListener('change', event => { const el=event.target; if(el.matches('[data-financial-category],[data-financial-behaviour],[data-financial-variable-share]')) updateFinancialLinePreview(); });
-  $('salesForm').onsubmit = openSalesConfirmation;
+  // Keep Enter-key submission working through the same review step.
+  $('salesForm').addEventListener('submit', openSalesConfirmation);
+  $('salesConfirmModal').setAttribute('aria-hidden','true');
   $('closeSalesConfirm').onclick = closeSalesConfirmation;
   $('editSalesReport').onclick = closeSalesConfirmation;
   $('confirmSalesSubmit').onclick = () => submitConfirmedSales();
@@ -1090,51 +1092,6 @@ async function saveBranchTargets() {
   finally { $('saveBranchTargets').disabled = false; }
 }
 
-async function loadStaffLeaderboard() {
-  const host=$('staffLeaderboardContent');
-  if(!host) return;
-  host.innerHTML='<p class="chart-loading">Loading combined branch ranking…</p>';
-  try {
-    const {data,error}=await db.rpc('get_group_top5_target_achievement',{p_as_of_date:today});
-    if(error) throw error;
-    const rows=Array.isArray(data)?data:[];
-    if(!rows.length){host.innerHTML='<p class="chart-loading">No branches with an active monthly target are available for ranking yet.</p>';return;}
-    host.innerHTML=`<ol class="staff-leaderboard-list">${rows.slice(0,5).map((r,i)=>{
-      const rank=Number(r.rank_no||i+1),pct=Math.max(0,Number(r.achievement_pct||0));
-      return `<li class="staff-leaderboard-row"><span class="staff-rank rank-${rank}">${rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':rank}</span><span class="staff-rank-branch"><strong>${esc(r.branch_name||'Branch')}</strong><small>${esc(r.network||'')}</small></span><span class="staff-rank-meter"><i style="width:${Math.min(100,pct)}%"></i></span><strong class="staff-rank-pct">${pct.toFixed(1)}%</strong></li>`;
-    }).join('')}</ol>`;
-  } catch(err) {
-    host.innerHTML=`<div class="staff-widget-error"><strong>Group ranking needs database setup</strong><p>${esc(err.message||'Could not load the protected ranking.')}</p><small>Run the supplied SQL setup once in Supabase, then refresh this page.</small></div>`;
-  }
-}
-async function loadStaffMonthComparison(currentReports) {
-  const host=$('staffComparisonContent');
-  if(!host||!profile?.branch_id) return;
-  const [year,month,day]=today.split('-').map(Number);
-  const previousMonthDate=new Date(year,month-2,1);
-  const previousYear=previousMonthDate.getFullYear(),previousMonth=previousMonthDate.getMonth()+1;
-  const previousLastDay=new Date(previousYear,previousMonth,0).getDate();
-  const compareDay=Math.min(day,previousLastDay);
-  const previousStart=`${previousYear}-${String(previousMonth).padStart(2,'0')}-01`;
-  const previousEnd=`${previousYear}-${String(previousMonth).padStart(2,'0')}-${String(compareDay).padStart(2,'0')}`;
-  const currentSales=(currentReports||[]).filter(r=>String(r.branch_id)===String(profile.branch_id)&&String(r.report_date).slice(0,10)<=today).reduce((sum,r)=>sum+Number(r.total_sales||0),0);
-  $('staffComparisonCutoff').textContent=`THROUGH ${day}${day===1?'ST':day===2?'ND':day===3?'RD':'TH'}`;
-  host.innerHTML='<p class="chart-loading">Loading previous-month records for your branch…</p>';
-  try {
-    const {data,error}=await db.from('daily_reports').select('report_date,total_sales').eq('branch_id',profile.branch_id).gte('report_date',previousStart).lte('report_date',previousEnd);
-    if(error) throw error;
-    const previousSales=(data||[]).reduce((sum,r)=>sum+Number(r.total_sales||0),0);
-    const delta=currentSales-previousSales;
-    const growth=previousSales>0?(delta/previousSales)*100:null;
-    const max=Math.max(currentSales,previousSales,1);
-    const currentLabel=new Date(year,month-1,1).toLocaleDateString('en-IN',{month:'short',year:'numeric'});
-    const previousLabel=previousMonthDate.toLocaleDateString('en-IN',{month:'short',year:'numeric'});
-    host.innerHTML=`<div class="staff-compare-kpis"><article><span>${esc(previousLabel)} · through ${compareDay}</span><strong>${money(previousSales)}</strong></article><article><span>${esc(currentLabel)} · through ${day}</span><strong>${money(currentSales)}</strong></article><article class="${delta>=0?'is-positive':'is-negative'}"><span>Growth / decline</span><strong>${delta>=0?'+':'−'}${money(Math.abs(delta))}</strong><small>${growth===null?'Previous month has no sales to calculate growth':`${growth>=0?'+':''}${growth.toFixed(1)}% vs previous month`}</small></article></div><div class="staff-compare-chart"><div class="staff-compare-bar-row"><span>${esc(previousLabel)}</span><div><i style="width:${previousSales/max*100}%"></i></div><strong>${money(previousSales)}</strong></div><div class="staff-compare-bar-row current"><span>${esc(currentLabel)}</span><div><i style="width:${currentSales/max*100}%"></i></div><strong>${money(currentSales)}</strong></div></div><p class="staff-compare-footnote">Comparison uses only ${esc(profile.branch_id?branches.find(b=>String(b.id)===String(profile.branch_id))?.branch_name||'your branch':'your branch')} reports through the ${day}${day===1?'st':day===2?'nd':day===3?'rd':'th'} of this month and the matching date range in the previous month. ${day>previousLastDay?`Previous month has only ${previousLastDay} days, so it is compared through its final day.`:''}</p>`;
-  } catch(err) {
-    host.innerHTML=`<div class="staff-widget-error"><strong>Could not load month-to-month comparison</strong><p>${esc(err.message||'Check your branch daily report access.')}</p></div>`;
-  }
-}
-
 async function renderTargets(monthReports) {
   const isStaff=profile.role==='branch_staff';
   show('targetSection',!isStaff);
@@ -1175,6 +1132,31 @@ async function renderTargets(monthReports) {
     $('branchMtdSales').textContent=money(sales);
     $('branchBalanceTarget').textContent=own?money(balance):'—';
     $('branchRequiredDaily').textContent=own?money(required):'—';
+    // Privacy-preserving group rank: the RPC returns only this branch's rank and gap to the next position.
+    const rankValueEl = $('branchRankValue');
+    const rankGapEl = $('branchRankGap');
+    if (rankValueEl && rankGapEl) {
+      rankValueEl.textContent = '—';
+      rankGapEl.textContent = 'Loading group position…';
+      try {
+        const { data: rankData, error: rankError } = await db.rpc('get_my_group_branch_rank', { p_as_of_date: today });
+        if (rankError) throw rankError;
+        const rankRow = Array.isArray(rankData) ? rankData[0] : rankData;
+        const rankNo = Number(rankRow?.rank_no || 0);
+        if (rankNo > 0) {
+          rankValueEl.textContent = rankNo === 1 ? '🥇 1' : rankNo === 2 ? '🥈 2' : rankNo === 3 ? '🥉 3' : String(rankNo);
+          const gap = Number(rankRow?.gap_to_next_pct || 0);
+          rankGapEl.textContent = rankNo === 1 ? 'You’re at the top! Maintain your lead.' : `+${gap.toFixed(1)} percentage points to next rank`;
+        } else {
+          rankValueEl.textContent = '—';
+          rankGapEl.textContent = 'Rank unavailable';
+        }
+      } catch (rankErr) {
+        console.warn('Branch rank unavailable:', rankErr);
+        rankValueEl.textContent = '—';
+        rankGapEl.textContent = 'Rank will appear after setup';
+      }
+    }
     $('branchTodaySales').textContent=money(todaySales);
     const patientsEl = $('branchPatients');
 if (patientsEl) {
@@ -1269,7 +1251,7 @@ if (trend) {
     `;
 }
 
-    await Promise.all([loadStaffLeaderboard(),loadStaffMonthComparison(branchReports)]);
+ 
     return;
   }
   targets=targetData||[];
@@ -1494,23 +1476,62 @@ function downloadManagementReport() {
 }
 
 function openSalesConfirmation(e) {
-  e.preventDefault();
-  const form=$('salesForm');
-  if(!form.reportValidity()) return;
-  const branch=branches.find(b=>b.id===profile?.branch_id);
-  const selected=names.map((name,i)=>({name,qty:Number($('p'+i).value||0)})).filter(x=>x.qty>0);
-  const rows=selected.length ? selected.map(x=>`<div class="confirm-package-row"><span>${esc(x.name)}</span><strong>${x.qty}</strong></div>`).join('') : '<p class="confirm-no-packages">No package sales entered</p>';
-  $('salesConfirmContent').innerHTML = `<div class="confirm-summary-grid"><div><span>Branch</span><strong>${esc(branch?.branch_name||'Assigned branch')}</strong></div><div><span>Report date</span><strong>${esc($('date').value)}</strong></div><div><span>Total sales</span><strong>${money($('sales').value)}</strong></div><div><span>Patients</span><strong>${Number($('patients').value||0)}</strong></div><div><span>Home collections</span><strong>${Number($('home').value||0)}</strong></div><div><span>Google reviews</span><strong>${Number($('reviews').value||0)}</strong></div></div><div class="confirm-package-list"><div class="confirm-package-heading"><strong>Package counts</strong><span>${selected.length} selected</span></div>${rows}</div>`;
-  $('salesConfirmModal').classList.remove('hidden');
-  $('confirmSalesSubmit').focus();
+  e?.preventDefault?.();
+  const form = $('salesForm');
+  const modal = $('salesConfirmModal');
+  const content = $('salesConfirmContent');
+  if (!form || !modal || !content) {
+    msg('salesMsg', 'Review window could not be loaded. Please refresh the page.');
+    return;
+  }
+  if (!form.reportValidity()) {
+    msg('salesMsg', 'Please complete the required sales entry fields before reviewing.');
+    return;
+  }
+
+  const branch = branches.find(b => b.id === profile?.branch_id);
+  const selected = names.map((name, i) => ({
+    name,
+    qty: Number($('p' + i)?.value || 0)
+  })).filter(x => x.qty > 0);
+  const rows = selected.length
+    ? selected.map(x => `<div class="confirm-package-row"><span>${esc(x.name)}</span><strong>${x.qty}</strong></div>`).join('')
+    : '<p class="confirm-no-packages">No package sales entered</p>';
+
+  content.innerHTML = `<div class="confirm-summary-grid">
+    <div><span>Branch</span><strong>${esc(branch?.branch_name || 'Assigned branch')}</strong></div>
+    <div><span>Report date</span><strong>${esc($('date')?.value || '')}</strong></div>
+    <div><span>Total sales</span><strong>${money($('sales')?.value || 0)}</strong></div>
+    <div><span>Patients</span><strong>${Number($('patients')?.value || 0)}</strong></div>
+    <div><span>Home collections</span><strong>${Number($('home')?.value || 0)}</strong></div>
+    <div><span>Google reviews</span><strong>${Number($('reviews')?.value || 0)}</strong></div>
+  </div><div class="confirm-package-list">
+    <div class="confirm-package-heading"><strong>Package counts</strong><span>${selected.length} selected</span></div>${rows}
+  </div>`;
+
+  modal.classList.remove('hidden');
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('sales-confirm-open');
+  $('confirmSalesSubmit')?.focus();
 }
-function closeSalesConfirmation() { $('salesConfirmModal').classList.add('hidden'); }
+function closeSalesConfirmation() { const modal=$('salesConfirmModal'); if(modal){ modal.classList.add('hidden'); modal.setAttribute('aria-hidden','true'); } document.body.classList.remove('sales-confirm-open'); }
 async function submitConfirmedSales() {
   const btn=$('confirmSalesSubmit');
-  if(btn.disabled) return;
+  if(!btn || btn.disabled) return;
   btn.disabled=true; btn.textContent='Submitting…';
-  try { closeSalesConfirmation(); await submit({preventDefault(){}}); }
-  finally { btn.disabled=false; btn.textContent='Confirm & submit'; }
+  try {
+    await submit({preventDefault(){}});
+    const message=$('salesMsg')?.textContent || '';
+    if(message === 'Report submitted.' || message.includes('corrections saved successfully')) {
+      closeSalesConfirmation();
+    } else if(message) {
+      msg('salesMsg', message);
+    }
+  } catch(err) {
+    msg('salesMsg', err?.message || 'Submission failed. Please try again.');
+  } finally {
+    btn.disabled=false; btn.textContent='Confirm & submit';
+  }
 }
 
 async function submit(e) {
