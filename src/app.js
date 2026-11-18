@@ -97,7 +97,7 @@ function setPortalView(targetId) {
     $('executiveSection')
   ].filter(Boolean);
   [...content.children].forEach(node => {
-    const alwaysVisible = node.id === 'portalCommandBar' || node.id === 'portalQuickLinks' || node.id === 'salesConfirmModal';
+    const alwaysVisible = node.id === 'portalCommandBar' || node.id === 'portalQuickLinks';
     const keep = alwaysVisible || (isOverview ? overviewElements.includes(node) : node.id === targetId);
     node.classList.toggle('portal-view-hidden', !keep);
   });
@@ -1090,51 +1090,6 @@ async function saveBranchTargets() {
   finally { $('saveBranchTargets').disabled = false; }
 }
 
-async function loadStaffLeaderboard() {
-  const host=$('staffLeaderboardContent');
-  if(!host) return;
-  host.innerHTML='<p class="chart-loading">Loading combined branch ranking…</p>';
-  try {
-    const {data,error}=await db.rpc('get_group_top5_target_achievement',{p_as_of_date:today});
-    if(error) throw error;
-    const rows=Array.isArray(data)?data:[];
-    if(!rows.length){host.innerHTML='<p class="chart-loading">No branches with an active monthly target are available for ranking yet.</p>';return;}
-    host.innerHTML=`<ol class="staff-leaderboard-list">${rows.slice(0,5).map((r,i)=>{
-      const rank=Number(r.rank_no||i+1),pct=Math.max(0,Number(r.achievement_pct||0));
-      return `<li class="staff-leaderboard-row"><span class="staff-rank rank-${rank}">${rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':rank}</span><span class="staff-rank-branch"><strong>${esc(r.branch_name||'Branch')}</strong><small>${esc(r.network||'')}</small></span><span class="staff-rank-meter"><i style="width:${Math.min(100,pct)}%"></i></span><strong class="staff-rank-pct">${pct.toFixed(1)}%</strong></li>`;
-    }).join('')}</ol>`;
-  } catch(err) {
-    host.innerHTML=`<div class="staff-widget-error"><strong>Group ranking needs database setup</strong><p>${esc(err.message||'Could not load the protected ranking.')}</p><small>Run the supplied SQL setup once in Supabase, then refresh this page.</small></div>`;
-  }
-}
-async function loadStaffMonthComparison(currentReports) {
-  const host=$('staffComparisonContent');
-  if(!host||!profile?.branch_id) return;
-  const [year,month,day]=today.split('-').map(Number);
-  const previousMonthDate=new Date(year,month-2,1);
-  const previousYear=previousMonthDate.getFullYear(),previousMonth=previousMonthDate.getMonth()+1;
-  const previousLastDay=new Date(previousYear,previousMonth,0).getDate();
-  const compareDay=Math.min(day,previousLastDay);
-  const previousStart=`${previousYear}-${String(previousMonth).padStart(2,'0')}-01`;
-  const previousEnd=`${previousYear}-${String(previousMonth).padStart(2,'0')}-${String(compareDay).padStart(2,'0')}`;
-  const currentSales=(currentReports||[]).filter(r=>String(r.branch_id)===String(profile.branch_id)&&String(r.report_date).slice(0,10)<=today).reduce((sum,r)=>sum+Number(r.total_sales||0),0);
-  $('staffComparisonCutoff').textContent=`THROUGH ${day}${day===1?'ST':day===2?'ND':day===3?'RD':'TH'}`;
-  host.innerHTML='<p class="chart-loading">Loading previous-month records for your branch…</p>';
-  try {
-    const {data,error}=await db.from('daily_reports').select('report_date,total_sales').eq('branch_id',profile.branch_id).gte('report_date',previousStart).lte('report_date',previousEnd);
-    if(error) throw error;
-    const previousSales=(data||[]).reduce((sum,r)=>sum+Number(r.total_sales||0),0);
-    const delta=currentSales-previousSales;
-    const growth=previousSales>0?(delta/previousSales)*100:null;
-    const max=Math.max(currentSales,previousSales,1);
-    const currentLabel=new Date(year,month-1,1).toLocaleDateString('en-IN',{month:'short',year:'numeric'});
-    const previousLabel=previousMonthDate.toLocaleDateString('en-IN',{month:'short',year:'numeric'});
-    host.innerHTML=`<div class="staff-compare-kpis"><article><span>${esc(previousLabel)} · through ${compareDay}</span><strong>${money(previousSales)}</strong></article><article><span>${esc(currentLabel)} · through ${day}</span><strong>${money(currentSales)}</strong></article><article class="${delta>=0?'is-positive':'is-negative'}"><span>Growth / decline</span><strong>${delta>=0?'+':'−'}${money(Math.abs(delta))}</strong><small>${growth===null?'Previous month has no sales to calculate growth':`${growth>=0?'+':''}${growth.toFixed(1)}% vs previous month`}</small></article></div><div class="staff-compare-chart"><div class="staff-compare-bar-row"><span>${esc(previousLabel)}</span><div><i style="width:${previousSales/max*100}%"></i></div><strong>${money(previousSales)}</strong></div><div class="staff-compare-bar-row current"><span>${esc(currentLabel)}</span><div><i style="width:${currentSales/max*100}%"></i></div><strong>${money(currentSales)}</strong></div></div><p class="staff-compare-footnote">Comparison uses only ${esc(profile.branch_id?branches.find(b=>String(b.id)===String(profile.branch_id))?.branch_name||'your branch':'your branch')} reports through the ${day}${day===1?'st':day===2?'nd':day===3?'rd':'th'} of this month and the matching date range in the previous month. ${day>previousLastDay?`Previous month has only ${previousLastDay} days, so it is compared through its final day.`:''}</p>`;
-  } catch(err) {
-    host.innerHTML=`<div class="staff-widget-error"><strong>Could not load month-to-month comparison</strong><p>${esc(err.message||'Check your branch daily report access.')}</p></div>`;
-  }
-}
-
 async function renderTargets(monthReports) {
   const isStaff=profile.role==='branch_staff';
   show('targetSection',!isStaff);
@@ -1175,6 +1130,31 @@ async function renderTargets(monthReports) {
     $('branchMtdSales').textContent=money(sales);
     $('branchBalanceTarget').textContent=own?money(balance):'—';
     $('branchRequiredDaily').textContent=own?money(required):'—';
+    // Privacy-preserving group rank: the RPC returns only this branch's rank and gap to the next position.
+    const rankValueEl = $('branchRankValue');
+    const rankGapEl = $('branchRankGap');
+    if (rankValueEl && rankGapEl) {
+      rankValueEl.textContent = '—';
+      rankGapEl.textContent = 'Loading group position…';
+      try {
+        const { data: rankData, error: rankError } = await db.rpc('get_my_group_branch_rank', { p_as_of_date: today });
+        if (rankError) throw rankError;
+        const rankRow = Array.isArray(rankData) ? rankData[0] : rankData;
+        const rankNo = Number(rankRow?.rank_no || 0);
+        if (rankNo > 0) {
+          rankValueEl.textContent = rankNo === 1 ? '🥇 1' : rankNo === 2 ? '🥈 2' : rankNo === 3 ? '🥉 3' : String(rankNo);
+          const gap = Number(rankRow?.gap_to_next_pct || 0);
+          rankGapEl.textContent = rankNo === 1 ? 'You’re at the top! Maintain your lead.' : `+${gap.toFixed(1)} percentage points to next rank`;
+        } else {
+          rankValueEl.textContent = '—';
+          rankGapEl.textContent = 'Rank unavailable';
+        }
+      } catch (rankErr) {
+        console.warn('Branch rank unavailable:', rankErr);
+        rankValueEl.textContent = '—';
+        rankGapEl.textContent = 'Rank will appear after setup';
+      }
+    }
     $('branchTodaySales').textContent=money(todaySales);
     const patientsEl = $('branchPatients');
 if (patientsEl) {
@@ -1269,7 +1249,7 @@ if (trend) {
     `;
 }
 
-    await Promise.all([loadStaffLeaderboard(),loadStaffMonthComparison(branchReports)]);
+ 
     return;
   }
   targets=targetData||[];
