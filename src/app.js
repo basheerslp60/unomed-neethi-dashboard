@@ -1464,14 +1464,65 @@ async function loadTop5BranchLeaderboard() {
 
     const rankValueEl = $('branchRankValue');
     const rankGapEl = $('branchRankGap');
+    const rankNextPositionEl = $('branchRankNextPosition');
+    const rankNextBranchEl = $('branchRankNextBranch');
+    const ownAchievementEl = $('branchRankOwnAchievement');
+    const competitorAchievementEl = $('branchRankCompetitorAchievement');
+    const rankDetailsToggle = $('branchRankDetailsToggle');
+    const own = rows.find(row => row.is_current_branch === true);
+
     if (profile.role === 'branch_staff' && rankValueEl && rankGapEl) {
-      const own = rows.find(row => row.is_current_branch === true);
-      rankValueEl.textContent = own ? `#${own.rank_no}` : 'Not ranked';
-      rankGapEl.textContent = own
-        ? (Number(own.rank_no) === 1
-          ? 'You are the group leader.'
-          : `Need +${Math.max(0, Number(own.gap_to_next_pct || 0)).toFixed(1)} percentage points to reach position #${Number(own.rank_no) - 1}.`)
-        : 'Rank unavailable: check that this branch has a target for the selected month.';
+      if (!own) {
+        rankValueEl.textContent = '—';
+        rankGapEl.textContent = 'Rank unavailable for this month.';
+        if (rankNextBranchEl) rankNextBranchEl.textContent = 'No ranking data';
+        if (rankNextPositionEl) rankNextPositionEl.textContent = '—';
+      } else {
+        const ownRank = Number(own.rank_no) || 0;
+        const nextRank = ownRank - 1;
+        // The RPC may return the adjacent ranked row, or include its details
+        // on the current-branch row. Use either source without exposing other
+        // branch sales or target values.
+        const nextBranch = rows.find(row => Number(row.rank_no) === nextRank)
+          || (own.next_branch_name ? {
+            branch_name: own.next_branch_name,
+            network: own.next_branch_network,
+            achievement_pct: own.next_branch_achievement_pct
+          } : null);
+        const ownPct = Number(own.achievement_pct);
+        const competitorPct = nextBranch ? Number(nextBranch.achievement_pct) : NaN;
+        const calculatedGap = Number.isFinite(competitorPct) && Number.isFinite(ownPct)
+          ? Math.max(0, competitorPct - ownPct)
+          : Number(own.gap_to_next_pct || 0);
+
+        rankValueEl.textContent = ownRank ? `#${ownRank}` : '—';
+        if (rankNextPositionEl) rankNextPositionEl.textContent = ownRank > 1 ? `#${nextRank}` : 'LEADER';
+        if (rankNextBranchEl) {
+          rankNextBranchEl.textContent = ownRank === 1
+            ? 'You are the group leader'
+            : (nextBranch?.branch_name || 'Branch name unavailable');
+          rankNextBranchEl.title = nextBranch?.network ? `${nextBranch.network} branch` : '';
+        }
+        rankGapEl.textContent = ownRank === 1
+          ? 'You are currently #1 in the group.'
+          : `Need +${calculatedGap.toFixed(1)} percentage points to overtake #${nextRank}.`;
+        if (ownAchievementEl) ownAchievementEl.textContent =
+          `Your achievement: ${Number.isFinite(ownPct) ? ownPct.toFixed(1) + '%' : '—'}`;
+        if (competitorAchievementEl) competitorAchievementEl.textContent =
+          `#${nextRank} achievement: ${Number.isFinite(competitorPct) ? competitorPct.toFixed(1) + '%' : 'Not supplied'}`;
+      }
+    }
+
+    if (rankDetailsToggle && rankDetailsToggle.dataset.bound !== 'true') {
+      rankDetailsToggle.dataset.bound = 'true';
+      rankDetailsToggle.addEventListener('click', () => {
+        const panel = $('branchRankDetails');
+        if (!panel) return;
+        const opening = panel.hidden;
+        panel.hidden = !opening;
+        rankDetailsToggle.setAttribute('aria-expanded', String(opening));
+        rankDetailsToggle.textContent = opening ? 'Less' : 'Details';
+      });
     }
   } catch (err) {
     window.__top5BranchRows = [];
@@ -1481,8 +1532,10 @@ async function loadTop5BranchLeaderboard() {
     });
     const rankValueEl = $('branchRankValue');
     const rankGapEl = $('branchRankGap');
+    const rankNextBranchEl = $('branchRankNextBranch');
     if (profile?.role === 'branch_staff') {
       if (rankValueEl) rankValueEl.textContent = 'Unavailable';
+      if (rankNextBranchEl) rankNextBranchEl.textContent = 'Ranking unavailable';
       if (rankGapEl) rankGapEl.textContent = `Ranking query failed: ${err.message || 'Check Supabase SQL setup.'}`;
     }
     console.error('Top 5 branch leaderboard unavailable:', err);
