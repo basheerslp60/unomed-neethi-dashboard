@@ -38,3 +38,26 @@
 .compliance-table-wrap{border-radius:12px;background:#fff}.compliance-table-wrap table{width:100%;min-width:850px;border-collapse:separate;border-spacing:0;font-size:12px}.compliance-table-wrap th{position:sticky;top:0;padding:13px 14px;background:#edf3fa;color:#284564;font-size:10px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;text-align:left;white-space:nowrap}.compliance-table-wrap td{padding:13px 14px;border-bottom:1px solid #edf1f6;color:#29415e;vertical-align:middle}.compliance-table-wrap tbody tr:nth-child(even){background:#fbfcfe}.compliance-table-wrap tbody tr:hover{background:#fff6f8}.compliance-table-wrap tbody tr:last-child td{border-bottom:0}.compliance-network{display:inline-flex;padding:5px 9px;border-radius:99px;font-size:10px;font-weight:900;letter-spacing:.04em}.compliance-network.unomed{background:#eaf3ff;color:#1d5c9b}.compliance-network.neethi{background:#fff0f4;color:#ad2049}.compliance-status{display:inline-flex;align-items:center;gap:7px;padding:6px 9px;border-radius:99px;font-size:10px;font-weight:900;white-space:nowrap}.compliance-status i{width:7px;height:7px;border-radius:50%;background:currentColor}.compliance-status.good{background:#e8f7f0;color:#08784e}.compliance-status.warn{background:#fff5df;color:#9a6800}.compliance-status.bad{background:#fff0f2;color:#bd2448}.compliance-table-wrap td:first-child strong{color:var(--portal-navy);font-size:12px}.compliance-action{max-width:280px;color:#687c95!important;font-size:11px;line-height:1.45}.compliance-empty{text-align:center;padding:28px!important;color:var(--portal-muted)!important}.compliance-dashboard #complianceMsg{margin:12px 0 0;color:var(--portal-muted);font-size:11px}
 @media(max-width:850px){.compliance-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.compliance-heading{flex-direction:column}.compliance-date-box{width:100%}}
 @media(max-width:560px){.compliance-kpis{gap:8px}.compliance-kpi{padding:12px}.compliance-toolbar{align-items:stretch}.compliance-filters{width:100%;justify-content:space-between}.compliance-filters button{flex:1;padding-inline:6px}.compliance-toolbar-actions{width:100%;justify-content:space-between;margin-left:0}}
+
+/* Restored privacy-limited Top 5 leaderboard and branch-only monthly comparison */
+.overview-top5-panel { margin-top: 18px; }
+.overview-top5-period { border-radius: 999px; padding: 8px 12px; background: #edf3fb; color: #23466d; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.overview-top5-list { display: grid; gap: 9px; margin-top: 14px; }
+.overview-top5-row { display: grid; grid-template-columns: 38px minmax(0,1fr) auto; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid #e3eaf3; border-radius: 13px; background: #fff; }
+.overview-top5-rank { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: #edf3fb; color: #173b62; font-weight: 800; }
+.overview-top5-branch { display: grid; gap: 3px; min-width: 0; }
+.overview-top5-branch strong { color: #17324f; }
+.overview-top5-branch small { color: #718198; font-size: 12px; }
+.overview-top5-achievement { color: #0c907c; font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.overview-top5-note,.staff-month-comparison-note { margin: 10px 0 0; color: #718198; font-size: 12px; }
+.overview-empty { margin: 8px 0; color: #718198; font-size: 13px; }
+.staff-month-comparison { margin-top: 20px; padding: 20px; border: 1px solid #dfe8f3; border-radius: 18px; background: linear-gradient(135deg,#fff,#f7faff); }
+.staff-month-comparison-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin-top: 14px; }
+.staff-month-comparison-card { display: grid; gap: 7px; padding: 15px; border: 1px solid #e1e9f2; border-radius: 13px; background: #fff; }
+.staff-month-comparison-card > span { color: #718198; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.staff-month-comparison-card > strong { color: #17324f; font-size: 23px; font-weight: 800; }
+.staff-month-comparison-card > small { color: #718198; font-size: 12px; }
+.staff-month-comparison-card > b { font-size: 13px; }
+.staff-month-comparison-card > b.is-up { color: #0c907c; }
+.staff-month-comparison-card > b.is-down { color: #c13d53; }
+@media (max-width: 720px) { .staff-month-comparison-grid { grid-template-columns: 1fr; } .overview-top5-row { grid-template-columns: 34px minmax(0,1fr) auto; padding: 10px; } }
