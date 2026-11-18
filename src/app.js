@@ -338,8 +338,10 @@ async function load(u) {
     const rankGap = $('branchRankGap');
     if (rankValue) rankValue.textContent = '…';
     if (rankGap) rankGap.textContent = 'Checking group position…';
-    void loadTop5BranchLeaderboard();
   }
+  // Load the same group Top 5 for management and branch-staff views.
+  // The RPC returns only the permitted leaderboard fields plus the caller's rank metadata.
+  void loadTop5BranchLeaderboard();
   if (p.role === 'admin') {
   $('portalBranch').innerHTML = branches.map(b => '<option value="' + b.id + '">' + esc(b.network) + ' - ' + esc(b.branch_name) + '</option>').join('');
     updatePortalBranchVisibility();
@@ -1385,36 +1387,107 @@ function renderOverview() {
 }
 
 async function loadTop5BranchLeaderboard() {
-  const host=$('top5BranchRows'), note=$('top5BranchMsg');
-  if(!host || !db || !profile) return;
-  host.innerHTML='<p class="overview-empty">Loading branch leaderboard…</p>';
-  if($('top5PeriodLabel')) $('top5PeriodLabel').textContent=`As of ${today}`;
+  const hosts = [
+    { host: $('top5BranchRows'), note: $('top5BranchMsg'), period: $('top5PeriodLabel') },
+    { host: $('staffTop5BranchRows'), note: $('staffTop5BranchMsg'), period: $('staffTop5PeriodLabel') }
+  ].filter(item => item.host);
+  if (!hosts.length || !db || !profile) return;
+
+  const loading = '<p class="overview-empty top5-loading">Loading group leaderboard…</p>';
+  hosts.forEach(item => {
+    item.host.innerHTML = loading;
+    if (item.period) item.period.textContent = `As of ${today}`;
+  });
+
+  const render = (rows) => {
+    const ranked = rows
+      .filter(row => Number(row.rank_no) >= 1 && Number(row.rank_no) <= 5)
+      .sort((a, b) => Number(a.rank_no) - Number(b.rank_no));
+
+    if (!ranked.length) {
+      return '<p class="overview-empty">No monthly branch targets are configured for this month.</p>';
+    }
+
+    const makeCard = (row, index) => {
+      const rank = Number(row.rank_no) || index + 1;
+      const pct = Number(row.achievement_pct) || 0;
+      const safePct = Math.min(100, Math.max(0, pct));
+      const branch = esc(row.branch_name || 'Branch');
+      const network = esc(row.network || '');
+      const rankLabel = String(rank).padStart(2, '0');
+      const tier = rank <= 3 ? `top5-podium-${rank}` : 'top5-list-card';
+      return `<button type="button" class="top5-selectable ${tier}" data-top5-rank="${rank}" aria-pressed="false" aria-label="Rank ${rank}, ${branch}, ${network}, ${pct.toFixed(1)} percent achievement">
+        <span class="top5-rank-mark" aria-hidden="true">${rank === 1 ? '♛' : rankLabel}</span>
+        <span class="top5-branch-info"><strong>${branch}</strong><small>${network}</small>
+          <span class="top5-progress-track" aria-hidden="true"><span class="top5-progress-fill" style="--top5-progress:${safePct}%"></span></span>
+        </span>
+        <strong class="top5-percent">${pct.toFixed(1)}<span>%</span></strong>
+      </button>`;
+    };
+
+    const podium = ranked.filter(row => Number(row.rank_no) <= 3);
+    const remaining = ranked.filter(row => Number(row.rank_no) > 3);
+    return `<div class="top5-premium-layout">
+      <div class="top5-podium-grid">${podium.map(makeCard).join('')}</div>
+      ${remaining.length ? `<div class="top5-runners-up">${remaining.map(makeCard).join('')}</div>` : ''}
+    </div>`;
+  };
+
+  const bindSelection = (host) => {
+    if (host.dataset.top5Interactive === 'true') return;
+    host.dataset.top5Interactive = 'true';
+    host.addEventListener('click', event => {
+      const card = event.target.closest('.top5-selectable');
+      if (!card || !host.contains(card)) return;
+      const wasSelected = card.getAttribute('aria-pressed') === 'true';
+      host.querySelectorAll('.top5-selectable').forEach(item => {
+        item.classList.remove('is-selected');
+        item.setAttribute('aria-pressed', 'false');
+      });
+      if (!wasSelected) {
+        card.classList.add('is-selected');
+        card.setAttribute('aria-pressed', 'true');
+      }
+    });
+  };
+
   try {
-    const {data,error}=await db.rpc('get_top_group_branches',{p_as_of_date:today});
-    if(error) throw error;
-    const rows=Array.isArray(data)?data:[];
-    window.__top5BranchRows=rows;
-    host.innerHTML=rows.length?rows.filter(r=>Number(r.rank_no)<=5).map((r,i)=>`<div class="overview-top5-row"><span class="overview-top5-rank">${Number(r.rank_no||i+1)}</span><div class="overview-top5-branch"><strong>${esc(r.branch_name||'Branch')}</strong><small>${esc(r.network||'')}</small></div><strong class="overview-top5-achievement">${Number(r.achievement_pct||0).toFixed(1)}%</strong></div>`).join(''):'<p class="overview-empty">No monthly branch targets are configured for this month.</p>';
-    if(note) note.textContent='Only rank, branch, network and target achievement are shown.';
-    const rankValueEl=$('branchRankValue'), rankGapEl=$('branchRankGap');
-    if(profile.role==='branch_staff' && rankValueEl && rankGapEl){
-      const own=rows.find(r=>r.is_current_branch===true);
-      rankValueEl.textContent=own?`#${own.rank_no}`:'Not ranked';
-      rankGapEl.textContent=own?(Number(own.rank_no)===1?'You are the group leader.':`Need +${Math.max(0,Number(own.gap_to_next_pct||0)).toFixed(1)} percentage points to reach position #${Number(own.rank_no)-1}.`):'Rank unavailable: check that this branch has a target for the selected month.';
+    const { data, error } = await db.rpc('get_top_group_branches', { p_as_of_date: today });
+    if (error) throw error;
+    const rows = Array.isArray(data) ? data : [];
+    window.__top5BranchRows = rows;
+    hosts.forEach(item => {
+      item.host.innerHTML = render(rows);
+      bindSelection(item.host);
+      if (item.note) item.note.textContent = 'Select a branch to highlight its position. Showing rank, branch, network and achievement percentage only.';
+    });
+
+    const rankValueEl = $('branchRankValue');
+    const rankGapEl = $('branchRankGap');
+    if (profile.role === 'branch_staff' && rankValueEl && rankGapEl) {
+      const own = rows.find(row => row.is_current_branch === true);
+      rankValueEl.textContent = own ? `#${own.rank_no}` : 'Not ranked';
+      rankGapEl.textContent = own
+        ? (Number(own.rank_no) === 1
+          ? 'You are the group leader.'
+          : `Need +${Math.max(0, Number(own.gap_to_next_pct || 0)).toFixed(1)} percentage points to reach position #${Number(own.rank_no) - 1}.`)
+        : 'Rank unavailable: check that this branch has a target for the selected month.';
     }
-  } catch(err) {
-    window.__top5BranchRows=[];
-    host.innerHTML='<p class="overview-empty">Leaderboard unavailable. Check the database setup.</p>';
-    if(note) note.textContent=`Top 5 query failed: ${err.message||'Unknown Supabase error'}. Install the supplied migration and check its execution result.`;
-    const rankValueEl=$('branchRankValue'), rankGapEl=$('branchRankGap');
-    if(profile?.role==='branch_staff') {
-      if(rankValueEl) rankValueEl.textContent='Unavailable';
-      if(rankGapEl) rankGapEl.textContent=`Ranking query failed: ${err.message||'Check Supabase SQL setup.'}`;
+  } catch (err) {
+    window.__top5BranchRows = [];
+    hosts.forEach(item => {
+      item.host.innerHTML = '<p class="overview-empty">Leaderboard unavailable. Check the database setup.</p>';
+      if (item.note) item.note.textContent = `Top 5 query failed: ${err.message || 'Unknown Supabase error'}.`;
+    });
+    const rankValueEl = $('branchRankValue');
+    const rankGapEl = $('branchRankGap');
+    if (profile?.role === 'branch_staff') {
+      if (rankValueEl) rankValueEl.textContent = 'Unavailable';
+      if (rankGapEl) rankGapEl.textContent = `Ranking query failed: ${err.message || 'Check Supabase SQL setup.'}`;
     }
-    console.error('Top 5 branch leaderboard unavailable:',err);
+    console.error('Top 5 branch leaderboard unavailable:', err);
   }
 }
-
 async function loadStaffMonthComparison() {
   const host=$('staffMonthComparisonCards'), note=$('staffMonthComparisonMsg');
   if(!host || !db || profile?.role!=='branch_staff' || !profile.branch_id) return;
