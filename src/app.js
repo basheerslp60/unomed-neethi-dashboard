@@ -2,8 +2,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "./config.js";
 
 const $ = id => document.getElementById(id);
-// Bind the review workflow immediately, independently of authentication setup.
-// The button is type=button; Enter-key submission is handled by the form listener.
+// Capture the review action at document level so it still works if later
+// dashboard initialization replaces or re-renders parts of the sales form.
 function handleSalesReview(event) {
   event?.preventDefault?.();
   try {
@@ -17,7 +17,14 @@ function handleSalesReview(event) {
     console.error('Daily sales review error:', error);
   }
 }
-$('reviewSalesSubmit')?.addEventListener('click', handleSalesReview);
+document.addEventListener('click', event => {
+  const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+  const reviewButton = target?.closest('#reviewSalesSubmit, #salesForm .sales-submit-btn');
+  if (!reviewButton || reviewButton.id === 'confirmSalesSubmit') return;
+  event.preventDefault();
+  event.stopPropagation();
+  handleSalesReview(event);
+}, true);
 $('salesForm')?.addEventListener('submit', handleSalesReview);
 
 const names = ["Complete HC 599","My Health 999","Cardiac HC","EHC 2500","EHC Advanced 3500","Healthy Women 699","Healthy Men","EHC PRO 8499","Hairfall","Vitamin Profile","PCOD Mini","Onam Camp","Other Packages"];
@@ -1132,16 +1139,6 @@ async function renderTargets(monthReports) {
     $('branchMtdSales').textContent=money(sales);
     $('branchBalanceTarget').textContent=own?money(balance):'—';
     $('branchRequiredDaily').textContent=own?money(required):'—';
-    // The Top 5 leaderboard RPC exposes only branch, network and achievement.
-    // Current branch rank is derived from that limited result; no other sales data is exposed.
-    const rankValueEl = $('branchRankValue');
-    const rankGapEl = $('branchRankGap');
-    const top5Rows = window.__top5BranchRows || [];
-    const ownRank = top5Rows.find(r => r.is_current_branch === true || String(r.branch_id) === String(profile.branch_id));
-    if (rankValueEl && rankGapEl) {
-      rankValueEl.textContent = ownRank ? `#${ownRank.rank_no}` : 'Not ranked';
-      rankGapEl.textContent = ownRank ? (Number(ownRank.rank_no) === 1 ? 'You are the group leader.' : `Need +${Number(ownRank.gap_to_next_pct || 0).toFixed(1)} percentage points to reach #${Number(ownRank.rank_no) - 1}.`) : 'A monthly target is required to calculate your rank.';
-    }
     $('branchTodaySales').textContent=money(todaySales);
     const patientsEl = $('branchPatients');
 if (patientsEl) {
@@ -1401,7 +1398,7 @@ async function loadTop5BranchLeaderboard() {
     if(profile.role==='branch_staff' && rankValueEl && rankGapEl){
       const own=rows.find(r=>r.is_current_branch===true);
       rankValueEl.textContent=own?`#${own.rank_no}`:'Not ranked';
-      rankGapEl.textContent=own?(Number(own.rank_no)===1?'You are the group leader.':`Need +${Number(own.gap_to_next_pct||0).toFixed(1)} percentage points to reach #${Number(own.rank_no)-1}.`):'A monthly target is required to calculate your rank.';
+      rankGapEl.textContent=own?(Number(own.rank_no)===1?'You are the group leader.':`Need +${Math.max(0,Number(own.gap_to_next_pct||0)).toFixed(1)} percentage points to reach position #${Number(own.rank_no)-1}.`):'Rank unavailable: check that this branch has a target for the selected month.';
     }
   } catch(err) {
     window.__top5BranchRows=[];
@@ -1531,11 +1528,17 @@ function openSalesConfirmation(e) {
     return;
   }
   if (!form.reportValidity()) {
-    msg('salesMsg', 'Please complete the required sales entry fields before reviewing.');
+    const invalid = form.querySelector(':invalid');
+    if (invalid) {
+      invalid.focus();
+      msg('salesMsg', `${invalid.labels?.[0]?.textContent || invalid.id || 'A required field'} needs a valid value.`);
+    } else {
+      msg('salesMsg', 'Please complete the required sales entry fields before reviewing.');
+    }
     return;
   }
 
-  const branch = branches.find(b => b.id === profile?.branch_id);
+  const branch = branches.find(b => String(b.id) === String(profile?.branch_id));
   const selected = names.map((name, i) => ({
     name,
     qty: Number($('p' + i)?.value || 0)
@@ -1566,13 +1569,8 @@ async function submitConfirmedSales() {
   if(!btn || btn.disabled) return;
   btn.disabled=true; btn.textContent='Submitting…';
   try {
-    await submit({preventDefault(){}});
-    const message=$('salesMsg')?.textContent || '';
-    if(message === 'Report submitted.' || message.includes('corrections saved successfully')) {
-      closeSalesConfirmation();
-    } else if(message) {
-      msg('salesMsg', message);
-    }
+    const saved = await submit({preventDefault(){}});
+    if(saved === true) closeSalesConfirmation();
   } catch(err) {
     msg('salesMsg', err?.message || 'Submission failed. Please try again.');
   } finally {
@@ -1582,9 +1580,9 @@ async function submitConfirmedSales() {
 
 async function submit(e) {
   e.preventDefault();
-  if(!editingReportId && profile.role!=='branch_staff') { msg('salesMsg','Only branch staff can submit new reports.'); return; }
-  const branch=branches.find(b=>b.id===profile.branch_id);
-  if(!editingReportId && !branch) { msg('salesMsg','No valid active branch assigned.'); return; }
+  if(!editingReportId && profile?.role!=='branch_staff') { msg('salesMsg','Only branch staff can submit new reports.'); return false; }
+  const branch=branches.find(b=>String(b.id)===String(profile.branch_id));
+  if(!editingReportId && !branch) { msg('salesMsg','No valid active branch assigned.'); return false; }
   const btn=$('reviewSalesSubmit') || $('salesForm')?.querySelector('button[type="submit"],button:not([type])');
   if(btn) btn.disabled=true; msg('salesMsg',editingReportId?'Saving corrections…':'Submitting…');
   try {
@@ -1595,14 +1593,16 @@ async function submit(e) {
       msg('salesMsg','Report corrections saved successfully. The original report was updated.',true);
       cancelReportCorrection(false);
       await loadReports(); await loadCorrectionReports();
+      return true;
     } else {
       const {data:r,error}=await db.from('daily_reports').insert({branch_id:branch.id,report_date:$('date').value,total_sales:Number($('sales').value),patient_count:Number($('patients').value),home_collections:Number($('home').value||0),google_reviews:Number($('reviews').value||0),submitted_by:user.id,status:'submitted'}).select('id').single();
       if(error) throw error;
       const rows=packages.map(x=>({...x,report_id:r.id}));
       if(rows.length) { const {error:pe}=await db.from('package_sales').insert(rows); if(pe) throw new Error('Report saved but package counts failed. Check the database before retrying: '+pe.message); }
       msg('salesMsg','Report submitted.',true); $('salesForm').reset(); $('date').value=today; names.forEach((_,i)=>$('p'+i).value=0); renderSelectedPackages(); await loadReports(); await loadCorrectionReports();
+      return true;
     }
-  } catch(err) { msg('salesMsg',err.message||'Submission failed'); }
+  } catch(err) { msg('salesMsg',err.message||'Submission failed'); return false; }
   finally { if(btn) btn.disabled=false; }
 }
 
