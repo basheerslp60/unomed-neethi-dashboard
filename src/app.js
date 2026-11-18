@@ -197,6 +197,9 @@ if (!ready) {
   $('financialApprove').onclick = approveFinancialReport;
   $('financialReportRows').addEventListener('click', event => { const b=event.target.closest('[data-financial-review]'); if(b) openFinancialReview(b.dataset.financialReview); });
   $('financialLineRows').addEventListener('change', event => { const el=event.target; if(el.matches('[data-financial-category],[data-financial-behaviour],[data-financial-variable-share]')) updateFinancialLinePreview(); });
+  // Explicit click handler avoids browser submit interception by other form scripts.
+  $('reviewSalesSubmit').addEventListener('click', openSalesConfirmation);
+  // Keep Enter-key submission working through the same review step.
   $('salesForm').addEventListener('submit', openSalesConfirmation);
   $('salesConfirmModal').setAttribute('aria-hidden','true');
   $('closeSalesConfirm').onclick = closeSalesConfirmation;
@@ -1464,7 +1467,10 @@ function openSalesConfirmation(e) {
     msg('salesMsg', 'Review window could not be loaded. Please refresh the page.');
     return;
   }
-  if (!form.reportValidity()) return;
+  if (!form.reportValidity()) {
+    msg('salesMsg', 'Please complete the required sales entry fields before reviewing.');
+    return;
+  }
 
   const branch = branches.find(b => b.id === profile?.branch_id);
   const selected = names.map((name, i) => ({
@@ -1494,10 +1500,21 @@ function openSalesConfirmation(e) {
 function closeSalesConfirmation() { const modal=$('salesConfirmModal'); if(modal){ modal.classList.add('hidden'); modal.setAttribute('aria-hidden','true'); } document.body.classList.remove('sales-confirm-open'); }
 async function submitConfirmedSales() {
   const btn=$('confirmSalesSubmit');
-  if(btn.disabled) return;
+  if(!btn || btn.disabled) return;
   btn.disabled=true; btn.textContent='Submitting…';
-  try { closeSalesConfirmation(); await submit({preventDefault(){}}); }
-  finally { btn.disabled=false; btn.textContent='Confirm & submit'; }
+  try {
+    await submit({preventDefault(){}});
+    const message=$('salesMsg')?.textContent || '';
+    if(message === 'Report submitted.' || message.includes('corrections saved successfully')) {
+      closeSalesConfirmation();
+    } else if(message) {
+      msg('salesMsg', message);
+    }
+  } catch(err) {
+    msg('salesMsg', err?.message || 'Submission failed. Please try again.');
+  } finally {
+    btn.disabled=false; btn.textContent='Confirm & submit';
+  }
 }
 
 async function submit(e) {
