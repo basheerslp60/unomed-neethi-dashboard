@@ -189,7 +189,7 @@ if (!ready) {
   $('forgot').onclick = async () => { const email=$('email').value.trim(); if(!email){msg('loginMsg','Enter your email first.');return;} const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname}); msg('loginMsg',error?error.message:'If the account exists, password reset instructions will be sent.'); };
   $('logout').onclick = () => db.auth.signOut();
   $('refresh').onclick = () => { if (user) load(user); };
-  $('applyPerformanceMonth').onclick = async () => { if(user){ await loadReports(); if(profile.role!=='branch_staff'){ await loadBranchAnalytics(); await loadTargetDashboard(); await loadManagementExecutiveDashboard(); } } };
+  $('applyPerformanceMonth').onclick = async () => { if(user){ await loadReports(); { await loadBranchAnalytics(); if(profile.role!=='branch_staff'){ await loadTargetDashboard(); await loadManagementExecutiveDashboard(); } } } };
   $('performanceMonth').addEventListener('change', () => { if(user) $('applyPerformanceMonth').click(); });
   $('overviewRefresh').onclick = () => { if (user) loadReports(); };
   $('overviewDashboard').addEventListener('click', event => {
@@ -341,14 +341,23 @@ async function load(u) {
   if(p.role==='branch_staff') $('correctionBranch').innerHTML='';
   else $('correctionBranch').innerHTML='<option value=>All permitted branches</option>'+branches.map(b=>`<option value="${esc(b.id)}">${esc(b.network)} - ${esc(b.branch_name)}</option>`).join('');
   show('managementReportSection',p.role!=='branch_staff');
-  show('branchAnalyticsSection',p.role!=='branch_staff');
+  show('branchAnalyticsSection',true);
+  if(p.role==='branch_staff' && $('analyticsPeriod')) $('analyticsPeriod').value='monthly';
+  if(p.role==='branch_staff') {
+    const analyticsHeading=$('branchAnalyticsSection')?.querySelector('.section-head h2');
+    const analyticsDescription=$('branchAnalyticsSection')?.querySelector('.section-head p:not(.eyebrow)');
+    if(analyticsHeading) analyticsHeading.textContent='Your branch month-to-month analytics';
+    if(analyticsDescription) analyticsDescription.textContent='Compare your branch’s sales and patient performance with the same period in the previous month.';
+  }
   show('targetDashboardSection',p.role!=='branch_staff');
   show('managementExecutiveSection',p.role!=='branch_staff');
   const canViewFinancial = ['admin','management'].includes(String(p.role||'').toLowerCase());
   show('financialIntelligenceSection',canViewFinancial);
   document.querySelector('.financial-nav')?.classList.toggle('hidden',!canViewFinancial);
   document.querySelector('.quick-financial')?.classList.toggle('hidden',!canViewFinancial);
-  document.querySelector('[data-quick-target="branchAnalyticsSection"]')?.classList.toggle('hidden',p.role==='branch_staff');
+  document.querySelector('[data-quick-target="branchAnalyticsSection"]')?.classList.remove('hidden');
+  document.querySelector('[data-target="branchAnalyticsSection"]')?.classList.remove('hidden');
+  $('analyticsNetwork')?.closest('div')?.classList.toggle('hidden',p.role==='branch_staff');
   renderPortalNotifications();
   if(canViewFinancial){ $('financialBranch').innerHTML='<option value="">Select branch</option>'+branches.map(b=>`<option value="${esc(b.id)}">${esc(b.network)} — ${esc(b.branch_name)}</option>`).join(''); $('financialPeriod').value=today.slice(0,7); $('financialAnalysisTo').value=today.slice(0,7); $('financialAnalysisFrom').value=`${today.slice(0,4)}-01`; await loadFinancialReports(); await loadFinancialManagementAnalysis(); }
   show('complianceSection',p.role!=='branch_staff');
@@ -364,7 +373,8 @@ async function load(u) {
   refreshSidebarVisibility();
   if (p.role === 'admin') await loadPortalUsers();
   await loadEmployeeModule();
-  if (p.role !== 'branch_staff') { await loadBranchAnalytics(); await loadTargetDashboard(); await loadManagementExecutiveDashboard(); }
+  await loadBranchAnalytics();
+  if (p.role !== 'branch_staff') { await loadTargetDashboard(); await loadManagementExecutiveDashboard(); }
 }
 
 
@@ -590,7 +600,7 @@ async function fetchAnalyticsReports(start,end) {
   return all;
 }
 async function loadBranchAnalytics() {
-  if(!profile || profile.role==='branch_staff' || !db) return;
+  if(!profile || !db) return;
   const rows=$('analyticsRows');
   rows.innerHTML='<tr><td colspan="8">Loading branch comparison…</td></tr>';
   $('analyticsMsg').textContent='Loading report records permitted for this account…';
@@ -610,9 +620,10 @@ async function loadBranchAnalytics() {
 }
 function renderBranchAnalytics() {
   const data=window.__branchAnalyticsData;
-  if(!data || !profile || profile.role==='branch_staff') return;
-  const network=$('analyticsNetwork').value;
-  const visible=branches.filter(b=>network==='ALL' || String(b.network).toUpperCase()===network);
+  if(!data || !profile) return;
+  const staff=profile.role==='branch_staff';
+  const network=staff?'ALL':$('analyticsNetwork').value;
+  const visible=branches.filter(b=>(staff?String(b.id)===String(profile.branch_id):true) && (network==='ALL' || String(b.network).toUpperCase()===network));
   const sumFor=(rows,branchId)=>rows.filter(r=>String(r.branch_id)===String(branchId)).reduce((a,r)=>({sales:a.sales+Number(r.total_sales||0),patients:a.patients+Number(r.patient_count||0)}),{sales:0,patients:0});
   const results=visible.map(b=>{
     const c=sumFor(data.current,b.id), p=sumFor(data.previous,b.id);
@@ -632,10 +643,10 @@ function renderBranchAnalytics() {
   $('analyticsKpis').innerHTML=
     `<div class="stat-card"><span>Total sales</span><strong>${money(totals.sales)}</strong><small>${growthText(salesGrowth)} vs previous period</small></div>`+
     `<div class="stat-card"><span>Total patients</span><strong>${totals.patients.toLocaleString('en-IN')}</strong><small>${growthText(patientGrowth)} vs previous period</small></div>`+
-    `<div class="stat-card"><span>Network average bill</span><strong>${money(totals.patients?totals.sales/totals.patients:0)}</strong><small>Sales divided by patients</small></div>`+
-    `<div class="stat-card"><span>Top sales branch</span><strong>${topSales?esc(topSales.branch.branch_name):'—'}</strong><small>${topSales?money(topSales.current.sales):'No sales recorded'}</small></div>`+
-    `<div class="stat-card"><span>Top patient volume</span><strong>${topPatients?esc(topPatients.branch.branch_name):'—'}</strong><small>${topPatients?topPatients.current.patients.toLocaleString('en-IN')+' patients':'No patients recorded'}</small></div>`+
-    `<div class="stat-card"><span>Best sales growth</span><strong>${bestGrowth?esc(bestGrowth.branch.branch_name):'—'}</strong><small>${bestGrowth?growthText(bestGrowth.salesChange):'No prior-period base'}</small></div>`;
+    `<div class="stat-card"><span>${staff?'Your branch average bill':'Network average bill'}</span><strong>${money(totals.patients?totals.sales/totals.patients:0)}</strong><small>Sales divided by patients</small></div>`+
+    `<div class="stat-card"><span>${staff?'Your branch':'Top sales branch'}</span><strong>${topSales?esc(topSales.branch.branch_name):'—'}</strong><small>${topSales?money(topSales.current.sales):'No sales recorded'}</small></div>`+
+    `<div class="stat-card"><span>${staff?'Your patients':'Top patient volume'}</span><strong>${topPatients?esc(topPatients.branch.branch_name):'—'}</strong><small>${topPatients?topPatients.current.patients.toLocaleString('en-IN')+' patients':'No patients recorded'}</small></div>`+
+    `<div class="stat-card"><span>${staff?'Your sales growth':'Best sales growth'}</span><strong>${bestGrowth?esc(bestGrowth.branch.branch_name):'—'}</strong><small>${bestGrowth?growthText(bestGrowth.salesChange):'No prior-period base'}</small></div>`;
   // Premium branch comparison visual (created dynamically to avoid changing the login/index shell).
   let visual=$('analyticsVisual');
   if(!visual) {
@@ -645,7 +656,7 @@ function renderBranchAnalytics() {
     $('analyticsKpis').insertAdjacentElement('afterend',visual);
   }
   const chartMax=Math.max(1,...results.map(r=>r.current.sales));
-  visual.innerHTML=`<div class="analytics-visual-head"><div><span class="analytics-visual-kicker">LIVE PERFORMANCE SNAPSHOT</span><h3>Branch sales comparison</h3><p>Current period sales by branch · ranked highest to lowest</p></div><div class="analytics-visual-total"><small>Network sales</small><strong>${money(totals.sales)}</strong></div></div><div class="analytics-bars">${results.map((r,i)=>{const pct=Math.max(r.current.sales?3:0,(r.current.sales/chartMax)*100);return `<div class="analytics-bar-row"><div class="analytics-bar-label"><span class="analytics-rank">${String(i+1).padStart(2,'0')}</span><strong>${esc(r.branch.branch_name)}</strong><small>${esc(r.branch.network)}</small></div><div class="analytics-bar-rail"><div class="analytics-bar-fill ${String(r.branch.network).toUpperCase()==='NEETHI'?'neethi':''}" style="width:${pct}%"></div></div><div class="analytics-bar-amount">${money(r.current.sales)}</div></div>`}).join('')}</div>`;
+  visual.innerHTML=`<div class="analytics-visual-head"><div><span class="analytics-visual-kicker">LIVE PERFORMANCE SNAPSHOT</span><h3>${staff?'Your branch sales trend':'Branch sales comparison'}</h3><p>${staff?'Your branch · current period vs previous period':'Current period sales by branch · ranked highest to lowest'}</p></div><div class="analytics-visual-total"><small>${staff?'Your branch sales':'Network sales'}</small><strong>${money(totals.sales)}</strong></div></div><div class="analytics-bars">${results.map((r,i)=>{const pct=Math.max(r.current.sales?3:0,(r.current.sales/chartMax)*100);return `<div class="analytics-bar-row"><div class="analytics-bar-label"><span class="analytics-rank">${String(i+1).padStart(2,'0')}</span><strong>${esc(r.branch.branch_name)}</strong><small>${esc(r.branch.network)}</small></div><div class="analytics-bar-rail"><div class="analytics-bar-fill ${String(r.branch.network).toUpperCase()==='NEETHI'?'neethi':''}" style="width:${pct}%"></div></div><div class="analytics-bar-amount">${money(r.current.sales)}</div></div>`}).join('')}</div>`;
   // Additional management charts: patient volume, average bill and network split.
   let charts=$('analyticsExtraCharts');
   if(!charts) {
@@ -657,7 +668,7 @@ function renderBranchAnalytics() {
   }
   const chartCard=(title,subtitle,items,valueFn,formatFn,accent='')=>{
     const max=Math.max(1,...items.map(valueFn));
-    return `<article class="analytics-mini-chart ${accent}"><div class="analytics-mini-head"><div><span class="analytics-visual-kicker">BRANCH COMPARISON</span><h3>${title}</h3><p>${subtitle}</p></div></div><div class="analytics-mini-list">${items.map((r,i)=>{const value=valueFn(r);const width=value>0?Math.max(3,value/max*100):0;return `<button type="button" class="analytics-mini-row analytics-mini-click" data-analytics-branch="${esc(String(r.branch.id))}" aria-label="Open ${esc(r.branch.branch_name)} daily details"><span class="analytics-mini-label"><span>${esc(r.branch.branch_name)}</span><strong>${formatFn(value)}</strong></span><span class="analytics-mini-track"><span class="analytics-mini-fill ${String(r.branch.network).toUpperCase()==='NEETHI'?'neethi':''}" style="width:${width}%"></span></span></button>`}).join('')}</div></article>`;
+    return `<article class="analytics-mini-chart ${accent}"><div class="analytics-mini-head"><div><span class="analytics-visual-kicker">BRANCH COMPARISON</span><h3>${title}</h3><p>${subtitle}</p></div></div><div class="analytics-mini-list">${items.map((r,i)=>{const value=valueFn(r);const width=value>0?Math.max(3,value/max*100):0;return `<button type="button" class="analytics-mini-row analytics-mini-click" ${staff?"disabled":""} data-analytics-branch="${esc(String(r.branch.id))}" aria-label="Open ${esc(r.branch.branch_name)} daily details"><span class="analytics-mini-label"><span>${esc(r.branch.branch_name)}</span><strong>${formatFn(value)}</strong></span><span class="analytics-mini-track"><span class="analytics-mini-fill ${String(r.branch.network).toUpperCase()==='NEETHI'?'neethi':''}" style="width:${width}%"></span></span></button>`}).join('')}</div></article>`;
   };
   const byPatients=[...results].sort((a,b)=>b.current.patients-a.current.patients);
   const byAverage=[...results].sort((a,b)=>b.avg-a.avg);
@@ -669,9 +680,9 @@ function renderBranchAnalytics() {
   });
   const networkMax=Math.max(1,...networkTotals.map(n=>n.sales));
   charts.innerHTML=`<div class="analytics-extra-heading"><div><span class="analytics-visual-kicker">MANAGEMENT INSIGHTS</span><h3>Patient volume & average bill analysis</h3><p>These charts follow the selected comparison period and network filter.</p></div></div><div class="analytics-extra-grid">${chartCard('Patient volume by branch','Patients served · highest to lowest',byPatients,r=>r.current.patients,v=>v.toLocaleString('en-IN'))}${chartCard('Average bill by branch','Sales divided by patients',byAverage,r=>r.avg,v=>money(v),'average')}</div><article class="analytics-network-chart"><div><span class="analytics-visual-kicker">NETWORK COMPARISON</span><h3>UNOMED vs NEETHI</h3><p>Sales contribution and patient volume for the selected period</p></div><div class="analytics-network-grid">${networkTotals.map(n=>`<div class="analytics-network-item"><div class="analytics-network-title"><strong>${n.name}</strong><b>${money(n.sales)}</b></div><div class="analytics-mini-track"><div class="analytics-mini-fill ${n.name==='NEETHI'?'neethi':''}" style="width:${n.sales/networkMax*100}%"></div></div><small>${n.patients.toLocaleString('en-IN')} patients · Avg bill ${money(n.average)}</small></div>`).join('')}</div></article>`;
-  $('analyticsRows').innerHTML=results.map((r,i)=>`<tr><td>${i+1}</td><td><button type="button" class="analytics-branch-link" data-analytics-branch="${esc(String(r.branch.id))}" aria-label="View ${esc(r.branch.branch_name)} daily details">${esc(r.branch.branch_name)} <span>↗</span></button></td><td>${esc(r.branch.network)}</td><td>${money(r.current.sales)}</td><td class="${r.salesChange===null?'':r.salesChange>=0?'analytics-positive':'analytics-negative'}">${growthText(r.salesChange)}</td><td>${r.current.patients.toLocaleString('en-IN')}</td><td class="${r.patientChange===null?'':r.patientChange>=0?'analytics-positive':'analytics-negative'}">${growthText(r.patientChange)}</td><td>${money(r.avg)}</td></tr>`).join('') || '<tr><td colspan="8">No active branches found.</td></tr>';
+  $('analyticsRows').innerHTML=results.map((r,i)=>`<tr><td>${i+1}</td><td><button type="button" class="analytics-branch-link" ${staff?"disabled":""} data-analytics-branch="${esc(String(r.branch.id))}" aria-label="View ${esc(r.branch.branch_name)} daily details">${esc(r.branch.branch_name)} <span>↗</span></button></td><td>${esc(r.branch.network)}</td><td>${money(r.current.sales)}</td><td class="${r.salesChange===null?'':r.salesChange>=0?'analytics-positive':'analytics-negative'}">${growthText(r.salesChange)}</td><td>${r.current.patients.toLocaleString('en-IN')}</td><td class="${r.patientChange===null?'':r.patientChange>=0?'analytics-positive':'analytics-negative'}">${growthText(r.patientChange)}</td><td>${money(r.avg)}</td></tr>`).join('') || '<tr><td colspan="8">No active branches found.</td></tr>';
   $('analyticsDrilldown').classList.add('hidden');
-  $('analyticsMsg').textContent=`${results.length} branches · ${data.current.length} current-period reports and ${data.previous.length} previous-period reports visible to this account. Select a branch name to open its day-wise sales and patient details. A “New” change means the previous period had zero sales or patients.`;
+  $('analyticsMsg').textContent=`${staff?'Your branch only · ':`${results.length} branches · `}${data.current.length} current-period reports and ${data.previous.length} previous-period reports visible to this account.${staff?' Other branches’ data is not displayed.':' Select a branch name to open its day-wise sales and patient details.'} A “New” change means the previous period had zero sales or patients.`;
 }
 function renderBranchDrilldown(branchId) {
   const data=window.__branchAnalyticsData;
@@ -1393,8 +1404,12 @@ function renderOverview() {
   const pace=totalTarget?achievement:0;const best=branchRows[0];const weakest=[...branchRows].filter(r=>r.target>0).sort((a,b)=>a.achievement-b.achievement)[0];
   $('overviewInsight').innerHTML=staff?`<strong>${pace>=100?'🏆 Target achieved':pace>=85?'👍 Good progress':'⚡ Keep building momentum'}</strong><br>${pace>=100?'Your branch has achieved its monthly target.':`You have achieved ${fmtPct(pace)} of your monthly target. Focus on consistent daily sales and patient follow-up.`}`:`<strong>${best?'🏆 Leading branch: '+esc(best.branch_name):'📊 Branch insights'}</strong><br>${weakest?`Needs attention: ${esc(weakest.branch_name)} at ${fmtPct(weakest.achievement)} achievement.`:'Set branch targets to unlock pace insights.'}`;
   show('overviewBranchPanel',!staff);
-  const filtered=branchRows.filter(r=>overviewNetwork==='ALL'||String(r.network).toUpperCase()===overviewNetwork);
-  $('overviewBranchRows').innerHTML=filtered.map((r,i)=>`<div class="overview-branch-row"><span class="overview-rank">${i+1}</span><div class="overview-branch-name"><strong>${esc(r.branch_name)}</strong><small>${esc(r.network)} · ${r.patients.toLocaleString('en-IN')} patients</small></div><div class="overview-branch-progress"><div><i style="width:${Math.min(100,r.achievement)}%"></i></div><small>${fmtPct(r.achievement)} of ${money(r.target)}</small></div><strong class="overview-branch-sales">${money(r.sales)}</strong></div>`).join('')||'<p>No branch results for this filter.</p>';
+  const filtered=branchRows
+    .filter(r=>overviewNetwork==='ALL'||String(r.network).toUpperCase()===overviewNetwork)
+    .filter(r=>r.target>0)
+    .sort((a,b)=>b.achievement-a.achievement)
+    .slice(0,5);
+  $('overviewBranchRows').innerHTML=filtered.map((r,i)=>`<div class="overview-branch-row"><span class="overview-rank">${i+1}</span><div class="overview-branch-name"><strong>${esc(r.branch_name)}</strong><small>${esc(r.network)}</small></div><div class="overview-branch-progress"><div><i style="width:${Math.min(100,r.achievement)}%"></i></div><small>${fmtPct(r.achievement)} achieved</small></div><strong class="overview-branch-sales">${fmtPct(r.achievement)}</strong></div>`).join('')||'<p>No branch results with an assigned target.</p>';
   const reportToday=(overviewReports||[]).filter(r=>r.report_date===today);const reported=new Set(reportToday.map(r=>String(r.branch_id)));const compliant=visibleBranches.filter(b=>reported.has(String(b.id))).length;
   $('overviewCompliance').innerHTML=`<div class="overview-compliance-count"><strong>${compliant}/${visibleBranches.length}</strong><span>branches submitted today</span></div><div class="overview-progress"><i style="width:${visibleBranches.length?compliant/visibleBranches.length*100:0}%"></i></div><small>${visibleBranches.length-compliant} branch(es) without a visible report today</small>`;
   const recent=(reports||[]).filter(r=>staff?String(r.branch_id)===String(profile.branch_id):true).slice(0,5);
