@@ -1060,3 +1060,30 @@ html, body { min-height:100%; }
 
 /* Employee task management */
 .employee-tasks-panel{margin-top:18px;padding-top:4px}.employee-tasks-panel .section-head{align-items:center}.employee-tasks-panel .section-head h3{margin:2px 0 5px}.employee-tasks-panel .section-head p:not(.eyebrow){margin:0;color:#718198;font-size:12px}.employee-tasks-panel table td{vertical-align:middle}.employee-tasks-panel td select{min-width:112px;max-width:130px;margin:0 6px 5px 0}.employee-tasks-panel td button{min-height:30px;padding:6px 10px;font-size:11px}.employee-tasks-panel .pill{display:inline-block;padding:3px 7px;border-radius:12px;font-size:10px;font-weight:750}
+
+
+/* Group leaderboard + same-date branch comparison for branch staff */
+#branchDailyTargetSection .staff-leaderboard-card,#branchDailyTargetSection .staff-comparison-card{margin:16px 0;padding:22px 24px;border:1px solid #dce6f1;border-radius:18px;background:#fff;box-shadow:0 8px 24px rgba(17,42,72,.06)}
+#branchDailyTargetSection .staff-upgrade-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+#branchDailyTargetSection .staff-upgrade-head h3{margin:3px 0;color:#102b4c;font-size:20px}
+#branchDailyTargetSection .staff-upgrade-head p:not(.eyebrow){margin:4px 0;color:#718198;font-size:13px}
+#branchDailyTargetSection .staff-live-pill{padding:7px 11px;border-radius:99px;background:#edf3fa;color:#23466e;font-size:10px;font-weight:850;letter-spacing:.06em}
+#branchDailyTargetSection .staff-leaderboard-list{list-style:none;padding:0;margin:0;display:grid;gap:9px}
+#branchDailyTargetSection .staff-leaderboard-row{display:grid;grid-template-columns:42px minmax(130px,1fr) minmax(90px,1.2fr) 66px;align-items:center;gap:12px;padding:10px 12px;border:1px solid #e7edf5;border-radius:13px;background:linear-gradient(90deg,#f9fbfe,#fff)}
+#branchDailyTargetSection .staff-rank{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:#edf2f8;color:#18395e;font-weight:900}
+#branchDailyTargetSection .staff-rank-branch{display:grid;gap:3px;min-width:0}#branchDailyTargetSection .staff-rank-branch strong{color:#163455;overflow-wrap:anywhere}#branchDailyTargetSection .staff-rank-branch small{color:#8491a3;font-size:11px}
+#branchDailyTargetSection .staff-rank-meter{height:9px;border-radius:99px;background:#e8edf4;overflow:hidden}#branchDailyTargetSection .staff-rank-meter i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#18a58e,#087b62)}
+#branchDailyTargetSection .staff-rank-pct{text-align:right;color:#087b62;font-size:17px;font-variant-numeric:tabular-nums}
+#branchDailyTargetSection .staff-privacy-note,#branchDailyTargetSection .staff-compare-footnote{margin:13px 0 0;color:#8491a3;font-size:11px;line-height:1.5}
+#branchDailyTargetSection .staff-compare-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+#branchDailyTargetSection .staff-compare-kpis article{padding:16px;border:1px solid #e3eaf2;border-radius:14px;background:#f9fbfe;min-width:0}
+#branchDailyTargetSection .staff-compare-kpis article span{display:block;color:#75849a;font-size:11px;font-weight:750}
+#branchDailyTargetSection .staff-compare-kpis article strong{display:block;margin:8px 0 3px;color:#153657;font-size:clamp(18px,2vw,25px);overflow-wrap:anywhere}
+#branchDailyTargetSection .staff-compare-kpis article small{font-size:11px;color:#718198}
+#branchDailyTargetSection .staff-compare-kpis .is-positive strong{color:#07805f}#branchDailyTargetSection .staff-compare-kpis .is-negative strong{color:#b42345}
+#branchDailyTargetSection .staff-compare-chart{display:grid;gap:15px;margin-top:20px}
+#branchDailyTargetSection .staff-compare-bar-row{display:grid;grid-template-columns:115px minmax(60px,1fr) 110px;align-items:center;gap:12px;font-size:12px;color:#64748b}
+#branchDailyTargetSection .staff-compare-bar-row>div{height:16px;border-radius:99px;background:#edf1f6;overflow:hidden}#branchDailyTargetSection .staff-compare-bar-row i{display:block;height:100%;border-radius:99px;background:#7db8e8}#branchDailyTargetSection .staff-compare-bar-row.current i{background:#1762b6}
+#branchDailyTargetSection .staff-compare-bar-row strong{text-align:right;color:#173657;font-variant-numeric:tabular-nums}
+#branchDailyTargetSection .staff-widget-error{padding:14px;border-radius:12px;background:#fff8f0;border:1px solid #f2d8b6;color:#70451d}#branchDailyTargetSection .staff-widget-error p{margin:6px 0;font-size:12px;overflow-wrap:anywhere}
+@media(max-width:760px){#branchDailyTargetSection .staff-leaderboard-row{grid-template-columns:34px minmax(100px,1fr) 70px;gap:8px}#branchDailyTargetSection .staff-rank-meter{grid-column:2/3;grid-row:2}#branchDailyTargetSection .staff-rank-pct{grid-column:3;grid-row:1/3}#branchDailyTargetSection .staff-compare-kpis{grid-template-columns:1fr}#branchDailyTargetSection .staff-compare-bar-row{grid-template-columns:80px minmax(40px,1fr);gap:8px}#branchDailyTargetSection .staff-compare-bar-row strong{grid-column:2;text-align:left}}
