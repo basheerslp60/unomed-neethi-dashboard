@@ -19,19 +19,8 @@ function handleSalesReview(event) {
 }
 // The module is loaded at the end of index.html, so bind directly to the real button.
 // Keep form-submit handling as a separate keyboard/Enter fallback.
-// Capture the review click at document level. This survives re-rendering and
-// prevents another handler from swallowing the action before the modal opens.
-document.addEventListener('click', event => {
-  const target = event.target instanceof Element ? event.target.closest('#reviewSalesSubmit') : null;
-  if (!target) return;
-  event.preventDefault();
-  event.stopPropagation();
-  handleSalesReview(event);
-}, true);
+$('reviewSalesSubmit')?.addEventListener('click', handleSalesReview);
 $('salesForm')?.addEventListener('submit', handleSalesReview);
-const salesModalElement = $('salesConfirmModal');
-if (salesModalElement && salesModalElement.parentElement !== document.body) document.body.appendChild(salesModalElement);
-if (salesModalElement) { salesModalElement.classList.add('hidden'); salesModalElement.setAttribute('aria-hidden','true'); }
 
 const names = ["Complete HC 599","My Health 999","Cardiac HC","EHC 2500","EHC Advanced 3500","Healthy Women 699","Healthy Men","EHC PRO 8499","Hairfall","Vitamin Profile","PCOD Mini","Onam Camp","Other Packages"];
 let db, user, profile, branches = [], reports = [], targets = [];
@@ -349,9 +338,8 @@ async function load(u) {
     const rankGap = $('branchRankGap');
     if (rankValue) rankValue.textContent = '…';
     if (rankGap) rankGap.textContent = 'Checking group position…';
+    void loadTop5BranchLeaderboard();
   }
-  // Load the shared leaderboard for branch staff and management.
-  void loadTop5BranchLeaderboard();
   if (p.role === 'admin') {
   $('portalBranch').innerHTML = branches.map(b => '<option value="' + b.id + '">' + esc(b.network) + ' - ' + esc(b.branch_name) + '</option>').join('');
     updatePortalBranchVisibility();
@@ -1397,21 +1385,17 @@ function renderOverview() {
 }
 
 async function loadTop5BranchLeaderboard() {
-  const hosts = [$('top5BranchRows'), $('staffTop5BranchRows')].filter(Boolean);
-  const notes = [$('top5BranchMsg'), $('staffTop5BranchMsg')].filter(Boolean);
-  if (!hosts.length || !db || !profile) return;
-  hosts.forEach(host => host.innerHTML = '<p class="overview-empty">Loading branch leaderboard…</p>');
-  const periodLabels = [$('top5PeriodLabel'), $('staffTop5PeriodLabel')].filter(Boolean);
-  periodLabels.forEach(el => el.textContent = `As of ${today}`);
+  const host=$('top5BranchRows'), note=$('top5BranchMsg');
+  if(!host || !db || !profile) return;
+  host.innerHTML='<p class="overview-empty">Loading branch leaderboard…</p>';
+  if($('top5PeriodLabel')) $('top5PeriodLabel').textContent=`As of ${today}`;
   try {
     const {data,error}=await db.rpc('get_top_group_branches',{p_as_of_date:today});
     if(error) throw error;
     const rows=Array.isArray(data)?data:[];
     window.__top5BranchRows=rows;
-    const topFive=rows.filter(r=>Number(r.rank_no)<=5).sort((a,b)=>Number(a.rank_no)-Number(b.rank_no));
-    const markup=topFive.length?topFive.map(r=>`<div class="overview-top5-row"><span class="overview-top5-rank">${Number(r.rank_no)}</span><div class="overview-top5-branch"><strong>${esc(r.branch_name||'Branch')}</strong><small>${esc(r.network||'')}</small></div><strong class="overview-top5-achievement">${Number(r.achievement_pct||0).toFixed(1)}%</strong></div>`).join(''):'<p class="overview-empty">No monthly branch targets are configured for this month.</p>';
-    hosts.forEach(host => host.innerHTML=markup);
-    notes.forEach(note => note.textContent='Showing rank, branch, network and achievement percentage only.');
+    host.innerHTML=rows.length?rows.filter(r=>Number(r.rank_no)<=5).map((r,i)=>`<div class="overview-top5-row"><span class="overview-top5-rank">${Number(r.rank_no||i+1)}</span><div class="overview-top5-branch"><strong>${esc(r.branch_name||'Branch')}</strong><small>${esc(r.network||'')}</small></div><strong class="overview-top5-achievement">${Number(r.achievement_pct||0).toFixed(1)}%</strong></div>`).join(''):'<p class="overview-empty">No monthly branch targets are configured for this month.</p>';
+    if(note) note.textContent='Only rank, branch, network and target achievement are shown.';
     const rankValueEl=$('branchRankValue'), rankGapEl=$('branchRankGap');
     if(profile.role==='branch_staff' && rankValueEl && rankGapEl){
       const own=rows.find(r=>r.is_current_branch===true);
@@ -1420,8 +1404,8 @@ async function loadTop5BranchLeaderboard() {
     }
   } catch(err) {
     window.__top5BranchRows=[];
-    hosts.forEach(host => host.innerHTML='<p class="overview-empty">Leaderboard unavailable. Check the database setup.</p>');
-    notes.forEach(note => note.textContent=`Top 5 query failed: ${err.message||'Unknown Supabase error'}.`);
+    host.innerHTML='<p class="overview-empty">Leaderboard unavailable. Check the database setup.</p>';
+    if(note) note.textContent=`Top 5 query failed: ${err.message||'Unknown Supabase error'}. Install the supplied migration and check its execution result.`;
     const rankValueEl=$('branchRankValue'), rankGapEl=$('branchRankGap');
     if(profile?.role==='branch_staff') {
       if(rankValueEl) rankValueEl.textContent='Unavailable';
@@ -1547,8 +1531,7 @@ function openSalesConfirmation(e) {
   const modal = $('salesConfirmModal');
   const content = $('salesConfirmContent');
   if (!form || !modal || !content) {
-    msg('salesMsg', 'Review window could not be loaded. Missing sales form or confirmation modal.');
-    console.error('Sales review setup incomplete:', {form:!!form, modal:!!modal, content:!!content});
+    msg('salesMsg', 'Review window could not be loaded. Please refresh the page.');
     return;
   }
   if (!form.reportValidity()) {
@@ -1583,12 +1566,11 @@ function openSalesConfirmation(e) {
   </div>`;
 
   modal.classList.remove('hidden');
-  modal.style.display = 'flex';
   modal.setAttribute('aria-hidden', 'false');
   document.body.classList.add('sales-confirm-open');
   $('confirmSalesSubmit')?.focus();
 }
-function closeSalesConfirmation() { const modal=$('salesConfirmModal'); if(modal){ modal.classList.add('hidden'); modal.style.display='none'; modal.setAttribute('aria-hidden','true'); } document.body.classList.remove('sales-confirm-open'); }
+function closeSalesConfirmation() { const modal=$('salesConfirmModal'); if(modal){ modal.classList.add('hidden'); modal.setAttribute('aria-hidden','true'); } document.body.classList.remove('sales-confirm-open'); }
 async function submitConfirmedSales() {
   const btn=$('confirmSalesSubmit');
   if(!btn || btn.disabled) return;
