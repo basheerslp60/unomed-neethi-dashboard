@@ -133,6 +133,7 @@ document.querySelectorAll('.nav-button[data-target]').forEach(button => {
     const target = $(button.dataset.target);
     if (!target || button.classList.contains('nav-hidden')) return;
     setPortalView(button.dataset.target);
+    if (button.dataset.target === 'inventorySection') void loadInventoryModule();
   });
 });
 $('sidebarToggle')?.addEventListener('click', () => {
@@ -203,6 +204,19 @@ if (!ready) {
   show('setup', true); msg('loginMsg','Add your Project URL and publishable key to src/config.js.');
 } else {
   db = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  $('inventoryRefresh')?.addEventListener('click', loadInventoryModule);
+  $('inventorySubmitClosing')?.addEventListener('click', submitInventoryClosing);
+  $('inventoryItemForm')?.addEventListener('submit', saveInventoryItem);
+  $('inventoryAssignmentForm')?.addEventListener('submit', saveInventoryAssignment);
+  $('inventoryPurchaseForm')?.addEventListener('submit', submitInventoryPurchase);
+  $('inventoryMovementForm')?.addEventListener('submit', saveInventoryMovement);
+  $('inventoryPurchaseRows')?.addEventListener('click', handleInventoryRequestAction);
+  $('inventoryBranchFilter')?.addEventListener('change', renderInventoryManagement);
+  $('inventoryRequestItem')?.addEventListener('change', () => { const a=inventoryAssignmentsCache.find(x=>String(x.item_id)===$('inventoryRequestItem').value); const unit=a?.inventory_items?.unit||inventoryItemsCache.find(i=>String(i.id)===$('inventoryRequestItem').value)?.unit; $('inventoryRequestQty').step=['nos','tests'].includes(String(unit).toLowerCase())?'1':'0.001'; });
+  $('inventoryMovementItem')?.addEventListener('change', () => { const item=inventoryItemsCache.find(i=>String(i.id)===$('inventoryMovementItem').value); $('inventoryMovementQty').step=['nos','tests'].includes(String(item?.unit).toLowerCase())?'1':'0.001'; });
+  $('inventoryAsOfDate') && ($('inventoryAsOfDate').value = today);
+  $('inventoryMovementDate') && ($('inventoryMovementDate').value = today);
+
   db.auth.onAuthStateChange((ev,s) => { if (s?.user) setTimeout(() => load(s.user),0); else loggedOut(); });
   db.auth.getSession().then(({data}) => { if (data.session?.user) load(data.session.user); });
   $('loginForm').onsubmit = async e => { e.preventDefault(); msg('loginMsg','Signing in…'); const {error} = await db.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value}); if (error) msg('loginMsg',error.message); };
@@ -385,6 +399,8 @@ async function load(u) {
   show('userAccessSection',p.role==='admin');
   show('branchTargetAdminSection',p.role==='admin');
   if(p.role==='admin') await loadBranchTargetEditor();
+  show('inventorySection', true);
+  await loadInventoryModule();
   $('title').textContent = p.role === 'branch_staff' ? (branches.find(x => x.id === p.branch_id)?.branch_name || 'Branch') + ' daily entry' : 'Management consolidated report';
   $('subtitle').textContent=p.role==='branch_staff'?'Submit sales for your assigned branch':'Targets and sales totals from reports permitted for your account';
   await loadReports();
@@ -396,6 +412,53 @@ async function load(u) {
   if (p.role !== 'branch_staff') { await loadBranchAnalytics(); await loadTargetDashboard(); await loadManagementExecutiveDashboard(); }
 }
 
+
+
+// ---------------- Inventory & Procurement module ----------------
+let inventoryItemsCache = [], inventoryAssignmentsCache = [], inventoryEntriesCache = [], inventoryRequestsCache = [], inventoryMovementsCache = [];
+const inventoryManager = () => ['admin','management'].includes(String(profile?.role||'').toLowerCase());
+const inventoryUnitLabel = unit => ({ml:'ML',nos:'Nos',tests:'Tests'}[String(unit||'').toLowerCase()] || String(unit||''));
+const inventoryDate = value => value ? String(value).slice(0,10) : '';
+const inventoryFmtQty = value => Number(value||0).toLocaleString('en-IN',{maximumFractionDigits:3});
+function inventorySetMessage(message, ok=false){const el=$('inventoryMessage');if(el){el.textContent=message||'';el.style.color=ok?'#087c68':'#b4233d';}}
+function inventoryFillSelect(id, rows, labelFn, firstLabel){const el=$(id);if(!el)return;const previous=el.value;el.innerHTML=(firstLabel?`<option value="">${esc(firstLabel)}</option>`:'')+rows.map(r=>`<option value="${esc(r.id)}">${esc(labelFn(r))}</option>`).join('');if(rows.some(r=>String(r.id)===previous))el.value=previous;}
+function inventoryBranchName(id){return branches.find(b=>String(b.id)===String(id))?.branch_name||`Branch ${id}`;}
+function inventoryLatestByAssignment(){const map=new Map();for(const entry of inventoryEntriesCache){for(const line of entry.inventory_stock_entry_lines||[]){const key=String(line.assignment_id);if(!map.has(key))map.set(key,{...line,stock_date:entry.stock_date,submitted_at:entry.submitted_at});}}return map;}
+function inventoryCurrentQty(assignment, latest){let qty=Number(latest?.quantity||0);const cutoff=latest?.stock_date||'0000-01-01';for(const movement of inventoryMovementsCache){if(String(movement.branch_id)!==String(assignment.branch_id)||String(movement.item_id)!==String(assignment.item_id)||inventoryDate(movement.movement_date)<=cutoff)continue;const amount=Number(movement.quantity||0);qty+=movement.movement_type==='consumption'?-amount:amount;}return qty;}
+function inventoryStatus(assignment, latest){if(!latest)return {label:'Pending update',cls:'pending'};const qty=inventoryCurrentQty(assignment,latest),min=Number(assignment.min_stock||0);if(qty<=0)return {label:'Zero stock',cls:'critical'};if(min>0&&qty<=min)return {label:'Low stock',cls:'low'};return {label:'Normal',cls:'ok'};}
+function inventoryDue(assignment, latest){if(!latest)return true;const d=new Date(`${latest.stock_date}T00:00:00`);d.setDate(d.getDate()+Number(assignment.reporting_frequency_days||1));const due=new Date(`${$('inventoryAsOfDate')?.value||today}T00:00:00`);return due>=d;}
+function renderInventoryKpis(){const host=$('inventoryKpis');if(!host)return;const scoped=inventoryManager()?inventoryAssignmentsCache:inventoryAssignmentsCache.filter(a=>String(a.branch_id)===String(profile?.branch_id));const latest=inventoryLatestByAssignment();let low=0,pending=0;scoped.forEach(a=>{const s=inventoryStatus(a,latest.get(String(a.id)));if(s.cls==='low'||s.cls==='critical')low++;if(inventoryDue(a,latest.get(String(a.id))))pending++;});const reqPending=inventoryRequestsCache.filter(r=>r.status==='pending').length;const cards=[['Assigned items',scoped.length],['Low / critical',low],['Closing stock due',pending],['Pending procurement',reqPending]];host.innerHTML=cards.map(([l,v])=>`<article><small>${esc(l)}</small><strong>${Number(v).toLocaleString('en-IN')}</strong></article>`).join('');}
+function renderInventoryStaff(){const host=$('inventoryClosingRows');if(!host)return;const assignments=inventoryAssignmentsCache.filter(a=>String(a.branch_id)===String(profile?.branch_id));const latest=inventoryLatestByAssignment();if(!assignments.length){host.innerHTML='<p class="inventory-empty">No inventory items have been assigned to this branch yet. Please contact Admin / Management.</p>';return;}host.innerHTML=assignments.map(a=>{const item=a.inventory_items||inventoryItemsCache.find(i=>String(i.id)===String(a.item_id))||{};const old=latest.get(String(a.id));const st=inventoryStatus(a,old);if(inventoryDue(a,old)&&st.cls==='ok'){st.label='Update due';st.cls='pending';}return `<div class="inventory-closing-row" data-inventory-assignment="${esc(a.id)}"><div><strong>${esc(item.item_name||'Inventory item')}</strong><small>${esc(item.category||'')} · ${esc(inventoryUnitLabel(item.unit))} · Min ${inventoryFmtQty(a.min_stock)} ${esc(inventoryUnitLabel(item.unit))} · Every ${Number(a.reporting_frequency_days||1)} day(s)</small></div><div><label>Physical qty</label><input type="number" min="0" step="${['nos','tests'].includes(String(item.unit).toLowerCase())?'1':'0.001'}" required data-inventory-qty="${esc(a.id)}" placeholder="Enter qty" aria-label="Closing quantity for ${esc(item.item_name||'item')}"></div><div><small>Last submitted</small><strong>${old?`${inventoryFmtQty(old.quantity)} ${esc(inventoryUnitLabel(old.unit))}`:'No entry yet'}</strong><small>${old?esc(old.stock_date):'Awaiting first count'}</small></div><span class="inventory-stock-status ${st.cls}">${esc(st.label)}</span></div>`;}).join('');inventoryFillSelect('inventoryRequestItem',assignments.map(a=>({id:a.item_id,item_name:a.inventory_items?.item_name||inventoryItemsCache.find(i=>String(i.id)===String(a.item_id))?.item_name||'Item'})),r=>r.item_name,'Select item');}
+function renderInventoryManagement(){const latest=inventoryLatestByAssignment();const selectedBranch=$('inventoryBranchFilter')?.value||'';const scopedAssignments=inventoryAssignmentsCache.filter(a=>!selectedBranch||String(a.branch_id)===String(selectedBranch));const scopedRequests=inventoryRequestsCache.filter(r=>!selectedBranch||String(r.branch_id)===String(selectedBranch));const scopedMovements=inventoryMovementsCache.filter(m=>!selectedBranch||String(m.branch_id)===String(selectedBranch));const alerts=[];for(const a of scopedAssignments){const item=a.inventory_items||inventoryItemsCache.find(i=>String(i.id)===String(a.item_id))||{};const last=latest.get(String(a.id));const st=inventoryStatus(a,last);const due=inventoryDue(a,last);if(st.cls!=='ok'||due){alerts.push({a,item,last,st,due});}}
+const alertHost=$('inventoryAlertList');if(alertHost){alertHost.innerHTML=alerts.length?alerts.map(x=>{const qty=x.last?`${inventoryFmtQty(inventoryCurrentQty(x.a,x.last))} ${inventoryUnitLabel(x.item.unit)} (ledger)`:'No closing entry';const cls=x.st.cls==='critical'?'is-critical':x.st.cls==='low'?'is-low':x.due?'is-pending':'';const title=x.st.cls==='critical'?'Zero stock':x.st.cls==='low'?'Below minimum':x.due?'Closing stock overdue':'Stock alert';return `<article class="inventory-alert-card ${cls}"><strong>${esc(x.item.item_name||'Item')} · ${esc(inventoryBranchName(x.a.branch_id))}</strong><small>${esc(title)} · Available: ${esc(qty)}</small><small>Minimum: ${inventoryFmtQty(x.a.min_stock)} ${esc(inventoryUnitLabel(x.item.unit))} · Frequency: ${Number(x.a.reporting_frequency_days||1)} day(s) · Last count: ${x.last?esc(x.last.stock_date):'Never submitted'}</small></article>`;}).join(''):'<p class="inventory-empty">All assigned inventory is within configured limits and closing stock is up to date.</p>';}
+const assignRows=$('inventoryAssignmentRows');if(assignRows)assignRows.innerHTML=scopedAssignments.map(a=>{const item=a.inventory_items||inventoryItemsCache.find(i=>String(i.id)===String(a.item_id))||{};const last=latest.get(String(a.id));const qty=last?inventoryCurrentQty(a,last):null;const st=inventoryStatus(a,last);return `<tr><td>${esc(inventoryBranchName(a.branch_id))}</td><td>${esc(item.item_name||'—')}</td><td>${esc(item.category||'')}</td><td>${esc(inventoryUnitLabel(item.unit))}</td><td>${qty===null?'—':`${inventoryFmtQty(qty)} ${esc(inventoryUnitLabel(item.unit))}`}</td><td>${last?esc(last.stock_date):'Never'}</td><td>${inventoryFmtQty(a.min_stock)}</td><td>${inventoryFmtQty(a.reorder_qty)}</td><td>Every ${Number(a.reporting_frequency_days||1)} day(s)</td><td><span class="inventory-status-pill ${st.cls==='critical'||st.cls==='low'?'rejected':st.cls==='pending'?'pending':'approved'}">${esc(st.label)}</span></td></tr>`;}).join('')||'<tr><td colspan="10">No branch assignments configured.</td></tr>';
+const requests=$('inventoryPurchaseRows');if(requests)requests.innerHTML=scopedRequests.map(r=>{const lines=r.inventory_purchase_request_lines||[];const itemText=lines.map(l=>`${l.inventory_items?.item_name||'Item'}: ${inventoryFmtQty(l.requested_qty)} ${inventoryUnitLabel(l.unit)}`).join('<br>');const actions=r.status==='pending'?`<button type="button" data-inventory-request-action="approved" data-request-id="${esc(r.id)}">Approve</button><button type="button" class="secondary" data-inventory-request-action="rejected" data-request-id="${esc(r.id)}">Reject</button>`:r.status==='approved'?`<button type="button" data-inventory-request-action="received" data-request-id="${esc(r.id)}">Mark received</button>`:'—';return `<tr><td>${esc(inventoryDate(r.created_at))}</td><td>${esc(inventoryBranchName(r.branch_id))}</td><td>${itemText||'—'}</td><td><span class="inventory-status-pill ${esc(r.status)}">${esc(r.status)}</span></td><td>${esc(r.notes||'')}</td><td><div class="inventory-action-group">${actions}</div></td></tr>`;}).join('')||'<tr><td colspan="6">No procurement requests found.</td></tr>';
+const movements=$('inventoryMovementRows');if(movements)movements.innerHTML=scopedMovements.map(m=>`<tr><td>${esc(inventoryDate(m.movement_date))}</td><td>${esc(inventoryBranchName(m.branch_id))}</td><td>${esc(m.inventory_items?.item_name||'Item')}</td><td>${esc(m.movement_type)}</td><td>${inventoryFmtQty(m.quantity)} ${esc(inventoryUnitLabel(m.inventory_items?.unit))}</td><td>${esc(m.reference||m.remarks||'—')}</td></tr>`).join('')||'<tr><td colspan="6">No stock movements recorded yet.</td></tr>';
+}
+async function loadInventoryModule(){if(!db||!profile)return;inventorySetMessage('Loading inventory…',true);try{
+const [itemsRes,assignRes,entryRes,requestRes,movementRes]=await Promise.all([
+db.from('inventory_items').select('id,item_name,category,unit,active').eq('active',true).order('item_name'),
+db.from('inventory_branch_assignments').select('id,branch_id,item_id,min_stock,reorder_qty,reporting_frequency_days,active,inventory_items(id,item_name,category,unit)').eq('active',true),
+db.from('inventory_stock_entries').select('id,branch_id,stock_date,submitted_at,inventory_stock_entry_lines(assignment_id,quantity,unit)').order('stock_date',{ascending:false}).limit(250),
+db.from('inventory_purchase_requests').select('id,branch_id,status,notes,created_at,inventory_purchase_request_lines(id,item_id,requested_qty,approved_qty,received_qty,unit,inventory_items(item_name))').order('created_at',{ascending:false}).limit(100),
+db.from('inventory_movements').select('id,branch_id,item_id,movement_type,quantity,movement_date,reference,remarks,inventory_items(item_name,unit)').order('movement_date',{ascending:false}).limit(150)
+]);
+for(const [name,res] of [['items',itemsRes],['assignments',assignRes],['closing entries',entryRes],['purchase requests',requestRes],['movements',movementRes]])if(res.error)throw new Error(`${name}: ${res.error.message}`);
+inventoryItemsCache=itemsRes.data||[];inventoryAssignmentsCache=assignRes.data||[];inventoryEntriesCache=entryRes.data||[];inventoryRequestsCache=requestRes.data||[];inventoryMovementsCache=movementRes.data||[];
+if(!inventoryManager()){inventoryAssignmentsCache=inventoryAssignmentsCache.filter(a=>String(a.branch_id)===String(profile.branch_id));inventoryEntriesCache=inventoryEntriesCache.filter(e=>String(e.branch_id)===String(profile.branch_id));inventoryRequestsCache=inventoryRequestsCache.filter(r=>String(r.branch_id)===String(profile.branch_id));inventoryMovementsCache=inventoryMovementsCache.filter(m=>String(m.branch_id)===String(profile.branch_id));}
+renderInventoryKpis();renderInventoryStaff();if(inventoryManager())renderInventoryManagement();
+const branchOpts=branches.map(b=>({id:b.id,branch_name:`${b.network} — ${b.branch_name}`}));inventoryFillSelect('inventoryAssignBranch',branchOpts,b=>b.branch_name,'Select branch');inventoryFillSelect('inventoryMovementBranch',branchOpts,b=>b.branch_name,'Select branch');inventoryFillSelect('inventoryBranchFilter',branchOpts,b=>b.branch_name,'All branches');inventoryFillSelect('inventoryAssignItem',inventoryItemsCache,i=>`${i.item_name} · ${i.category} · ${inventoryUnitLabel(i.unit)}`,'Select item');inventoryFillSelect('inventoryMovementItem',inventoryItemsCache,i=>`${i.item_name} · ${inventoryUnitLabel(i.unit)}`,'Select item');
+const staffPanel=$('inventoryStaffPanel'),managerPanel=$('inventoryManagementPanel');staffPanel?.classList.toggle('hidden',inventoryManager());managerPanel?.classList.toggle('hidden',!inventoryManager());$('inventoryBranchFilterWrap')?.classList.toggle('hidden',!inventoryManager());
+if($('inventoryStaffHistory')){$('inventoryStaffHistory').innerHTML=inventoryEntriesCache.slice(0,8).map(e=>`<div class="inventory-history-row"><span><strong>${esc(e.stock_date)}</strong><br><small>${(e.inventory_stock_entry_lines||[]).length} item quantities submitted</small></span><span class="inventory-status-pill received">Submitted</span></div>`).join('')||'<p class="inventory-empty">No closing stock history yet.</p>';}
+if($('inventoryStaffRequests')){$('inventoryStaffRequests').innerHTML=inventoryRequestsCache.slice(0,8).map(r=>`<div class="inventory-history-row"><span><strong>${esc(inventoryDate(r.created_at))} · ${esc(r.inventory_purchase_request_lines?.length||0)} item(s)</strong><br><small>${esc(r.notes||'Procurement request')}</small></span><span class="inventory-status-pill ${esc(r.status)}">${esc(r.status)}</span></div>`).join('')||'<p class="inventory-empty">No procurement requests yet.</p>'; }
+inventorySetMessage('Inventory data loaded successfully.',true);
+}catch(error){console.error('Inventory load error:',error);inventorySetMessage(`Could not load inventory: ${error.message||error}`);}}
+async function saveInventoryItem(event){event.preventDefault();if(!inventoryManager())return;const payload={item_name:$('inventoryItemName').value.trim(),category:$('inventoryItemCategory').value,unit:$('inventoryItemUnit').value,active:true,created_by:user.id};if(!payload.item_name){inventorySetMessage('Enter an inventory item name.');return;}const {error}=await db.from('inventory_items').insert(payload);if(error){inventorySetMessage(error.message);return;}event.target.reset();await loadInventoryModule();inventorySetMessage('Inventory item added.',true);}
+async function saveInventoryAssignment(event){event.preventDefault();if(!inventoryManager())return;const payload={branch_id:Number($('inventoryAssignBranch').value),item_id:Number($('inventoryAssignItem').value),min_stock:Number($('inventoryMinStock').value),reorder_qty:Number($('inventoryReorderQty').value),reporting_frequency_days:Number($('inventoryFrequency').value),active:true};if(!payload.branch_id||!payload.item_id||payload.reporting_frequency_days<1){inventorySetMessage('Select a branch, item and valid reporting frequency.');return;}const {error}=await db.from('inventory_branch_assignments').upsert(payload,{onConflict:'branch_id,item_id'});if(error){inventorySetMessage(error.message);return;}await loadInventoryModule();inventorySetMessage('Branch inventory assignment saved.',true);}
+async function submitInventoryClosing(){const branchId=inventoryManager()?Number($('inventoryBranchFilter').value):Number(profile?.branch_id);if(!branchId){inventorySetMessage('Select the branch for this closing stock entry.');return;}const lines=[...document.querySelectorAll('[data-inventory-qty]')].map(input=>({assignment_id:Number(input.dataset.inventoryQty),quantity:input.value===''?null:Number(input.value)}));if(!lines.length||lines.some(x=>x.quantity===null||!Number.isFinite(x.quantity)||x.quantity<0)){inventorySetMessage('Enter a valid physical quantity for every assigned item. Use 0 for zero stock.');return;}const {data,error}=await db.rpc('inventory_submit_closing_stock',{p_branch_id:branchId,p_stock_date:$('inventoryAsOfDate').value||today,p_remarks:$('inventoryClosingRemarks').value.trim(),p_lines:lines});if(error){inventorySetMessage(error.message);return;}$('inventoryClosingRemarks').value='';await loadInventoryModule();inventorySetMessage('Closing stock submitted and saved to history.',true);}
+async function submitInventoryPurchase(event){event.preventDefault();const itemId=Number($('inventoryRequestItem').value),qty=Number($('inventoryRequestQty').value);if(!itemId||!Number.isFinite(qty)||qty<=0){inventorySetMessage('Select an item and enter a requested quantity.');return;}const {data,error}=await db.rpc('inventory_create_purchase_request',{p_branch_id:Number(profile.branch_id),p_notes:$('inventoryRequestNotes').value.trim(),p_lines:[{item_id:itemId,requested_qty:qty}]});if(error){inventorySetMessage(error.message);return;}event.target.reset();await loadInventoryModule();inventorySetMessage('Procurement request sent to Management for approval.',true);}
+async function handleInventoryRequestAction(event){const button=event.target.closest('[data-inventory-request-action]');if(!button)return;const id=button.dataset.requestId,action=button.dataset.inventoryRequestAction;let result;if(action==='received'){const request=inventoryRequestsCache.find(r=>String(r.id)===String(id));const lines=(request?.inventory_purchase_request_lines||[]).map(l=>({line_id:l.id,received_qty:Number(l.approved_qty??l.requested_qty)}));result=await db.rpc('inventory_receive_purchase_request',{p_request_id:id,p_lines:lines,p_notes:'Received and entered through Inventory & Procurement module'});}else result=await db.rpc('inventory_review_purchase_request',{p_request_id:id,p_action:action,p_notes:''});if(result.error){inventorySetMessage(result.error.message);return;}await loadInventoryModule();inventorySetMessage(action==='approved'?'Purchase request approved.':action==='rejected'?'Purchase request rejected.':'Receipt recorded and added to stock ledger.',true);}
+async function saveInventoryMovement(event){event.preventDefault();if(!inventoryManager())return;const payload={branch_id:Number($('inventoryMovementBranch').value),item_id:Number($('inventoryMovementItem').value),movement_type:$('inventoryMovementType').value,quantity:Number($('inventoryMovementQty').value),movement_date:$('inventoryMovementDate').value||today,remarks:$('inventoryMovementNotes').value.trim(),created_by:user.id};if(!payload.branch_id||!payload.item_id||!Number.isFinite(payload.quantity)||payload.quantity<=0){inventorySetMessage('Complete all stock movement fields with a positive quantity.');return;}const {error}=await db.from('inventory_movements').insert(payload);if(error){inventorySetMessage(error.message);return;}event.target.reset();$('inventoryMovementDate').value=today;await loadInventoryModule();inventorySetMessage('Stock movement recorded successfully.',true);}
 
 function updatePortalBranchVisibility() {
   const isStaff = $('portalRole')?.value === 'branch_staff';
@@ -1562,9 +1625,7 @@ async function loadTop5BranchLeaderboard() {
 }
 async function loadStaffMonthComparison() {
   const host=$('staffMonthComparisonCards'), note=$('staffMonthComparisonMsg');
-  const periodEl=$('staffMonthComparisonPeriod');
   if(!host || !db || profile?.role!=='branch_staff' || !profile.branch_id) return;
-
   const [year,month,day]=today.split('-').map(Number);
   const currentStart=`${year}-${String(month).padStart(2,'0')}-01`;
   const prevMonthDate=new Date(year,month-2,1);
@@ -1573,14 +1634,7 @@ async function loadStaffMonthComparison() {
   const compareDay=Math.min(day,prevLast);
   const currentEnd=today;
   const prevEnd=`${prevStart.slice(0,7)}-${String(compareDay).padStart(2,'0')}`;
-  const monthLabel=(dateString)=>new Date(Number(dateString.slice(0,4)),Number(dateString.slice(5,7))-1,1)
-    .toLocaleDateString('en-IN',{month:'long',year:'numeric'});
-  const shortDate=(dateString)=>`${Number(dateString.slice(8,10))} ${new Date(Number(dateString.slice(0,4)),Number(dateString.slice(5,7))-1,1).toLocaleDateString('en-IN',{month:'short'})}`;
-  const currentMonthName=monthLabel(currentStart), previousMonthName=monthLabel(prevStart);
-
-  host.innerHTML='<p class="chart-loading">Loading your branch performance…</p>';
-  if(periodEl) periodEl.textContent=`${currentMonthName} · ${shortDate(currentStart)}–${shortDate(currentEnd)}  vs  ${previousMonthName} · ${shortDate(prevStart)}–${shortDate(prevEnd)}`;
-
+  host.innerHTML='<p class="chart-loading">Loading your branch comparison…</p>';
   try {
     const fetchPeriod=async(start,end)=>{
       const {data,error}=await db.from('daily_reports').select('report_date,total_sales,patient_count')
@@ -1588,55 +1642,17 @@ async function loadStaffMonthComparison() {
       if(error) throw error;
       return data||[];
     };
-    const [current,previous]=await Promise.all([
-      fetchPeriod(currentStart,currentEnd),
-      fetchPeriod(prevStart,prevEnd)
-    ]);
-    const sum=rows=>rows.reduce((a,r)=>({
-      sales:a.sales+Number(r.total_sales||0),
-      patients:a.patients+Number(r.patient_count||0),
-      days:a.days+1
-    }),{sales:0,patients:0,days:0});
+    const [current,previous]=await Promise.all([fetchPeriod(currentStart,currentEnd),fetchPeriod(prevStart,prevEnd)]);
+    const sum=rows=>rows.reduce((a,r)=>({sales:a.sales+Number(r.total_sales||0),patients:a.patients+Number(r.patient_count||0),days:a.days+1}),{sales:0,patients:0,days:0});
     const c=sum(current),p=sum(previous);
-    const currentAvg=c.patients?c.sales/c.patients:0;
-    const previousAvg=p.patients?p.sales/p.patients:0;
     const change=(now,before)=>before>0?((now-before)/before)*100:null;
-    const metrics=[
-      {key:'sales',label:'Sales',icon:'₹',current:money(c.sales),previous:money(p.sales),raw:c.sales,prior:p.sales,delta:change(c.sales,p.sales),difference:Math.abs(c.sales-p.sales),formatDiff:v=>money(v),insight:(delta,diff)=>delta===null?'No previous-period sales available for comparison.':delta<0?`Sales decreased by ${money(diff)} compared with ${previousMonthName}.`:`Sales increased by ${money(diff)} compared with ${previousMonthName}.`,action:'Review daily sales momentum, pending follow-ups and package conversions.'},
-      {key:'patients',label:'Patients',icon:'♙',current:c.patients.toLocaleString('en-IN'),previous:p.patients.toLocaleString('en-IN'),raw:c.patients,prior:p.patients,delta:change(c.patients,p.patients),difference:Math.abs(c.patients-p.patients),formatDiff:v=>`${v.toLocaleString('en-IN')} patients`,insight:(delta,diff)=>delta===null?'No previous-period patient count available for comparison.':delta<0?`${diff.toLocaleString('en-IN')} fewer patients than ${previousMonthName}.`:`${diff.toLocaleString('en-IN')} more patients than ${previousMonthName}.`,action:'Focus on patient retention, doctor referrals and follow-up conversion.'},
-      {key:'average',label:'Average bill',icon:'↗',current:money(currentAvg),previous:money(previousAvg),raw:currentAvg,prior:previousAvg,delta:change(currentAvg,previousAvg),difference:Math.abs(currentAvg-previousAvg),formatDiff:v=>money(v),insight:(delta,diff)=>delta===null?'No previous-period average bill available for comparison.':delta<0?`Average bill decreased by ${money(diff)} per patient.`:`Average bill increased by ${money(diff)} per patient.`,action:'Review package mix and suitable test-profile recommendations.'}
-    ];
-    const fmtDelta=v=>v===null?'—':`${v>=0?'↑':'↓'} ${Math.abs(v).toFixed(1)}%`;
-    const safePct=v=>v===null?0:Math.max(0,Math.min(100,v));
-    const renderCards=selectedKey=>{
-      host.innerHTML=`
-        <div class="staff-m2m-month-strip">
-          <span class="staff-m2m-period-chip is-current"><i></i> ${esc(currentMonthName)}</span>
-          <span class="staff-m2m-vs">VS</span>
-          <span class="staff-m2m-period-chip"><i></i> ${esc(previousMonthName)}</span>
-          <span class="staff-m2m-same-period">Same elapsed days</span>
-        </div>
-        <div class="staff-m2m-grid">
-          ${metrics.map(m=>`
-            <button type="button" class="staff-m2m-card ${m.key===selectedKey?'is-selected':''} ${m.delta!==null&&m.delta<0?'is-negative':'is-positive'}" data-m2m-key="${m.key}" aria-pressed="${m.key===selectedKey?'true':'false'}">
-              <span class="staff-m2m-card-top"><span class="staff-m2m-icon">${m.icon}</span><span class="staff-m2m-label">${m.label}</span><span class="staff-m2m-delta ${m.delta!==null&&m.delta<0?'is-down':'is-up'}">${fmtDelta(m.delta)}</span></span>
-              <strong class="staff-m2m-current">${m.current}</strong>
-              <span class="staff-m2m-previous">${esc(previousMonthName)}: ${m.previous}</span>
-              <span class="staff-m2m-track"><i style="width:${m.prior>0?safePct((m.raw/m.prior)*100):0}%"></i></span>
-            </button>`).join('')}
-        </div>
-        <div class="staff-m2m-insight" aria-live="polite">
-          <div class="staff-m2m-insight-copy"><span class="staff-m2m-insight-kicker">SELECTED METRIC · ${esc(selectedKey.toUpperCase())}</span><strong>${metrics.find(m=>m.key===selectedKey).insight(metrics.find(m=>m.key===selectedKey).delta,metrics.find(m=>m.key===selectedKey).difference)}</strong><small>${metrics.find(m=>m.key===selectedKey).action}</small></div>
-          <span class="staff-m2m-insight-mark">${metrics.find(m=>m.key===selectedKey).delta!==null&&metrics.find(m=>m.key===selectedKey).delta<0?'!':'✓'}</span>
-        </div>`;
-    };
-    renderCards('sales');
-    host.onclick=(event)=>{
-      const button=event.target.closest('[data-m2m-key]');
-      if(!button || !host.contains(button)) return;
-      renderCards(button.dataset.m2mKey);
-    };
-    if(note) note.textContent=`Your assigned branch only · ${shortDate(currentStart)}–${shortDate(currentEnd)} compared with ${shortDate(prevStart)}–${shortDate(prevEnd)}. Select a metric to view its performance insight.`;
+    const salesChange=change(c.sales,p.sales),patientChange=change(c.patients,p.patients);
+    const averageChange=change(c.patients?c.sales/c.patients:0,p.patients?p.sales/p.patients:0);
+    const changeLabel=v=>v===null?'—':`${v>=0?'+':''}${v.toFixed(1)}%`;
+    const metric=(label,now,before,delta)=>`<article class="staff-month-comparison-card"><span>${label}</span><strong>${now}</strong><small>Previous: ${before}</small><b class="${delta!==null&&delta<0?'is-down':'is-up'}">${changeLabel(delta)}</b></article>`;
+    host.innerHTML=metric('Sales',money(c.sales),money(p.sales),salesChange)+metric('Patients',c.patients.toLocaleString('en-IN'),p.patients.toLocaleString('en-IN'),patientChange)+metric('Average bill',money(c.patients?c.sales/c.patients:0),money(p.patients?p.sales/p.patients:0),averageChange);
+    $('staffMonthComparisonPeriod').textContent=`${currentStart}–${currentEnd} compared with ${prevStart}–${prevEnd} · same elapsed day count`;
+    if(note) note.textContent='Figures are limited to your assigned branch. Percentage change compares this month with the same elapsed period last month.';
   } catch(err) {
     host.innerHTML='<p class="overview-empty">Could not load the monthly comparison.</p>';
     if(note) note.textContent=`${err.message||'Monthly comparison query failed.'} Check daily_reports read access for your assigned branch.`;
