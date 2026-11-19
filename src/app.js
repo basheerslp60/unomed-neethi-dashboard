@@ -1625,7 +1625,9 @@ async function loadTop5BranchLeaderboard() {
 }
 async function loadStaffMonthComparison() {
   const host=$('staffMonthComparisonCards'), note=$('staffMonthComparisonMsg');
+  const periodEl=$('staffMonthComparisonPeriod');
   if(!host || !db || profile?.role!=='branch_staff' || !profile.branch_id) return;
+
   const [year,month,day]=today.split('-').map(Number);
   const currentStart=`${year}-${String(month).padStart(2,'0')}-01`;
   const prevMonthDate=new Date(year,month-2,1);
@@ -1634,7 +1636,14 @@ async function loadStaffMonthComparison() {
   const compareDay=Math.min(day,prevLast);
   const currentEnd=today;
   const prevEnd=`${prevStart.slice(0,7)}-${String(compareDay).padStart(2,'0')}`;
-  host.innerHTML='<p class="chart-loading">Loading your branch comparison…</p>';
+  const monthLabel=(dateString)=>new Date(Number(dateString.slice(0,4)),Number(dateString.slice(5,7))-1,1)
+    .toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  const shortDate=(dateString)=>`${Number(dateString.slice(8,10))} ${new Date(Number(dateString.slice(0,4)),Number(dateString.slice(5,7))-1,1).toLocaleDateString('en-IN',{month:'short'})}`;
+  const currentMonthName=monthLabel(currentStart), previousMonthName=monthLabel(prevStart);
+
+  host.innerHTML='<p class="chart-loading">Loading your branch performance…</p>';
+  if(periodEl) periodEl.textContent=`${currentMonthName} · ${shortDate(currentStart)}–${shortDate(currentEnd)}  vs  ${previousMonthName} · ${shortDate(prevStart)}–${shortDate(prevEnd)}`;
+
   try {
     const fetchPeriod=async(start,end)=>{
       const {data,error}=await db.from('daily_reports').select('report_date,total_sales,patient_count')
@@ -1642,17 +1651,55 @@ async function loadStaffMonthComparison() {
       if(error) throw error;
       return data||[];
     };
-    const [current,previous]=await Promise.all([fetchPeriod(currentStart,currentEnd),fetchPeriod(prevStart,prevEnd)]);
-    const sum=rows=>rows.reduce((a,r)=>({sales:a.sales+Number(r.total_sales||0),patients:a.patients+Number(r.patient_count||0),days:a.days+1}),{sales:0,patients:0,days:0});
+    const [current,previous]=await Promise.all([
+      fetchPeriod(currentStart,currentEnd),
+      fetchPeriod(prevStart,prevEnd)
+    ]);
+    const sum=rows=>rows.reduce((a,r)=>({
+      sales:a.sales+Number(r.total_sales||0),
+      patients:a.patients+Number(r.patient_count||0),
+      days:a.days+1
+    }),{sales:0,patients:0,days:0});
     const c=sum(current),p=sum(previous);
+    const currentAvg=c.patients?c.sales/c.patients:0;
+    const previousAvg=p.patients?p.sales/p.patients:0;
     const change=(now,before)=>before>0?((now-before)/before)*100:null;
-    const salesChange=change(c.sales,p.sales),patientChange=change(c.patients,p.patients);
-    const averageChange=change(c.patients?c.sales/c.patients:0,p.patients?p.sales/p.patients:0);
-    const changeLabel=v=>v===null?'—':`${v>=0?'+':''}${v.toFixed(1)}%`;
-    const metric=(label,now,before,delta)=>`<article class="staff-month-comparison-card"><span>${label}</span><strong>${now}</strong><small>Previous: ${before}</small><b class="${delta!==null&&delta<0?'is-down':'is-up'}">${changeLabel(delta)}</b></article>`;
-    host.innerHTML=metric('Sales',money(c.sales),money(p.sales),salesChange)+metric('Patients',c.patients.toLocaleString('en-IN'),p.patients.toLocaleString('en-IN'),patientChange)+metric('Average bill',money(c.patients?c.sales/c.patients:0),money(p.patients?p.sales/p.patients:0),averageChange);
-    $('staffMonthComparisonPeriod').textContent=`${currentStart}–${currentEnd} compared with ${prevStart}–${prevEnd} · same elapsed day count`;
-    if(note) note.textContent='Figures are limited to your assigned branch. Percentage change compares this month with the same elapsed period last month.';
+    const metrics=[
+      {key:'sales',label:'Sales',icon:'₹',current:money(c.sales),previous:money(p.sales),raw:c.sales,prior:p.sales,delta:change(c.sales,p.sales),difference:Math.abs(c.sales-p.sales),formatDiff:v=>money(v),insight:(delta,diff)=>delta===null?'No previous-period sales available for comparison.':delta<0?`Sales decreased by ${money(diff)} compared with ${previousMonthName}.`:`Sales increased by ${money(diff)} compared with ${previousMonthName}.`,action:'Review daily sales momentum, pending follow-ups and package conversions.'},
+      {key:'patients',label:'Patients',icon:'♙',current:c.patients.toLocaleString('en-IN'),previous:p.patients.toLocaleString('en-IN'),raw:c.patients,prior:p.patients,delta:change(c.patients,p.patients),difference:Math.abs(c.patients-p.patients),formatDiff:v=>`${v.toLocaleString('en-IN')} patients`,insight:(delta,diff)=>delta===null?'No previous-period patient count available for comparison.':delta<0?`${diff.toLocaleString('en-IN')} fewer patients than ${previousMonthName}.`:`${diff.toLocaleString('en-IN')} more patients than ${previousMonthName}.`,action:'Focus on patient retention, doctor referrals and follow-up conversion.'},
+      {key:'average',label:'Average bill',icon:'↗',current:money(currentAvg),previous:money(previousAvg),raw:currentAvg,prior:previousAvg,delta:change(currentAvg,previousAvg),difference:Math.abs(currentAvg-previousAvg),formatDiff:v=>money(v),insight:(delta,diff)=>delta===null?'No previous-period average bill available for comparison.':delta<0?`Average bill decreased by ${money(diff)} per patient.`:`Average bill increased by ${money(diff)} per patient.`,action:'Review package mix and suitable test-profile recommendations.'}
+    ];
+    const fmtDelta=v=>v===null?'—':`${v>=0?'↑':'↓'} ${Math.abs(v).toFixed(1)}%`;
+    const safePct=v=>v===null?0:Math.max(0,Math.min(100,v));
+    const renderCards=selectedKey=>{
+      host.innerHTML=`
+        <div class="staff-m2m-month-strip">
+          <span class="staff-m2m-period-chip is-current"><i></i> ${esc(currentMonthName)}</span>
+          <span class="staff-m2m-vs">VS</span>
+          <span class="staff-m2m-period-chip"><i></i> ${esc(previousMonthName)}</span>
+          <span class="staff-m2m-same-period">Same elapsed days</span>
+        </div>
+        <div class="staff-m2m-grid">
+          ${metrics.map(m=>`
+            <button type="button" class="staff-m2m-card ${m.key===selectedKey?'is-selected':''} ${m.delta!==null&&m.delta<0?'is-negative':'is-positive'}" data-m2m-key="${m.key}" aria-pressed="${m.key===selectedKey?'true':'false'}">
+              <span class="staff-m2m-card-top"><span class="staff-m2m-icon">${m.icon}</span><span class="staff-m2m-label">${m.label}</span><span class="staff-m2m-delta ${m.delta!==null&&m.delta<0?'is-down':'is-up'}">${fmtDelta(m.delta)}</span></span>
+              <strong class="staff-m2m-current">${m.current}</strong>
+              <span class="staff-m2m-previous">${esc(previousMonthName)}: ${m.previous}</span>
+              <span class="staff-m2m-track"><i style="width:${m.prior>0?safePct((m.raw/m.prior)*100):0}%"></i></span>
+            </button>`).join('')}
+        </div>
+        <div class="staff-m2m-insight" aria-live="polite">
+          <div class="staff-m2m-insight-copy"><span class="staff-m2m-insight-kicker">SELECTED METRIC · ${esc(selectedKey.toUpperCase())}</span><strong>${metrics.find(m=>m.key===selectedKey).insight(metrics.find(m=>m.key===selectedKey).delta,metrics.find(m=>m.key===selectedKey).difference)}</strong><small>${metrics.find(m=>m.key===selectedKey).action}</small></div>
+          <span class="staff-m2m-insight-mark">${metrics.find(m=>m.key===selectedKey).delta!==null&&metrics.find(m=>m.key===selectedKey).delta<0?'!':'✓'}</span>
+        </div>`;
+    };
+    renderCards('sales');
+    host.onclick=(event)=>{
+      const button=event.target.closest('[data-m2m-key]');
+      if(!button || !host.contains(button)) return;
+      renderCards(button.dataset.m2mKey);
+    };
+    if(note) note.textContent=`Your assigned branch only · ${shortDate(currentStart)}–${shortDate(currentEnd)} compared with ${shortDate(prevStart)}–${shortDate(prevEnd)}. Select a metric to view its performance insight.`;
   } catch(err) {
     host.innerHTML='<p class="overview-empty">Could not load the monthly comparison.</p>';
     if(note) note.textContent=`${err.message||'Monthly comparison query failed.'} Check daily_reports read access for your assigned branch.`;
