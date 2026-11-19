@@ -290,3 +290,112 @@
 @media (prefers-reduced-motion:reduce) {
   .staff-m2m-card,.staff-m2m-track i { transition:none; }
 }
+
+
+/* Month-to-month analytics readability correction — V3
+   Keep the comparison sections in a clear vertical flow and give each metric
+   enough horizontal space for full values and month labels. */
+#staffMonthComparisonCards {
+  display: block !important;
+  width: 100%;
+  min-width: 0;
+}
+#staffMonthComparisonCards > .staff-m2m-month-strip {
+  display: flex !important;
+  width: 100%;
+  min-height: 34px;
+  align-items: center;
+  gap: 9px;
+  margin: 8px 0 12px;
+}
+#staffMonthComparisonCards > .staff-m2m-grid {
+  display: grid !important;
+  width: 100%;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  align-items: stretch;
+  gap: 12px;
+}
+#staffMonthComparisonCards .staff-m2m-card {
+  width: 100%;
+  min-width: 0;
+  min-height: 126px;
+  padding: 13px 15px 12px;
+  gap: 8px;
+}
+#staffMonthComparisonCards .staff-m2m-card-top {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+#staffMonthComparisonCards .staff-m2m-label {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+  font-size: 11px;
+}
+#staffMonthComparisonCards .staff-m2m-delta {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-size: 11px;
+  padding: 4px 8px;
+}
+#staffMonthComparisonCards .staff-m2m-current {
+  display: block;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  font-size: clamp(21px, 2vw, 27px);
+  line-height: 1.18;
+  letter-spacing: -.025em;
+}
+#staffMonthComparisonCards .staff-m2m-previous {
+  display: block;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  font-size: 11px;
+  line-height: 1.35;
+}
+#staffMonthComparisonCards .staff-m2m-track {
+  width: 100%;
+  margin-top: auto;
+}
+#staffMonthComparisonCards > .staff-m2m-insight {
+  display: flex !important;
+  width: 100%;
+  min-height: 62px;
+  margin-top: 12px;
+  padding: 11px 14px;
+}
+#staffMonthComparisonCards .staff-m2m-insight-copy strong {
+  font-size: 12px;
+  line-height: 1.45;
+}
+#staffMonthComparisonCards .staff-m2m-insight-copy small {
+  font-size: 11px;
+  line-height: 1.45;
+}
+@media (max-width: 900px) {
+  #staffMonthComparisonCards > .staff-m2m-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+@media (max-width: 600px) {
+  #staffMonthComparisonCards > .staff-m2m-grid {
+    grid-template-columns: 1fr !important;
+  }
+  #staffMonthComparisonCards .staff-m2m-card {
+    min-height: 112px;
+  }
+  #staffMonthComparisonCards > .staff-m2m-month-strip {
+    align-items: flex-start;
+  }
+  #staffMonthComparisonCards .staff-m2m-same-period {
+    width: 100%;
+    margin-left: 0;
+  }
+}
