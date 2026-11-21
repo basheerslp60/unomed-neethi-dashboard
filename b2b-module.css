@@ -5,3 +5,71 @@
 
 /* B2B registration: visible selected-test chips and pre-submit review */
 .b2b-test-picker-row{display:flex;gap:8px;align-items:stretch}.b2b-test-picker-row select{flex:1;min-width:0}.b2b-selected-tests{display:flex;flex-wrap:wrap;gap:7px;min-height:42px;padding:9px;margin-top:8px;border:1px solid #d7e2f0;border-radius:10px;background:#f8fbff}.b2b-test-chip{display:inline-flex;align-items:center;gap:8px;padding:6px 9px;border-radius:999px;background:#e8f1ff;color:#174a83;font-size:13px;font-weight:600}.b2b-test-chip button{border:0!important;background:transparent!important;color:#174a83!important;padding:0 2px!important;min-width:18px;font-size:18px;line-height:1}.b2b-registration-review{margin-top:16px;padding:16px;border:1px solid #9dbbe0;border-radius:12px;background:#f7faff}.b2b-registration-review h4{margin:0 0 12px}.b2b-review-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0}.b2b-review-grid div{padding:8px 10px;background:#fff;border-radius:8px}.b2b-review-grid dt{font-size:11px;color:#63758b}.b2b-review-grid dd{margin:3px 0 0;font-weight:600}.b2b-review-test-list{margin:8px 0 14px;padding-left:22px}.b2b-review-test-list li{padding:3px 0}.b2b-review-actions{display:flex;flex-wrap:wrap;gap:8px}@media(max-width:600px){.b2b-test-picker-row{flex-direction:column}.b2b-review-grid{grid-template-columns:1fr}}
+
+
+/* ===== B2B premium command-centre experience ===== */
+#b2bSection.b2b-module{--b2b-ink:#102b4e;--b2b-muted:#71839a;--b2b-line:#e2eaf3;--b2b-accent:#087f8c;max-width:1600px;margin:0 auto;padding:clamp(18px,2.3vw,34px);background:linear-gradient(145deg,#f8fbff 0%,#f1f6fc 58%,#f8fbff 100%);border:1px solid #e3ebf5;border-radius:24px;box-shadow:0 22px 70px rgba(19,48,83,.09)}
+#b2bSection .b2b-hero{position:relative;overflow:hidden;display:flex;justify-content:space-between;align-items:center;gap:24px;min-height:210px;padding:30px 34px;border:0;border-radius:22px;background:radial-gradient(circle at 85% 20%,rgba(44,185,187,.22),transparent 25%),linear-gradient(115deg,#0b2344 0%,#123c68 58%,#087f8c 120%);box-shadow:0 16px 38px rgba(11,35,68,.18)}
+#b2b2Section .b2b-hero{isolation:isolate}
+#b2bSection .b2b-hero:after{content:"";position:absolute;z-index:-1;width:380px;height:380px;border:1px solid rgba(255,255,255,.11);border-radius:50%;right:10%;top:-210px;box-shadow:0 0 0 35px rgba(255,255,255,.025),0 0 0 75px rgba(255,255,255,.02)}
+#b2bSection .b2b-hero .eyebrow{color:#70d7d3;font-size:10px;font-weight:900;letter-spacing:.2em;margin:0 0 12px}
+#b2bSection .b2b-hero .eyebrow span{color:#8aa8c3;padding:0 5px}
+#b2bSection .b2b-hero h2{color:#fff;font-size:clamp(25px,3vw,38px);letter-spacing:-.035em;line-height:1.1;margin:0 0 11px}
+#b2bSection .b2b-hero h2 span{color:#79ded7}
+#b2bSection .b2b-hero p{color:#c3d5e8;font-size:13px;max-width:660px;line-height:1.7;margin:0}
+#b2bSection .b2b-hero-meta{display:flex;flex-wrap:wrap;gap:17px;margin-top:19px;color:#d7e7f4;font-size:10px;font-weight:700}
+#b2bSection .b2b-hero-meta span{display:flex;align-items:center;gap:7px}
+#b2bSection .b2b-hero-meta i{width:7px;height:7px;border-radius:50%;background:#4be0ae;box-shadow:0 0 0 4px rgba(75,224,174,.14)}
+#b2bSection .b2b-hero-side{display:flex;flex-direction:column;align-items:center;gap:7px;min-width:180px;color:#a9c5d9;font-size:10px}
+#b2bSection .b2b-tag{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);color:#dffdfa;padding:8px 13px}
+#b2bSection .b2b-hero-orbit{width:104px;height:104px;position:relative;border:1px solid rgba(255,255,255,.24);border-radius:50%;display:grid;place-items:center;margin-top:5px}
+#b2bSection .orbit-core{width:58px;height:58px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,#fff,#ccefeb);color:#0c4761;font-size:15px;font-weight:950;box-shadow:0 0 30px rgba(103,233,219,.25)}
+#b2bSection .orbit-dot{position:absolute;width:10px;height:10px;border-radius:50%;background:#76e1d4;box-shadow:0 0 0 5px rgba(118,225,212,.12)}#b2bSection .dot-one{top:8px;left:18px}#b2bSection .dot-two{right:4px;top:52px;background:#fff}#b2bSection .dot-three{bottom:8px;left:23px;background:#58b9f1}
+#b2bSection .b2b-kpis{grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin:18px 0}
+#b2bSection .b2b-kpis article{position:relative;overflow:hidden;min-height:112px;padding:18px 19px;border:1px solid #e0e9f3;border-radius:17px;background:linear-gradient(150deg,#fff,#fafdff);box-shadow:0 6px 18px rgba(27,58,91,.045);transition:transform .2s,box-shadow .2s,border-color .2s;cursor:pointer}
+#b2bSection .b2b-kpis article:hover{transform:translateY(-3px);box-shadow:0 13px 26px rgba(27,58,91,.1);border-color:#b9d2e8}
+#b2bSection .b2b-kpis article:after{content:"";position:absolute;width:74px;height:74px;border-radius:50%;right:-25px;bottom:-34px;background:rgba(14,138,151,.07)}
+#b2bSection .b2b-kpis article:nth-child(2):after{background:rgba(226,160,44,.1)}#b2bSection .b2b-kpis article:nth-child(3):after{background:rgba(30,166,120,.1)}#b2bSection .b2b-kpis article:nth-child(4):after{background:rgba(214,76,95,.09)}
+#b2bSection .b2b-kpis small{font-size:10px;letter-spacing:.1em;color:#71849a}
+#b2bSection .b2b-kpis strong{font-size:30px;letter-spacing:-.04em;color:#102e52;margin-top:9px}
+#b2bSection .b2b-kpis article:focus-visible{outline:3px solid #5ac5c5;outline-offset:3px}
+#b2bSection .b2b-panel{margin-top:17px;padding:22px;border:1px solid #e1eaf3;border-radius:19px;background:rgba(255,255,255,.94);box-shadow:0 8px 24px rgba(27,58,91,.045)}
+#b2bSection .b2b-section-head{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:17px}
+#b2bSection .b2b-section-head h3{font-size:18px;letter-spacing:-.02em;margin:3px 0 4px;color:#102d50}
+#b2bSection .b2b-section-head p{font-size:11px;color:#75879b;margin:0;line-height:1.55}
+#b2bSection .b2b-section-kicker{font-size:9px;font-weight:900;letter-spacing:.16em;color:#0a8991}
+#b2bSection .b2b-step-label{white-space:nowrap;padding:8px 11px;border-radius:9px;background:#eef7f8;color:#0b7782;font-size:10px;font-weight:800}
+#b2bSection .b2b-step-label b{font-size:14px;margin-right:5px}
+#b2bSection .b2b-form{grid-template-columns:repeat(3,minmax(0,1fr));gap:15px 16px}
+#b2bSection .b2b-form label{font-size:10px;letter-spacing:.015em;color:#526981;margin-bottom:7px}
+#b2bSection .b2b-form input,#b2bSection .b2b-form select,#b2bSection .b2b-form textarea{min-height:45px;border:1px solid #d8e3ee;border-radius:10px;background:#fbfdff;padding:10px 12px;font-size:12px;transition:border-color .18s,box-shadow .18s,background .18s}
+#b2bSection .b2b-form input:focus,#b2bSection .b2b-form select:focus,#b2bSection .b2b-form textarea:focus{outline:0;border-color:#42aeb4;background:#fff;box-shadow:0 0 0 4px rgba(31,158,165,.11)}
+#b2bSection .b2b-test-picker{padding:16px;border:1px solid #e0eaf2;border-radius:14px;background:linear-gradient(135deg,#f8fbff,#f4fafb)}
+#b2bSection .b2b-test-picker-row select{min-height:46px;background:#fff}
+#b2bSection .b2b-test-picker-row button{min-width:108px;border-radius:10px}
+#b2bSection .b2b-selected-tests{min-height:49px;background:#fff;border-color:#dfe9f2}
+#b2bSection .b2b-test-chip{background:#e9f6f7;color:#0b6672;border:1px solid #cce9e8;font-size:11px}
+#b2bSection .b2b-form button,#b2bSection .b2b-review-actions button{border-radius:10px;min-height:42px;font-weight:800;letter-spacing:.01em}
+#b2bSection #b2bReviewRequest,#b2bSection #b2bConfirmRequest{background:linear-gradient(110deg,#0a7d88,#0d9d9b);box-shadow:0 7px 16px rgba(8,127,140,.18)}
+#b2bSection .b2b-registration-review{background:linear-gradient(135deg,#f5fbff,#effafa);border:1px solid #b9dfe0;border-radius:15px;padding:18px}
+#b2bSection .b2b-review-grid div{border:1px solid #e7eef5;border-radius:10px;padding:11px}
+#b2bSection .b2b-review-test-list li{padding:5px 0;color:#17446b;font-weight:650}
+#b2bSection .b2b-register-tools{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:15px 0 12px}
+#b2bSection .b2b-searchbox{display:flex;align-items:center;gap:8px;min-width:min(360px,100%);padding:0 12px;border:1px solid #dce6ef;border-radius:10px;background:#fbfdff;color:#8ba0b5}
+#b2bSection .b2b-searchbox span{font-size:22px}#b2bSection .b2b-searchbox input{width:100%;min-height:39px;border:0;outline:0;background:transparent;font:inherit;font-size:11px;color:#183b5d}
+#b2bSection .b2b-filter-tabs{display:flex;gap:5px;flex-wrap:wrap;padding:4px;border-radius:11px;background:#f0f5fa}
+#b2bSection .b2b-filter-tabs button{min-height:31px;padding:5px 11px;border:0;border-radius:8px;background:transparent;color:#6b8095;font-size:10px;font-weight:800;cursor:pointer}
+#b2bSection .b2b-filter-tabs button.active{background:#fff;color:#0c7883;box-shadow:0 2px 7px rgba(21,48,78,.1)}
+#b2bSection .b2b-live-indicator{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border-radius:99px;background:#ecf8f4;color:#148466;font-size:9px;font-weight:850;white-space:nowrap}
+#b2bSection .b2b-live-indicator:before{content:"";width:6px;height:6px;border-radius:50%;background:#20b486;box-shadow:0 0 0 4px rgba(32,180,134,.12)}
+#b2bSection .b2b-table-wrap{border:1px solid #e2eaf2;border-radius:13px;box-shadow:0 3px 10px rgba(20,49,79,.025)}
+#b2bSection .b2b-table{min-width:820px}
+#b2bSection .b2b-table th{padding:12px 13px;background:#f3f7fb;color:#647991;font-size:9px;letter-spacing:.09em}
+#b2bSection .b2b-table td{padding:12px 13px;font-size:11px;border-bottom:1px solid #edf2f7}
+#b2bSection .b2b-table tbody tr{transition:background .15s}#b2bSection .b2b-table tbody tr:hover{background:#f7fbff}
+#b2bSection .b2b-pill{padding:5px 9px;letter-spacing:.05em}
+#b2bSection .b2b-actions button{border-radius:8px}
+#b2bSection .b2b-message{padding:8px 10px;border-radius:9px}
+#b2bSection .b2b-muted{line-height:1.5}
+@media(max-width:900px){#b2bSection .b2b-hero{padding:24px}.b2b-hero-side{display:none!important}#b2bSection .b2b-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){#b2bSection.b2b-module{padding:12px;border-radius:15px}#b2bSection .b2b-hero{padding:22px 18px;min-height:auto;border-radius:16px}#b2bSection .b2b-hero-meta{gap:9px;flex-direction:column}#b2bSection .b2b-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#b2bSection .b2b-kpis article{min-height:92px;padding:13px}#b2bSection .b2b-kpis strong{font-size:25px}#b2bSection .b2b-panel{padding:15px;border-radius:14px}#b2bSection .b2b-form{grid-template-columns:1fr}#b2bSection .b2b-register-tools{align-items:stretch;flex-direction:column}#b2bSection .b2b-searchbox{min-width:0}#b2bSection .b2b-filter-tabs{justify-content:space-between}#b2bSection .b2b-filter-tabs button{flex:1;padding:5px 6px}}
