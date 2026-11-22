@@ -148,6 +148,7 @@ $('sidebarToggle')?.addEventListener('click', () => {
     layout.classList.toggle('sidebar-collapsed');
   }
 });
+document.querySelector('.nav-button[data-target="overviewTop"]')?.addEventListener('click',()=>{setTimeout(()=>void loadBroadcastDisplay(),100);});
 initPortalCommandBar();
 initBroadcastModule();
 window.setInterval(()=>{if(user)void loadBroadcastDisplay();},60000);
@@ -1550,10 +1551,40 @@ function broadcastVisibleNow(item){
 }
 async function loadBroadcastDisplay(){
   if(!db)return;
-  const {data,error}=await db.from('broadcast_announcements').select('id,title,message,content_type,priority,media_url,media_type,audience_branch_ids,starts_at,ends_at,display_seconds,created_at').eq('published',true).order('priority_rank',{ascending:false}).order('created_at',{ascending:false}).limit(60);
-  if(error){console.warn('Broadcast display:',error.message);return;}
-  broadcastItemsCache=(data||[]).filter(broadcastVisibleNow);
-  renderBroadcastDisplay();
+  const panel=$('broadcastOverview'),stage=$('broadcastOverviewStage');
+  if(!panel||!stage)return;
+  try{
+    // Avoid ordering by optional/generated columns: some live deployments may not yet have them.
+    const {data,error}=await db.from('broadcast_announcements')
+      .select('id,title,message,content_type,priority,media_url,media_type,audience_branch_ids,starts_at,ends_at,display_seconds,created_at,published')
+      .eq('published',true)
+      .order('created_at',{ascending:false})
+      .limit(100);
+    if(error)throw error;
+    const now=Date.now();
+    const branchId=profile?.branch_id==null?null:String(profile.branch_id);
+    broadcastItemsCache=(data||[])
+      .filter(item=>{
+        const from=item.starts_at?new Date(item.starts_at).getTime():0;
+        const until=item.ends_at?new Date(item.ends_at).getTime():Infinity;
+        const audience=Array.isArray(item.audience_branch_ids)?item.audience_branch_ids.map(String):[];
+        const audienceMatch=audience.length===0 || (branchId!==null && audience.includes(branchId));
+        return item.published===true && from<=now && until>=now && audienceMatch;
+      })
+      .sort((a,b)=>{
+        const rank={emergency:3,important:2,normal:1};
+        return (rank[b.priority]||1)-(rank[a.priority]||1) ||
+          new Date(b.created_at||0)-new Date(a.created_at||0);
+      });
+    broadcastActiveIndex=0;
+    renderBroadcastDisplay();
+  }catch(error){
+    console.error('Broadcast display load failed:',error);
+    // Show a useful diagnostic on the branch Overview instead of failing silently.
+    panel.classList.remove('hidden');
+    stage.innerHTML=`<div class="broadcast-empty"><strong>Announcements temporarily unavailable</strong><span>${broadcastEscape(error?.message||'Unable to load announcements. Please refresh or contact Admin.')}</span></div>`;
+    const ticker=$('broadcastTickerText');if(ticker)ticker.textContent='Broadcast connection needs attention.';
+  }
 }
 function renderBroadcastDisplay(){
   const panel=$('broadcastOverview'),stage=$('broadcastOverviewStage');if(!panel||!stage)return;
