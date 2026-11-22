@@ -91,3 +91,17 @@
 #b2bSection .b2b-page-controls button{min-height:32px;padding:5px 11px;border:1px solid #d5e0eb;border-radius:8px;background:#fff;color:#173b5d;font-size:10px;font-weight:800;cursor:pointer}
 #b2bSection .b2b-page-controls button:disabled{opacity:.4;cursor:not-allowed}
 @media(max-width:620px){#b2bSection .b2b-pagination{align-items:flex-start;flex-direction:column}#b2bSection .b2b-page-controls{width:100%;justify-content:space-between}}
+
+/* Admin price-master search, pagination and catalogue actions */
+.b2b-price-tools{display:grid;grid-template-columns:minmax(180px,1.4fr) minmax(190px,1fr) auto auto auto auto;align-items:end;gap:10px;margin:18px 0 12px;padding:12px;border:1px solid #d7e2ed;border-radius:14px;background:#f7fafd}
+.b2b-price-tools label{font-size:12px;font-weight:700;color:#526b87}
+.b2b-price-tools input,.b2b-price-tools select{min-height:40px;border:1px solid #cfdae8;border-radius:9px;padding:8px 11px;background:#fff;color:#17365c;min-width:0}
+.b2b-price-actions{min-width:245px;display:flex;flex-wrap:wrap;gap:6px}
+.b2b-price-actions button{font-size:11px;padding:7px 9px;white-space:nowrap}
+.b2b-price-actions .danger{color:#b4233d;border-color:#efc4cd}
+.b2b-inactive-row{opacity:.62;background:#f7f8fa}
+.b2b-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 4px;color:#61758b;font-size:12px}
+.b2b-pagination>div{display:flex;gap:8px}
+.b2b-pagination button:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:900px){.b2b-price-tools{grid-template-columns:1fr 1fr}.b2b-price-tools label{align-self:end}}
+@media(max-width:560px){.b2b-price-tools{grid-template-columns:1fr}.b2b-pagination{align-items:flex-start;flex-direction:column}.b2b-price-actions{min-width:180px}}
