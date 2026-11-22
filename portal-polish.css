@@ -443,3 +443,63 @@
     justify-content:flex-start;
   }
 }
+
+/* Compact Overview title and performance-month control strip */
+#overviewTop + .heading{
+  align-items:center;
+  gap:10px;
+  margin:2px 0 6px;
+}
+#overviewTop + .heading .eyebrow{
+  margin:0 0 3px;
+  font-size:10px;
+  letter-spacing:.12em;
+}
+#overviewTop + .heading h1{
+  margin:0;
+  font-size:clamp(25px,2.6vw,34px);
+  line-height:1.08;
+}
+#overviewTop + .heading p:not(.eyebrow){
+  margin:4px 0 0;
+  font-size:13px;
+  line-height:1.35;
+}
+#overviewTop + .heading #refresh{
+  min-height:38px;
+  padding:0 15px;
+}
+#overviewTop + .heading + div{
+  display:flex!important;
+  align-items:center;
+  gap:9px!important;
+  flex-wrap:wrap;
+  margin:6px 0 10px!important;
+  padding:8px 11px;
+  width:max-content;
+  max-width:100%;
+  border:1px solid var(--portal-line);
+  border-radius:12px;
+  background:rgba(255,255,255,.72);
+}
+#overviewTop + .heading + div label{
+  font-size:12px;
+  color:var(--portal-ink);
+}
+#overviewTop + .heading + div input[type="month"]{
+  min-height:36px;
+  height:36px;
+  padding:5px 10px;
+  font-size:12px;
+}
+#overviewTop + .heading + div button{
+  min-height:36px;
+  height:36px;
+  padding:0 13px;
+  font-size:12px;
+}
+@media(max-width:650px){
+  #overviewTop + .heading{align-items:flex-start}
+  #overviewTop + .heading + div{width:100%}
+  #overviewTop + .heading + div label{width:100%}
+}
