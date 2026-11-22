@@ -79,3 +79,15 @@
 .b2b-export-toolbar>div{min-width:0}.b2b-export-toolbar label{display:block;font-size:11px;font-weight:800;color:#58718c;margin:0 0 6px}.b2b-export-toolbar input,.b2b-export-toolbar select{width:100%;min-height:42px;border:1px solid #cbd9e8;border-radius:10px;background:#fff;padding:9px 11px;color:#17375d;font:inherit}.b2b-export-actions{display:flex;flex-wrap:wrap;gap:8px;grid-column:1/-1}.b2b-export-actions button{min-height:40px}.b2b-export-toolbar #b2bExportSummary{grid-column:1/-1;margin:0;font-size:12px;color:#61758b}.b2b-actions{display:flex;gap:6px;flex-wrap:wrap}.b2b-actions button{white-space:nowrap}
 @media(max-width:900px){.b2b-export-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.b2b-export-toolbar{grid-template-columns:1fr;padding:12px}.b2b-export-actions{display:grid;grid-template-columns:1fr}.b2b-export-actions button{width:100%}}
+
+
+/* B2B sample register pagination */
+#b2bSection .b2b-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 14px;margin-top:10px;border:1px solid #e2eaf2;border-radius:12px;background:linear-gradient(135deg,#fbfdff,#f4f8fc)}
+#b2bSection .b2b-page-info{font-size:11px;color:#61758b;font-weight:700}
+#b2bSection .b2b-page-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#b2bSection .b2b-page-controls label{font-size:10px;color:#61758b;font-weight:750}
+#b2bSection .b2b-page-controls select{min-height:32px;padding:5px 25px 5px 9px;border:1px solid #d5e0eb;border-radius:8px;background:#fff;color:#173b5d;font:700 11px inherit}
+#b2bSection .b2b-page-number{font-size:10px;color:#425b75;font-weight:800;padding:0 5px}
+#b2bSection .b2b-page-controls button{min-height:32px;padding:5px 11px;border:1px solid #d5e0eb;border-radius:8px;background:#fff;color:#173b5d;font-size:10px;font-weight:800;cursor:pointer}
+#b2bSection .b2b-page-controls button:disabled{opacity:.4;cursor:not-allowed}
+@media(max-width:620px){#b2bSection .b2b-pagination{align-items:flex-start;flex-direction:column}#b2bSection .b2b-page-controls{width:100%;justify-content:space-between}}
