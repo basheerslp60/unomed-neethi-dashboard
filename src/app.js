@@ -49,6 +49,7 @@ let editingReportId = null;
 let overviewReports = [];
 let overviewPeriod = '7';
 let overviewNetwork = 'ALL';
+let broadcastItemsCache = [], broadcastActiveIndex = 0, broadcastTimer = null, broadcastUploadBusy = false;
 const now = new Date();
 const today = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0,10);
 $('date').value = today;
@@ -135,6 +136,7 @@ document.querySelectorAll('.nav-button[data-target]').forEach(button => {
     setPortalView(button.dataset.target);
     if (button.dataset.target === 'inventorySection') void loadInventoryModule();
     if (button.dataset.target === 'b2bSection') void loadB2BModule();
+    if (button.dataset.target === 'broadcastStudioSection') void loadBroadcastStudio();
   });
 });
 $('sidebarToggle')?.addEventListener('click', () => {
@@ -146,6 +148,8 @@ $('sidebarToggle')?.addEventListener('click', () => {
   }
 });
 initPortalCommandBar();
+initBroadcastModule();
+window.setInterval(()=>{if(user)void loadBroadcastDisplay();},60000);
 // Compact package selector. Hidden per-package inputs preserve the existing database write format.
 $('packageSelect').innerHTML = '<option value="">Choose a package</option>' + names.map((n,i) => `<option value="${i}">${esc(n)}</option>`).join('');
 $('packages').innerHTML = names.map((n,i) => `<input type="hidden" id="p${i}" value="0">`).join('') + '<p class="package-empty">No packages added yet. You can submit without package sales.</p>';
@@ -402,6 +406,10 @@ async function load(u) {
   show('branchAnalyticsSection',p.role!=='branch_staff');
   show('targetDashboardSection',p.role!=='branch_staff');
   show('managementExecutiveSection',p.role!=='branch_staff');
+  const canManageBroadcast = ['admin','management'].includes(String(p.role||'').toLowerCase());
+  document.querySelector('.broadcast-nav')?.classList.toggle('hidden',!canManageBroadcast);
+  if (canManageBroadcast) populateBroadcastBranchOptions();
+  void loadBroadcastDisplay();
   const canViewFinancial = ['admin','management'].includes(String(p.role||'').toLowerCase());
   show('financialIntelligenceSection',canViewFinancial);
   document.querySelector('.financial-nav')?.classList.toggle('hidden',!canViewFinancial);
@@ -1522,6 +1530,106 @@ $('targetMeta').textContent = targetMonth.slice(0, 7) + ' · ' + rows.filter(r =
     (groupTarget ? fmtPct(groupSales / groupTarget * 100) : '0.0%') +
     ' achievement)';
 
+}
+
+
+function broadcastCanManage(){return ['admin','management'].includes(String(profile?.role||'').toLowerCase());}
+function populateBroadcastBranchOptions(){
+  const host=$('broadcastBranchOptions');if(!host)return;
+  host.innerHTML=(branches||[]).filter(b=>b.active!==false).map(b=>`<label><input type="checkbox" value="${b.id}"> ${esc(b.network)} · ${esc(b.branch_name)}</label>`).join('');
+}
+function broadcastEscape(s){return esc(String(s||''));}
+function broadcastCurrentAudience(item){
+  const ids=Array.isArray(item.audience_branch_ids)?item.audience_branch_ids.map(String):[];
+  return !ids.length || profile?.role!=='branch_staff' || ids.includes(String(profile?.branch_id));
+}
+function broadcastVisibleNow(item){
+  const nowTs=Date.now(), start=item.starts_at?new Date(item.starts_at).getTime():0, end=item.ends_at?new Date(item.ends_at).getTime():Infinity;
+  return item.published===true && start<=nowTs && end>=nowTs && broadcastCurrentAudience(item);
+}
+async function loadBroadcastDisplay(){
+  if(!db)return;
+  const {data,error}=await db.from('broadcast_announcements').select('id,title,message,content_type,priority,media_url,media_type,audience_branch_ids,starts_at,ends_at,display_seconds,created_at').eq('published',true).order('priority_rank',{ascending:false}).order('created_at',{ascending:false}).limit(60);
+  if(error){console.warn('Broadcast display:',error.message);return;}
+  broadcastItemsCache=(data||[]).filter(broadcastVisibleNow);
+  renderBroadcastDisplay();
+}
+function renderBroadcastDisplay(){
+  const panel=$('broadcastOverview'),stage=$('broadcastOverviewStage');if(!panel||!stage)return;
+  const items=broadcastItemsCache;
+  if(!items.length){panel.classList.add('hidden');if(broadcastTimer){clearTimeout(broadcastTimer);broadcastTimer=null;}return;}
+  panel.classList.remove('hidden');
+  if(broadcastActiveIndex>=items.length)broadcastActiveIndex=0;
+  const item=items[broadcastActiveIndex];
+  const media=item.media_url?(item.media_type?.startsWith('video')?`<video class="broadcast-media" src="${broadcastEscape(item.media_url)}" autoplay muted playsinline controls></video>`:`<img class="broadcast-media" src="${broadcastEscape(item.media_url)}" alt="${broadcastEscape(item.title)}">`):'';
+  const kind=item.priority==='emergency'||item.content_type==='alert'?'EMERGENCY ALERT':item.content_type==='service'?'NEW SERVICE':String(item.content_type||'UPDATE').replaceAll('_',' ').toUpperCase();
+  stage.innerHTML=`<div class="broadcast-slide ${item.priority==='emergency'?'is-emergency':''}"><div class="broadcast-slide-copy"><span class="broadcast-slide-tag">${broadcastEscape(kind)}</span><h2>${broadcastEscape(item.title)}</h2><p>${broadcastEscape(item.message).replace(/\n/g,'<br>')}</p><small>${item.priority==='emergency'?'PLEASE TAKE IMMEDIATE NOTE':'UNOMED + NEETHI · NETWORK COMMUNICATION'}</small></div>${media?`<div class="broadcast-slide-media">${media}</div>`:''}</div>`;
+  $('broadcastOverviewCounter').textContent=`${broadcastActiveIndex+1} / ${items.length} · ${kind}`;
+  const ticker=$('broadcastTickerText');if(ticker)ticker.textContent=`${item.title} — ${item.message}`;
+  if(broadcastTimer)clearTimeout(broadcastTimer);
+  const duration=Math.max(5,Math.min(60,Number(item.display_seconds)||12))*1000;
+  broadcastTimer=setTimeout(()=>{broadcastActiveIndex=(broadcastActiveIndex+1)%broadcastItemsCache.length;renderBroadcastDisplay();},duration);
+}
+async function loadBroadcastStudio(){
+  if(!broadcastCanManage())return;
+  populateBroadcastBranchOptions();
+  const host=$('broadcastLibraryRows');if(!host)return;
+  host.innerHTML='<p>Loading announcements…</p>';
+  const {data,error}=await db.from('broadcast_announcements').select('*').order('created_at',{ascending:false}).limit(200);
+  if(error){host.innerHTML=`<p class="broadcast-error">${broadcastEscape(error.message)}</p>`;return;}
+  host.innerHTML=(data||[]).map(x=>`<div class="broadcast-library-row"><div><strong>${broadcastEscape(x.title)}</strong><small>${broadcastEscape(x.content_type)} · ${broadcastEscape(x.priority)} · ${x.published?'Published':'Draft'} · ${new Date(x.starts_at).toLocaleString('en-IN')}</small></div><span class="broadcast-status ${x.published?'published':'draft'}">${x.published?'LIVE':'DRAFT'}</span><button type="button" class="secondary" data-broadcast-toggle="${x.id}" data-published="${x.published?'true':'false'}">${x.published?'Unpublish':'Publish'}</button><button type="button" class="secondary" data-broadcast-delete="${x.id}">Delete</button></div>`).join('')||'<p>No announcements yet. Create your first broadcast above.</p>';
+}
+function broadcastUpdatePreview(){
+  const title=$('broadcastTitle')?.value.trim()||'Your headline will appear here',message=$('broadcastMessage')?.value.trim()||'Your announcement message will appear here.',type=$('broadcastType')?.value||'message',priority=$('broadcastPriority')?.value||'normal';
+  const box=$('broadcastComposerPreview');if(!box)return;
+  box.className=`broadcast-composer-preview ${priority==='emergency'?'is-emergency':''}`;
+  box.innerHTML=`<span class="broadcast-preview-label">${broadcastEscape(priority==='emergency'?'EMERGENCY ALERT':type.toUpperCase())}</span><h3>${broadcastEscape(title)}</h3><p>${broadcastEscape(message)}</p>`;
+}
+function broadcastVisualBrief(){
+  const title=$('broadcastTitle')?.value.trim(),message=$('broadcastMessage')?.value.trim();if(!title||!message){$('broadcastFormMsg').textContent='Enter a title and message first.';return;}
+  const type=$('broadcastType').value;
+  $('broadcastAiOutput').value=`Create a premium, high-resolution 16:9 digital signage visual for UNOMED + NEETHI healthcare network. Main headline: "${title}". Core information: "${message}". Content format: ${type}. Use a polished medical-corporate visual language, clear typography, strong contrast, elegant clinical imagery, navy/teal palette with restrained brand red accents, generous whitespace, and a clear visual hierarchy. Keep all wording accurate and do not invent medical claims, test availability, prices, dates or contact details. Ensure the message is readable on a large TV display.`;
+  $('broadcastFormMsg').textContent='AI visual brief prepared. Use it with your approved image/video generator, then upload the result.';
+}
+async function submitBroadcast(event){
+  event.preventDefault();if(!broadcastCanManage()||broadcastUploadBusy)return;
+  const title=$('broadcastTitle').value.trim(),message=$('broadcastMessage').value.trim(),file=$('broadcastMedia').files?.[0]||null;
+  const starts=new Date($('broadcastStarts').value),ends=new Date($('broadcastEnds').value);
+  if(!title||!message){$('broadcastFormMsg').textContent='Enter a title and message.';return;}
+  if(!Number.isFinite(starts.getTime())||!Number.isFinite(ends.getTime())||ends<=starts){$('broadcastFormMsg').textContent='Choose a valid display period.';return;}
+  const audience=$('broadcastAudience').value;const selected=[...document.querySelectorAll('#broadcastBranchOptions input:checked')].map(x=>Number(x.value));
+  if(audience==='selected'&&!selected.length){$('broadcastFormMsg').textContent='Select at least one branch.';return;}
+  if(file&&file.size>100*1024*1024){$('broadcastFormMsg').textContent='Media file must be 100 MB or smaller.';return;}
+  broadcastUploadBusy=true;$('broadcastPublishBtn').disabled=true;$('broadcastFormMsg').textContent='Publishing…';
+  try{
+    let mediaUrl=null,mediaType=null;
+    if(file){
+      const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_'),path=`${user.id}/${Date.now()}-${safe}`;
+      const {data:up,error:upErr}=await db.storage.from('broadcast-media').upload(path,file,{cacheControl:'3600',upsert:false,contentType:file.type});
+      if(upErr)throw upErr;
+      const {data:pub}=db.storage.from('broadcast-media').getPublicUrl(up.path);mediaUrl=pub.publicUrl;mediaType=file.type;
+    }
+    const payload={title,message,content_type:$('broadcastType').value,priority:$('broadcastPriority').value,media_url:mediaUrl,media_type:mediaType,audience_branch_ids:audience==='all'?[]:selected,starts_at:starts.toISOString(),ends_at:ends.toISOString(),display_seconds:Number($('broadcastDuration').value)||12,published:true,created_by:user.id};
+    const {error}=await db.from('broadcast_announcements').insert(payload);if(error)throw error;
+    $('broadcastForm').reset();$('broadcastAiOutput').value='';$('broadcastBranchTargets').classList.add('hidden');broadcastUpdatePreview();
+    $('broadcastFormMsg').textContent='Announcement published successfully.';await loadBroadcastStudio();await loadBroadcastDisplay();
+  }catch(err){$('broadcastFormMsg').textContent=err.message||'Unable to publish announcement.';}
+  finally{broadcastUploadBusy=false;$('broadcastPublishBtn').disabled=false;}
+}
+function initBroadcastModule(){
+  $('broadcastForm')?.addEventListener('submit',submitBroadcast);
+  ['broadcastTitle','broadcastMessage','broadcastType','broadcastPriority'].forEach(id=>$(id)?.addEventListener('input',broadcastUpdatePreview));
+  $('broadcastAiBrief')?.addEventListener('click',broadcastVisualBrief);
+  $('broadcastAudience')?.addEventListener('change',e=>$('broadcastBranchTargets').classList.toggle('hidden',e.target.value!=='selected'));
+  $('broadcastRefresh')?.addEventListener('click',()=>loadBroadcastStudio());
+  $('broadcastLibraryRows')?.addEventListener('click',async e=>{
+    const t=e.target.closest('[data-broadcast-toggle]');const d=e.target.closest('[data-broadcast-delete]');
+    if(t){const next=t.dataset.published!=='true';const {error}=await db.from('broadcast_announcements').update({published:next}).eq('id',t.dataset.broadcastToggle);if(error){$('broadcastFormMsg').textContent=error.message;return;}await loadBroadcastStudio();await loadBroadcastDisplay();}
+    if(d&&confirm('Delete this announcement?')){const {error}=await db.from('broadcast_announcements').delete().eq('id',d.dataset.broadcastDelete);if(error){$('broadcastFormMsg').textContent=error.message;return;}await loadBroadcastStudio();await loadBroadcastDisplay();}
+  });
+  $('broadcastStarts').value=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
+  $('broadcastEnds').value=new Date(Date.now()+7*86400000-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
+  broadcastUpdatePreview();
 }
 
 function renderOverview() {
