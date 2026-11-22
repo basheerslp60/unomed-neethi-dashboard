@@ -399,3 +399,47 @@
     margin-left: 0;
   }
 }
+
+/* Compact branch / management command-centre banner */
+#overviewDashboard .overview-hero{
+  min-height:124px;
+  padding:17px 24px;
+  gap:14px;
+  border-radius:17px;
+}
+#overviewDashboard .overview-hero .overview-kicker{
+  margin:0 0 6px;
+  font-size:10px;
+  letter-spacing:.11em;
+}
+#overviewDashboard .overview-hero h2{
+  margin:0 0 5px;
+  font-size:clamp(21px,2.3vw,29px);
+  line-height:1.08;
+}
+#overviewDashboard .overview-hero #overviewHeroSub{
+  margin:0;
+  font-size:12px;
+  line-height:1.35;
+}
+#overviewDashboard .overview-role-pill{
+  min-height:34px;
+  padding:0 12px;
+  font-size:10px;
+}
+#overviewDashboard .overview-refresh{
+  min-height:38px;
+  padding:0 13px;
+  font-size:12px;
+}
+@media(max-width:700px){
+  #overviewDashboard .overview-hero{
+    min-height:0;
+    padding:16px 18px;
+    grid-template-columns:minmax(0,1fr);
+    gap:12px;
+  }
+  #overviewDashboard .overview-hero-actions{
+    justify-content:flex-start;
+  }
+}
