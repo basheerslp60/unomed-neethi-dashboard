@@ -114,6 +114,7 @@ function setPortalView(targetId) {
     content.querySelector('.heading'),
     content.querySelector('.heading + div'),
     $('overviewDashboard'),
+    $('broadcastOverview'),
     $('stats'),
     $('executiveSection')
   ].filter(Boolean);
