@@ -490,7 +490,7 @@ async function loadB2BModule(){
   const counts={pending:0,accepted:0,rejected:0};b2bRequestsCache.forEach(r=>counts[r.status]=(counts[r.status]||0)+1);
   $('b2bKpis').innerHTML=[['Samples sent',b2bRequestsCache.length,'all'],['Pending',counts.pending,'pending'],['Accepted',counts.accepted,'accepted'],['Rejected',counts.rejected,'rejected']].map(([l,v,f])=>`<article role="button" tabindex="0" data-b2b-kpi-filter="${f}" aria-label="Filter register: ${l}"><small>${l} <span aria-hidden="true">↗</span></small><strong>${Number(v).toLocaleString('en-IN')}</strong></article>`).join('');
   if(isAdmin){const {data:prices,error:pe}=await db.from('b2b_test_prices').select('*').order('processing_centre_id');if(pe)throw pe;b2bPriceCache=prices||[];b2bPricePage=1;renderB2BPrices();}
-  if(isFinance){const [{data:invoices,error:ie},{data:lines,error:le}]=await Promise.all([db.from('b2b_daily_invoices').select('*').order('invoice_date',{ascending:false}).limit(500),db.from('b2b_invoice_lines').select('*').order('created_at',{ascending:false}).limit(1000)]);if(ie)throw ie;if(le)throw le;b2bInvoicesCache=invoices||[];window.__b2bInvoiceLines=lines||[];renderB2BInvoices(b2bInvoicesCache,lines||[]);b2bInitExportFilters();}
+  if(isFinance){const [{data:invoices,error:ie},{data:lines,error:le}]=await Promise.all([db.from('b2b_daily_invoices').select('*').order('invoice_date',{ascending:false}).limit(500),db.from('b2b_invoice_lines').select('*').order('created_at',{ascending:false}).limit(1000)]);if(ie)throw ie;if(le)throw le;b2bInvoicesCache=invoices||[];b2bInvoicePage=1;window.__b2bInvoiceLines=lines||[];renderB2BInvoices(b2bInvoicesCache,lines||[]);b2bInitExportFilters();}
  }catch(e){b2bMsg('b2bGlobalMsg',e.message||'Unable to load B2B module. Apply the B2B SQL migration first.');}
 }
 function b2bPopulateRegisterFilters(){
@@ -524,23 +524,35 @@ function b2bPrintInvoices(invoices){if(!invoices.length){b2bMsg('b2bGlobalMsg','
 function b2bRefreshExportSummary(){const rows=b2bFilteredInvoices;const amount=rows.reduce((s,i)=>s+Number(i.subtotal||0),0);const paid=rows.reduce((s,i)=>s+Number(i.paid_amount||0),0);const due=amount-paid;const el=$('b2bExportSummary');if(el)el.textContent=`${rows.length} invoice(s) · Total invoice amount ${b2bMoney(amount)} · Paid ${b2bMoney(paid)} · Outstanding ${b2bMoney(due)}. Totals reflect the selected date period, sending branch, processing centre and payment status.`;}
 let b2bInvoicePage=1,b2bInvoicePageSize=10;
 function renderB2BInvoices(invoices,lines){
+ b2bFilteredInvoices=Array.isArray(invoices)?invoices:[];
  const host=$('b2bInvoiceRows');
- const totalAmount=invoices.reduce((s,i)=>s+Number(i.subtotal||0),0);
- const totalPaid=invoices.reduce((s,i)=>s+Number(i.paid_amount||0),0);
+ const totalAmount=b2bFilteredInvoices.reduce((s,i)=>s+Number(i.subtotal||0),0);
+ const totalPaid=b2bFilteredInvoices.reduce((s,i)=>s+Number(i.paid_amount||0),0);
  const totalDue=totalAmount-totalPaid;
- const pageCount=Math.max(1,Math.ceil(invoices.length/b2bInvoicePageSize));
+ const pageCount=Math.max(1,Math.ceil(b2bFilteredInvoices.length/b2bInvoicePageSize));
  b2bInvoicePage=Math.min(Math.max(1,b2bInvoicePage),pageCount);
  const offset=(b2bInvoicePage-1)*b2bInvoicePageSize;
- const pageRows=invoices.slice(offset,offset+b2bInvoicePageSize);
- if(host)host.innerHTML=invoices.length?pageRows.map(i=>{
+ const pageRows=b2bFilteredInvoices.slice(offset,offset+b2bInvoicePageSize);
+ if(host)host.innerHTML=b2bFilteredInvoices.length?pageRows.map(i=>{
   const sender=branches.find(b=>Number(b.id)===Number(i.sender_branch_id));
   return `<tr><td>${esc(i.invoice_no)}</td><td>${esc(i.invoice_date)}</td><td>${esc(sender?.branch_name||'Branch')}</td><td>${esc(b2bCentreName(i.processing_centre_id))}</td><td>${b2bMoney(i.subtotal)}</td><td>${b2bMoney(i.paid_amount)}</td><td><strong>${b2bMoney(Number(i.subtotal)-Number(i.paid_amount))}</strong></td><td><span class="b2b-pill ${esc(i.status)}">${esc(i.status)}</span></td><td><button type="button" class="secondary" data-b2b-export="${i.id}">CSV</button></td><td><button type="button" class="secondary" data-b2b-payment="${i.id}">Update paid</button></td></tr>`;
- }).join('')+`<tr class="b2b-invoice-total-row"><td colspan="4"><strong>FILTERED TOTAL · ${invoices.length} invoice(s)</strong></td><td><strong>${b2bMoney(totalAmount)}</strong></td><td><strong>${b2bMoney(totalPaid)}</strong></td><td><strong>${b2bMoney(totalDue)}</strong></td><td colspan="3">All filtered invoices</td></tr>`:'<tr><td colspan="10">No accepted samples have generated invoices yet.</td></tr>';
+ }).join('')+`<tr class="b2b-invoice-total-row"><td colspan="4"><strong>FILTERED TOTAL · ${b2bFilteredInvoices.length} invoice(s)</strong></td><td><strong>${b2bMoney(totalAmount)}</strong></td><td><strong>${b2bMoney(totalPaid)}</strong></td><td><strong>${b2bMoney(totalDue)}</strong></td><td colspan="3">All filtered invoices</td></tr>`:'<tr><td colspan="10">No accepted samples have generated invoices yet.</td></tr>';
  const pager=$('b2bInvoicePager');
- if(pager) pager.innerHTML=`<div class="b2b-pager-meta">Showing <strong>${invoices.length?offset+1:0}–${Math.min(offset+b2bInvoicePageSize,invoices.length)}</strong> of <strong>${invoices.length}</strong> invoices</div><div class="b2b-pager-controls"><label>Rows per page <select id="b2bInvoicePageSize"><option value="10" ${b2bInvoicePageSize===10?'selected':''}>10</option><option value="20" ${b2bInvoicePageSize===20?'selected':''}>20</option><option value="50" ${b2bInvoicePageSize===50?'selected':''}>50</option><option value="100" ${b2bInvoicePageSize===100?'selected':''}>100</option></select></label><span>Page ${b2bInvoicePage} of ${pageCount}</span><button type="button" class="secondary" id="b2bInvoicePrev" ${b2bInvoicePage<=1?'disabled':''}>Previous</button><button type="button" class="secondary" id="b2bInvoiceNext" ${b2bInvoicePage>=pageCount?'disabled':''}>Next</button></div>`;
- const size=$('b2bInvoicePageSize');if(size)size.addEventListener('change',()=>{b2bInvoicePageSize=Number(size.value)||10;b2bInvoicePage=1;renderB2BInvoices(b2bFilteredInvoices,lines);});
- const prev=$('b2bInvoicePrev');if(prev)prev.addEventListener('click',()=>{b2bInvoicePage=Math.max(1,b2bInvoicePage-1);renderB2BInvoices(b2bFilteredInvoices,lines);});
- const next=$('b2bInvoiceNext');if(next)next.addEventListener('click',()=>{b2bInvoicePage=Math.min(pageCount,b2bInvoicePage+1);renderB2BInvoices(b2bFilteredInvoices,lines);});
+ if(pager){
+  pager.innerHTML=`<div class="b2b-pager-meta">Showing <strong>${b2bFilteredInvoices.length?offset+1:0}–${Math.min(offset+b2bInvoicePageSize,b2bFilteredInvoices.length)}</strong> of <strong>${b2bFilteredInvoices.length}</strong> invoices</div><div class="b2b-pager-controls"><label>Rows per page <select id="b2bInvoicePageSize"><option value="10" ${b2bInvoicePageSize===10?'selected':''}>10</option><option value="20" ${b2bInvoicePageSize===20?'selected':''}>20</option><option value="50" ${b2bInvoicePageSize===50?'selected':''}>50</option><option value="100" ${b2bInvoicePageSize===100?'selected':''}>100</option></select></label><span>Page ${b2bInvoicePage} of ${pageCount}</span><button type="button" class="secondary" data-invoice-page="prev" ${b2bInvoicePage<=1?'disabled':''}>Previous</button><button type="button" class="secondary" data-invoice-page="next" ${b2bInvoicePage>=pageCount?'disabled':''}>Next</button></div>`;
+  if(!pager.dataset.bound){
+   pager.dataset.bound='1';
+   pager.addEventListener('change',e=>{
+    if(e.target?.id==='b2bInvoicePageSize'){b2bInvoicePageSize=Math.max(1,Number(e.target.value)||10);b2bInvoicePage=1;renderB2BInvoices(b2bFilteredInvoices,window.__b2bInvoiceLines||[]);}
+   });
+   pager.addEventListener('click',e=>{
+    const btn=e.target.closest('[data-invoice-page]');if(!btn||btn.disabled)return;
+    const pages=Math.max(1,Math.ceil(b2bFilteredInvoices.length/b2bInvoicePageSize));
+    b2bInvoicePage=btn.dataset.invoicePage==='next'?Math.min(pages,b2bInvoicePage+1):Math.max(1,b2bInvoicePage-1);
+    renderB2BInvoices(b2bFilteredInvoices,window.__b2bInvoiceLines||[]);
+   });
+  }
+ }
  const visibleRequestIds=new Set(invoices.flatMap(i=>b2bInvoiceRequests(i).map(r=>Number(r.id))));
  const visibleLines=(lines||[]).filter(l=>visibleRequestIds.has(Number(l.request_id)));
  const lineHost=$('b2bInvoiceLineRows');
