@@ -113,3 +113,8 @@
 .b2b-register-filters button{min-height:39px;margin:0;padding:0 13px;white-space:nowrap;font-size:11px}
 @media(max-width:900px){.b2b-register-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.b2b-register-filters button{width:max-content}}
 @media(max-width:520px){.b2b-register-filters{grid-template-columns:1fr}.b2b-register-filters button{width:100%}}
+
+/* Filter-aware invoice totals row */
+.b2b-invoice-total-row td{background:#edf4fb;border-top:2px solid #c9d9e9;color:#173653;padding-top:15px;padding-bottom:15px;white-space:nowrap}
+.b2b-invoice-total-row td:first-child{border-bottom-left-radius:10px}
+.b2b-invoice-total-row td:last-child{border-bottom-right-radius:10px;color:#60758d;font-size:11px}
