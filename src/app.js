@@ -460,11 +460,33 @@ async function loadB2BModule(){
  show('b2bAdminPanel',isAdmin);show('b2bFinancePanel',isFinance);show('b2bSenderWrap',role!=='branch_staff');
  const sender=$('b2bSender');if(sender){sender.innerHTML=branches.map(b=>`<option value="${b.id}">${esc(b.network)} — ${esc(b.branch_name)}</option>`).join('');if(role==='branch_staff')sender.value=String(profile.branch_id);}
  try{
-  const [{data:tests,error:te},{data:reqs,error:re}]=await Promise.all([
-   db.from('b2b_tests').select('id,test_name,active').eq('active',true).order('test_name'),
-   db.from('b2b_sample_requests').select('*').order('created_at',{ascending:false}).limit(250)
-  ]);
-  if(te)throw te;if(re)throw re;b2bTestsCache=tests||[];b2bRequestsCache=reqs||[];const requestIds=b2bRequestsCache.map(r=>r.id);if(requestIds.length){const {data:requestTests,error:rte}=await db.from('b2b_sample_request_tests').select('*').in('request_id',requestIds).order('id');if(rte)throw rte;b2bRequestTestsCache=requestTests||[];}else b2bRequestTestsCache=[];b2bFillTests();b2bPopulateRegisterFilters();renderB2BRequests();
+  const {data:tests,error:te}=await db.from('b2b_tests').select('id,test_name,active').eq('active',true).order('test_name');
+  if(te)throw te;
+  b2bTestsCache=tests||[];
+  // Load the complete request history in bounded pages; a fixed 250-row
+  // limit hid older registrations from receiving centres.
+  const allRequests=[];
+  const requestPageSize=500;
+  for(let offset=0; ; offset+=requestPageSize){
+    const {data:page,error:pageError}=await db.from('b2b_sample_requests')
+      .select('*').order('created_at',{ascending:false})
+      .range(offset,offset+requestPageSize-1);
+    if(pageError)throw pageError;
+    allRequests.push(...(page||[]));
+    if(!page||page.length<requestPageSize)break;
+  }
+  b2bRequestsCache=allRequests;
+  // Fetch test lines in smaller batches to avoid oversized IN() requests.
+  const requestIds=b2bRequestsCache.map(r=>r.id);
+  b2bRequestTestsCache=[];
+  for(let offset=0;offset<requestIds.length;offset+=150){
+    const batchIds=requestIds.slice(offset,offset+150);
+    const {data:requestTests,error:rte}=await db.from('b2b_sample_request_tests')
+      .select('*').in('request_id',batchIds).order('id');
+    if(rte)throw rte;
+    b2bRequestTestsCache.push(...(requestTests||[]));
+  }
+  b2bFillTests();b2bPopulateRegisterFilters();renderB2BRequests();
   const counts={pending:0,accepted:0,rejected:0};b2bRequestsCache.forEach(r=>counts[r.status]=(counts[r.status]||0)+1);
   $('b2bKpis').innerHTML=[['Samples sent',b2bRequestsCache.length,'all'],['Pending',counts.pending,'pending'],['Accepted',counts.accepted,'accepted'],['Rejected',counts.rejected,'rejected']].map(([l,v,f])=>`<article role="button" tabindex="0" data-b2b-kpi-filter="${f}" aria-label="Filter register: ${l}"><small>${l} <span aria-hidden="true">↗</span></small><strong>${Number(v).toLocaleString('en-IN')}</strong></article>`).join('');
   if(isAdmin){const {data:prices,error:pe}=await db.from('b2b_test_prices').select('*').order('processing_centre_id');if(pe)throw pe;b2bPriceCache=prices||[];b2bPricePage=1;renderB2BPrices();}
