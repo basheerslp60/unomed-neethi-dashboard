@@ -346,7 +346,7 @@ if (!ready) {
   $('portalUserForm').onsubmit = createPortalUser;
   $('portalRole').addEventListener('change', updatePortalBranchVisibility);
 // Sidebar navigation
-document.querySelectorAll('.nav-btn').forEach(button => {
+document.querySelectorAll('.nav-button').forEach(button => {
   button.addEventListener('click', () => {
     const targetId = button.dataset.target;
     const target = document.getElementById(targetId);
@@ -365,7 +365,7 @@ document.querySelectorAll('.nav-btn').forEach(button => {
     target.classList.remove('hidden');
 
     // Highlight the selected sidebar button
-    document.querySelectorAll('.nav-btn').forEach(btn => {
+    document.querySelectorAll('.nav-button').forEach(btn => {
       btn.classList.remove('active');
     });
     button.classList.add('active');
@@ -375,6 +375,8 @@ document.querySelectorAll('.nav-btn').forEach(button => {
   });
 });
   $('employeeForm').onsubmit = addEmployee;
+  $('employeeRows')?.addEventListener('click', handleEmployeeDirectoryAction);
+  $('employeeCancelEdit')?.addEventListener('click',()=>{employeeEditingId=null;$('employeeForm').reset();$('employeeFormTitle').textContent='Add employee';$('employeeSubmitButton').textContent='Add employee';$('employeeCancelEdit').classList.add('hidden');});
   $('activityForm').onsubmit = submitEmployeeActivity;
   $('employeeTargetForm').onsubmit = saveEmployeeTarget;
   $('targetEmployee').addEventListener('change', loadSelectedEmployeeTarget);
@@ -410,6 +412,7 @@ async function load(u) {
     updatePortalBranchVisibility();
   }
   show('login',false); show('app',true); show('userTools',true); setPortalView('overviewTop'); show('entry',p.role==='branch_staff');
+  if(p.role==='employee'){ document.querySelectorAll('.nav-button').forEach(btn=>{const target=btn.dataset.target;btn.classList.toggle('hidden',!['employeeSection','complaintSection'].includes(target));}); document.querySelectorAll('main > section.card').forEach(sec=>{if(!['employeeSection','complaintSection'].includes(sec.id))sec.classList.add('hidden');}); show('employeeSection',true); show('complaintSection',true); }
   show('correctionBranchWrap',p.role!=='branch_staff');
   if(p.role==='branch_staff') $('correctionBranch').innerHTML='';
   else $('correctionBranch').innerHTML='<option value=>All permitted branches</option>'+branches.map(b=>`<option value="${esc(b.id)}">${esc(b.network)} - ${esc(b.branch_name)}</option>`).join('');
@@ -2320,6 +2323,7 @@ async function handleEmployeeTaskAction(e){
 // Employee performance module. Database security is enforced by the SQL RLS policies,
 // not by these UI visibility checks alone.
 let employeeRecords = [];
+let employeeEditingId = null;
 function canManageEmployees() { return ['admin','management','branch_manager'].includes(String(profile?.role||'').toLowerCase()); }
 function employeeMessage(id,text,ok=false) { const el=$(id); if(el){el.textContent=text;el.style.color=ok?'#16764a':'#a21d37';} }
 async function loadEmployeeModule() {
@@ -2329,17 +2333,17 @@ async function loadEmployeeModule() {
   // it now that the employee section has been made visible, otherwise the
   // Employee module link remains marked nav-hidden for Admin/Management.
   refreshSidebarVisibility();
-  show('employeeAdminPanel', canManageEmployees());
+  show('employeeAdminPanel', ['admin','management'].includes(String(profile?.role||'').toLowerCase()));
   show('employeeTargetPanel', canManageEmployees());
   $('employeeBranch').innerHTML = branches.map(b => '<option value="' + b.id + '">' + esc(b.branch_name) + '</option>').join('');
   try {
-    let query=db.from('employee_directory').select('id,employee_code,full_name,branch_id,designation,login_email,active,auth_user_id').order('full_name');
+    let query=db.from('employee_directory').select('id,employee_code,full_name,branch_id,designation,department,mobile,login_email,active,auth_user_id').order('full_name');
     // Branch staff are scoped by RLS; management/branch managers can see their authorized records.
     const {data,error}=await query;
     if(error) throw error;
     employeeRecords=data||[];
     const branchMap=new Map(branches.map(b=>[String(b.id),b]));
-    $('employeeRows').innerHTML=employeeRecords.map(e=>`<tr><td>${esc(e.full_name)}</td><td>${esc(e.employee_code||'—')}</td><td>${esc(branchMap.get(String(e.branch_id))?.branch_name||'—')}</td><td>${esc(e.designation||'—')}</td><td><span class="pill">${e.active?'Active':'Inactive'}</span></td></tr>`).join('')||'<tr><td colspan="5">No employees yet. Management can add employees above.</td></tr>';
+    $('employeeRows').innerHTML=employeeRecords.map(e=>`<tr><td>${esc(e.full_name)}</td><td>${esc(e.employee_code||'—')}</td><td>${esc(branchMap.get(String(e.branch_id))?.branch_name||'—')}</td><td>${esc(e.designation||'—')}</td><td><span class="pill">${e.active?'Active':'Inactive'}</span></td><td>${e.auth_user_id?'Login active':'No login'}</td><td>${['admin','management'].includes(String(profile?.role||'').toLowerCase())?`<button type="button" class="secondary" data-employee-action="edit" data-id="${e.id}">Edit</button> <button type="button" class="secondary" data-employee-action="login" data-id="${e.id}">${e.auth_user_id?'Reset login':'Create login'}</button>`:'—'}</td></tr>`).join('')||'<tr><td colspan="7">No employees yet. Management can add employees above.</td></tr>';
     $('activityEmployee').innerHTML=employeeRecords.filter(e=>e.active).map(e=>`<option value="${e.id}">${esc(e.full_name)} — ${esc(branchMap.get(String(e.branch_id))?.branch_name||'Branch')}</option>`).join('');
     $('targetEmployee').innerHTML=employeeRecords.filter(e=>e.active).map(e=>`<option value="${e.id}">${esc(e.full_name)} — ${esc(branchMap.get(String(e.branch_id))?.branch_name||'Branch')} (${esc(e.designation||'')})</option>`).join('');
     $('taskEmployee').innerHTML=employeeRecords.filter(e=>e.active).map(e=>`<option value="${e.id}">${esc(e.full_name)} — ${esc(branchMap.get(String(e.branch_id))?.branch_name||'Branch')}</option>`).join('');
@@ -2358,11 +2362,40 @@ async function loadEmployeeModule() {
 }
 async function addEmployee(e) {
   e.preventDefault();
-  if(!canManageEmployees()){employeeMessage('employeeMsg','Only authorized management or branch managers can add employees.');return;}
-  const payload={full_name:$('employeeName').value.trim(),employee_code:$('employeeCode').value.trim()||null,branch_id:Number($('employeeBranch').value),designation:$('employeeDesignation').value.trim(),login_email:$('employeeEmail').value.trim()||null,active:true,created_by:user.id};
-  try { const {error}=await db.from('employee_directory').insert(payload); if(error) throw error; $('employeeForm').reset(); $('employeeBranch').value=String(profile.branch_id||branches[0]?.id||''); employeeMessage('employeeMsg','Employee added successfully.',true); await loadEmployeeModule(); }
-  catch(err){employeeMessage('employeeMsg',err.message||'Could not add employee.');}
+  if(!['admin','management'].includes(String(profile?.role||'').toLowerCase())){employeeMessage('employeeMsg','Only Admin or Management can manage employee records.');return;}
+  const wasEditing=Boolean(employeeEditingId);
+  const payload={full_name:$('employeeName').value.trim(),employee_code:$('employeeCode').value.trim()||null,branch_id:Number($('employeeBranch').value),designation:$('employeeDesignation').value.trim(),department:$('employeeDepartment')?.value||null,mobile:$('employeeMobile')?.value.trim()||null,login_email:$('employeeEmail').value.trim().toLowerCase()||null,active:true};
+  try {
+    let result;
+    if(employeeEditingId) result=await db.from('employee_directory').update(payload).eq('id',employeeEditingId);
+    else {payload.created_by=user.id;result=await db.from('employee_directory').insert(payload);}
+    if(result.error) throw result.error;
+    employeeEditingId=null;$('employeeForm').reset();$('employeeFormTitle').textContent='Add employee';$('employeeSubmitButton').textContent='Add employee';$('employeeCancelEdit').classList.add('hidden');$('employeeBranch').value=String(profile.branch_id||branches[0]?.id||'');
+    employeeMessage('employeeMsg', wasEditing?'Employee updated successfully.':'Employee added successfully.',true); await loadEmployeeModule();
+  } catch(err){employeeMessage('employeeMsg',err.message||'Could not save employee.');}
 }
+function handleEmployeeDirectoryAction(event){
+ const btn=event.target.closest('[data-employee-action]');if(!btn)return;
+ const emp=employeeRecords.find(x=>String(x.id)===String(btn.dataset.id));if(!emp)return;
+ if(btn.dataset.employeeAction==='edit'){
+  employeeEditingId=String(emp.id);$('employeeFormTitle').textContent='Edit employee';$('employeeSubmitButton').textContent='Save changes';$('employeeCancelEdit').classList.remove('hidden');
+  $('employeeName').value=emp.full_name||'';$('employeeCode').value=emp.employee_code||'';$('employeeBranch').value=String(emp.branch_id);$('employeeDesignation').value=emp.designation||'';$('employeeEmail').value=emp.login_email||'';$('employeeDepartment').value=emp.department||'Non-Technical';$('employeeMobile').value=emp.mobile||'';$('employeeForm').scrollIntoView({behavior:'smooth',block:'center'});return;
+ }
+ if(btn.dataset.employeeAction==='login') createEmployeeLogin(emp);
+}
+async function createEmployeeLogin(emp){
+ if(!['admin','management'].includes(String(profile?.role||'').toLowerCase()))return;
+ const email=(emp.login_email||prompt('Enter employee login email:', '')||'').trim().toLowerCase();if(!email)return;
+ if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){alert('Enter a valid email address.');return;}
+ const password=prompt(emp.auth_user_id?'Enter a new temporary password (minimum 8 characters):':'Set a temporary password for '+emp.full_name+' (minimum 8 characters):','');if(password===null)return;
+ if(password.length<8){alert('Password must contain at least 8 characters.');return;}
+ try{
+  const result=await callAdminUserFunction({action:'employee_create',employee_id:emp.id,email,password});
+  alert(`Login created for ${emp.full_name}.\nEmail: ${email}\nTemporary password: ${password}\nAsk the employee to sign in and change the password.`);
+  await loadEmployeeModule();
+ }catch(err){alert(err.message||'Could not create employee login.');}
+}
+
 async function submitEmployeeActivity(e) {
   e.preventDefault();
   const employee=employeeRecords.find(x=>String(x.id)===$('activityEmployee').value);
