@@ -408,8 +408,45 @@ function loggedOut() { user=null; profile=null; show('login',true); show('app',f
 async function load(u) {
   if (!db || !u) return;
   user=u;
-  const {data:p,error} = await db.from('profiles').select('user_id,full_name,role,branch_id,active').eq('user_id',u.id).maybeSingle();
-  if(error || !p || !p.active) { await db.auth.signOut(); msg('loginMsg','No active portal profile. Ask admin to verify your role.'); return; }
+  console.info('[Portal login] Checking profile for authenticated user:', u.id);
+  const {data:p,error} = await db.from('profiles')
+    .select('user_id,full_name,role,branch_id,active')
+    .eq('user_id',u.id)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[Portal login] Profile query failed:', {
+      authUserId: u.id,
+      code: error.code || null,
+      message: error.message || null,
+      details: error.details || null,
+      hint: error.hint || null
+    });
+    msg('loginMsg', `Unable to read your portal profile: ${error.message || 'Unknown Supabase error'}${error.code ? ` (code: ${error.code})` : ''}. Check browser console for details.`);
+    return;
+  }
+  if (!p) {
+    console.error('[Portal login] No profile row returned for authenticated user:', u.id);
+    msg('loginMsg', `No profile row was returned for this login (auth UID: ${u.id}). Ask Admin to verify that profiles.user_id matches this Auth user.`);
+    return;
+  }
+  if (p.active !== true) {
+    console.warn('[Portal login] Profile exists but is inactive:', { authUserId: u.id, profile: p });
+    msg('loginMsg', 'Your portal profile is inactive. Ask Admin to activate it.');
+    return;
+  }
+  if (!p.role) {
+    console.error('[Portal login] Active profile has no role:', { authUserId: u.id, profile: p });
+    msg('loginMsg', 'Your portal profile has no role assigned. Ask Admin to update it.');
+    return;
+  }
+  console.info('[Portal login] Profile loaded:', {
+    authUserId: u.id,
+    profileUserId: p.user_id,
+    role: p.role,
+    branchId: p.branch_id,
+    active: p.active
+  });
   profile=p; $('app').dataset.role = p.role;
   const {data:b,error:be} = await db.from('branches').select('id,branch_name,network,active').eq('active',true).order('branch_name');
   if(be) { msg('loginMsg',be.message); return; }
