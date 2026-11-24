@@ -2683,7 +2683,7 @@ async function loadComplaints(){
  // Rebuild the branch select so stale/empty options cannot block branch-staff submission.
  if(branchSel){
   if(complaintManager()){
-   branchSel.innerHTML='<option value="">Select branch</option>'+allowedBranches.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('');
+   branchSel.innerHTML='<option value="">Select branch</option>'+allowedBranches.map(b=>`<option value="${b.id}">${esc(b.branch_name||b.name)}</option>`).join('');
    branchSel.disabled=false;
   }else{
    const ownBranch=(branches||[]).find(b=>Number(b.id)===myBranchId);
@@ -2693,7 +2693,7 @@ async function loadComplaints(){
    branchSel.disabled=true;
   }
  }
- if(filter&&filter.options.length<=1)filter.innerHTML='<option value="all">All permitted branches</option>'+allowedBranches.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('');
+ if(filter&&filter.options.length<=1)filter.innerHTML='<option value="all">All permitted branches</option>'+allowedBranches.map(b=>`<option value="${b.id}">${esc(b.branch_name||b.name)}</option>`).join('');
  show('complaintRegisterPanel',!complaintEmployee());
  try{
   let q=db.from('complaint_tickets').select('id,ticket_no,branch_id,registered_by,category,department,subject,description,priority,status,assigned_employee_id,assigned_to_user_id,assigned_at,started_at,submitted_for_review_at,resolution_note,created_at,updated_at') .order('created_at',{ascending:false}).limit(500);
@@ -2707,10 +2707,56 @@ function renderComplaints(){
  const rows=complaintCache.filter(t=>(sf==='all'||t.status===sf)&&(bf==='all'||String(t.branch_id)===bf));
  const counts={pending:0,in_progress:0,verification:0,resolved:0};complaintCache.forEach(t=>counts[t.status]=(counts[t.status]||0)+1);
  if($('complaintSummary'))$('complaintSummary').innerHTML=Object.entries(counts).map(([k,v])=>`<div class="stat"><span>${k.replace('_',' ')}</span><strong>${v}</strong></div>`).join('');
- const bmap=new Map((branches||[]).map(b=>[String(b.id),b.name]));
+ const bmap=new Map((branches||[]).map(b=>[String(b.id),b.branch_name||b.name]));
  $('complaintRows').innerHTML=rows.map(t=>{const employee=(employeeRecords||[]).find(e=>Number(e.id)===Number(t.assigned_employee_id));return `<tr><td><strong>${esc(t.ticket_no||`#${t.id}`)}</strong></td><td>${new Date(t.created_at).toLocaleString('en-IN')}</td><td>${esc(bmap.get(String(t.branch_id))||'Branch')}</td><td><strong>${esc(t.subject)}</strong><small>${esc(t.category)} · ${esc(t.department)}</small></td><td><span class="complaint-priority ${esc(t.priority)}">${esc(t.priority)}</span></td><td>${esc(employee?.full_name|| (t.assigned_to_user_id?'Admin / Management':'Unassigned'))}</td><td>${esc(t.status.replace('_',' '))}</td><td>${complaintAge(t.created_at)}</td><td><button type="button" class="secondary" data-complaint-open="${t.id}">Open</button></td></tr>`}).join('')||'<tr><td colspan="9">No complaints found for this filter.</td></tr>';
 }
-async function createComplaint(e){e.preventDefault();const branchId=complaintManager()?Number($('complaintBranch').value):Number(profile?.branch_id);if(!branchId){msg('complaintCreateMsg','Your login has no assigned branch. Please ask Management to check your profile.');return;}const payload={branch_id:branchId,registered_by:user.id,category:$('complaintCategory').value,department:$('complaintDepartment').value,subject:$('complaintSubject').value.trim(),description:$('complaintDescription').value.trim(),priority:$('complaintPriority').value};try{const {data,error}=await db.from('complaint_tickets').insert(payload).select('ticket_no').single();if(error)throw error;$('complaintCreateForm').reset();if(!complaintManager())$('complaintBranch').value=String(profile.branch_id);msg('complaintCreateMsg',`Complaint submitted${data?.ticket_no?' · '+data.ticket_no:''}.`,true);await loadComplaints();}catch(err){msg('complaintCreateMsg',err.message||'Could not submit complaint.');}}
+async function createComplaint(e){
+ e.preventDefault();
+ const submit=$('complaintCreateForm')?.querySelector('[type="submit"]');
+ if(submit)submit.disabled=true;
+ try{
+  if(!user?.id)throw new Error('Your session has expired. Please sign in again.');
+  // Re-read the authenticated user's profile at submit time. This avoids relying
+  // on a stale or partially initialized global profile object.
+  const {data:currentProfile,error:profileError}=await db.from('profiles')
+   .select('user_id,role,branch_id,active')
+   .eq('user_id',user.id).maybeSingle();
+  if(profileError)throw profileError;
+  if(!currentProfile||currentProfile.active!==true)throw new Error('Your active portal profile could not be verified. Please sign in again.');
+  const role=String(currentProfile.role||'').trim().toLowerCase();
+  const isManager=['admin','management'].includes(role);
+  const assignedBranchId=Number(currentProfile.branch_id||0);
+  const selectedBranchId=Number($('complaintBranch')?.value||0);
+  const branchId=isManager?selectedBranchId:assignedBranchId;
+  if(!branchId)throw new Error(isManager?'Please select a branch.':'Your login has no assigned branch. Please ask Management to check your profile.');
+  if(!isManager&&selectedBranchId&&selectedBranchId!==assignedBranchId)throw new Error('You can submit complaints only for your assigned branch.');
+  const payload={
+   branch_id:branchId,
+   registered_by:user.id,
+   category:$('complaintCategory').value,
+   department:$('complaintDepartment').value,
+   subject:$('complaintSubject').value.trim(),
+   description:$('complaintDescription').value.trim(),
+   priority:$('complaintPriority').value
+  };
+  const {data,error}=await db.from('complaint_tickets').insert(payload).select('ticket_no').single();
+  if(error)throw error;
+  $('complaintCreateForm').reset();
+  if(!isManager){
+   const ownBranch=(branches||[]).find(b=>Number(b.id)===assignedBranchId);
+   const label=ownBranch?.branch_name||ownBranch?.name||`Assigned branch (ID ${assignedBranchId})`;
+   $('complaintBranch').innerHTML=`<option value="${assignedBranchId}">${esc(label)}</option>`;
+   $('complaintBranch').value=String(assignedBranchId);
+   $('complaintBranch').disabled=true;
+  }
+  msg('complaintCreateMsg',`Complaint submitted${data?.ticket_no?' · '+data.ticket_no:''}.`,true);
+  await loadComplaints();
+ }catch(err){
+  msg('complaintCreateMsg',err.message||'Could not submit complaint.');
+ }finally{
+  if(submit)submit.disabled=false;
+ }
+}
 async function handleComplaintAction(e){const open=e.target.closest('[data-complaint-open]');if(open){openComplaint(Number(open.dataset.complaintOpen));return;}const btn=e.target.closest('[data-complaint-action]');if(btn){const id=Number(btn.dataset.ticket),action=btn.dataset.complaintAction;try{if(action==='start'){const {error}=await db.rpc('complaint_start',{p_ticket_id:id});if(error)throw error;}if(action==='verify'||action==='return'){const note=$('complaintVerifyNote')?.value||'';const {error}=await db.rpc('complaint_verify',{p_ticket_id:id,p_approve:action==='verify',p_note:note});if(error)throw error;}if(action==='assign'){const emp=Number($('complaintAssignEmployee')?.value||0);const {error}=await db.rpc('complaint_assign',{p_ticket_id:id,p_employee_id:emp||null,p_user_id:null,p_note:$('complaintAssignNote')?.value||null});if(error)throw error;}if(action==='resolution'){const note=$('complaintResolutionNote')?.value||'';const {error}=await db.rpc('complaint_submit_resolution',{p_ticket_id:id,p_resolution:note});if(error)throw error;}if(action==='note'){const note=$('complaintProgressNote')?.value||'';const {error}=await db.rpc('complaint_add_note',{p_ticket_id:id,p_note:note});if(error)throw error;}if(action==='reassign'){const emp=Number($('complaintReassignEmployee')?.value||0);const reason=$('complaintReassignReason')?.value||'';const {error}=await db.rpc('complaint_reassign',{p_ticket_id:id,p_to_employee_id:emp||null,p_to_user_id:null,p_reason:reason});if(error)throw error;}$('complaintActionPanel')?.classList.add('hidden');msg('complaintActionMsg','Complaint updated.',true);await loadComplaints();}catch(err){msg('complaintActionMsg',err.message||'Action failed.');}return;}}
 async function openComplaint(id){const t=complaintCache.find(x=>x.id===id);if(!t)return;const {data:events,error}=await db.from('complaint_events').select('event_type,note,reason,created_at,actor_user_id,actor_name,actor_role,from_employee_name,to_employee_name,from_user_name,to_user_name').eq('ticket_id',id).order('created_at');if(error){msg('complaintActionMsg',error.message);return;}const {data:emps}=await db.from('employee_directory').select('id,full_name,branch_id').eq('active',true).order('full_name');const own=complaintCache.find(x=>x.id===id);const isAssignee=complaintEmployee()||own.assigned_employee_id!=null;const mgr=complaintManager();let html=`<p><strong>${esc(t.ticket_no)}</strong> · ${esc(t.status)} · ${esc(t.priority)}</p><p>${esc(t.description)}</p><h4>Activity history</h4><ol class="complaint-history">${(events||[]).map(x=>{const actor=[x.actor_name||'User',x.actor_role].filter(Boolean).join(' · ');const assignment=[x.from_employee_name&&`From: ${x.from_employee_name}`,x.to_employee_name&&`To: ${x.to_employee_name}`,x.from_user_name&&`From: ${x.from_user_name}`,x.to_user_name&&`To: ${x.to_user_name}`].filter(Boolean).join(' → ');return `<li><strong>${esc(x.event_type.replaceAll('_',' '))}</strong><small>${new Date(x.created_at).toLocaleString('en-IN')}</small><p class="complaint-history-actor">By: <b>${esc(actor)}</b></p>${assignment?`<p class="complaint-history-assignment">${esc(assignment)}</p>`:''}${(x.note||x.reason)?`<p>${esc(x.note||x.reason)}</p>`:''}</li>`;}).join('')||'<li>No activity yet.</li>'}</ol>`;
  if(mgr){html+=`<h4>Assign complaint</h4><select id="complaintAssignEmployee"><option value="">Choose employee</option>${(emps||[]).map(x=>`<option value="${x.id}">${esc(x.full_name)} · ${esc((branches||[]).find(b=>Number(b.id)===Number(x.branch_id))?.name||'')}</option>`).join('')}</select><input id="complaintAssignNote" placeholder="Assignment note (optional)"><button type="button" data-complaint-action="assign" data-ticket="${id}">Assign</button>`;if(t.status==='verification')html+=`<h4>Verify resolution</h4><textarea id="complaintVerifyNote" placeholder="Verification note / reason if returned"></textarea><button type="button" data-complaint-action="verify" data-ticket="${id}">Approve &amp; close</button><button type="button" class="secondary" data-complaint-action="return" data-ticket="${id}">Return for further work</button>`;}
