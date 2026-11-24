@@ -1,1 +1,51 @@
 .complaint-panel,.complaint-action-panel{background:var(--surface,#fff);border:1px solid var(--line,#e5eaf0);border-radius:14px;padding:16px;margin:16px 0}.complaint-action-panel textarea,.complaint-action-panel input,.complaint-action-panel select{width:100%;margin:6px 0 10px}.complaint-action-panel button{margin:6px 8px 6px 0}.complaint-history{padding-left:22px}.complaint-history li{margin:10px 0}.complaint-history small,.complaint-history p{display:block;color:var(--muted,#64748b);margin:3px 0}.complaint-priority{font-size:11px;text-transform:uppercase;font-weight:700;padding:4px 7px;border-radius:7px;background:#edf2f7}.complaint-priority.high{background:#fff1d6;color:#9a5b00}.complaint-priority.critical{background:#fee2e2;color:#a21d37}#complaintRows td small{display:block;color:var(--muted,#64748b);margin-top:3px}@media(max-width:760px){.complaint-panel,.complaint-action-panel{padding:12px}.complaint-panel .grid{grid-template-columns:1fr}}
+
+/* UNOMED + NEETHI | Complaint Desk premium compact refresh */
+#complaintSection{--cmp-ink:#102b4c;--cmp-muted:#71839b;--cmp-line:#e1e9f3;--cmp-blue:#174b7a;position:relative;isolation:isolate;overflow:hidden;padding:clamp(18px,1.35vw,28px);border:1px solid #e2eaf4;border-radius:22px;background:radial-gradient(ellipse at 100% 0%,rgba(48,111,171,.075),transparent 34%),linear-gradient(145deg,#fff 0%,#fbfdff 62%,#f7faff 100%);box-shadow:0 16px 44px rgba(16,43,76,.075)}
+#complaintSection:before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:linear-gradient(180deg,#cf2455,#174b7a 72%,#73a6d3);border-radius:22px 0 0 22px;pointer-events:none}
+#complaintSection>.section-head{align-items:center;margin:0 0 18px;padding:0 0 16px;border-bottom:1px solid var(--cmp-line)}
+#complaintSection .section-head .eyebrow{margin:0 0 5px;color:#c3214d;font-size:10px;font-weight:900;letter-spacing:.16em}
+#complaintSection .section-head h2{margin:0;color:var(--cmp-ink);font-size:clamp(21px,1.7vw,30px);font-weight:850;letter-spacing:-.035em;line-height:1.15}
+#complaintSection .section-head p:not(.eyebrow){margin:7px 0 0;color:var(--cmp-muted);font-size:13px;line-height:1.45}
+#complaintSection #complaintRefresh{min-height:38px;padding:8px 14px;border:1px solid #d6e2f0;border-radius:11px;background:#fff;color:#17436e;font-size:12px;font-weight:800;box-shadow:0 3px 10px rgba(16,43,76,.04);transition:.18s ease}
+#complaintSection #complaintRefresh:hover{transform:translateY(-1px);border-color:#9db8d6;box-shadow:0 8px 18px rgba(16,43,76,.09)}
+#complaintSection #complaintSummary{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0 0 14px}
+#complaintSection #complaintSummary .stat{position:relative;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:68px;margin:0;padding:12px 15px;border:1px solid #e2eaf4;border-radius:14px;background:linear-gradient(145deg,#fff,#f7faff);box-shadow:0 5px 14px rgba(16,43,76,.035);transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+#complaintSection #complaintSummary .stat:hover{transform:translateY(-2px);border-color:#b8cce2;box-shadow:0 10px 20px rgba(16,43,76,.075)}
+#complaintSection #complaintSummary .stat span{color:#637891;font-size:10px;font-weight:850;letter-spacing:.09em;text-transform:uppercase}
+#complaintSection #complaintSummary .stat strong{color:var(--cmp-ink);font-size:clamp(22px,1.8vw,29px);font-weight:900;line-height:1;font-variant-numeric:tabular-nums}
+#complaintSection #complaintSummary .stat:nth-child(1){border-left:3px solid #d58b2d}#complaintSection #complaintSummary .stat:nth-child(2){border-left:3px solid #397fb1}#complaintSection #complaintSummary .stat:nth-child(3){border-left:3px solid #8a68bf}#complaintSection #complaintSummary .stat:nth-child(4){border-left:3px solid #21936c}
+#complaintSection .complaint-panel,#complaintSection .complaint-action-panel{margin:0 0 14px;padding:16px 18px;border:1px solid #e0e9f3;border-radius:16px;background:rgba(255,255,255,.92);box-shadow:0 6px 18px rgba(16,43,76,.035)}
+#complaintSection .complaint-panel h3,#complaintSection .complaint-action-panel h3{display:flex;align-items:center;gap:9px;margin:0 0 13px;color:var(--cmp-ink);font-size:15px;font-weight:850;letter-spacing:-.015em}
+#complaintSection .complaint-panel h3:before{content:"＋";display:grid;place-items:center;width:25px;height:25px;border-radius:8px;background:#edf4fb;color:#1b5a8c;font-size:16px}
+#complaintSection #complaintCreateForm{display:block}
+#complaintSection #complaintCreateForm .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px 12px;margin-bottom:10px}
+#complaintSection #complaintCreateForm label{display:block;margin:0 0 5px;color:#536981;font-size:10px;font-weight:850;letter-spacing:.055em;text-transform:uppercase}
+#complaintSection #complaintCreateForm input,#complaintSection #complaintCreateForm select,#complaintSection #complaintCreateForm textarea{width:100%;min-width:0;min-height:38px;margin:0;padding:8px 10px;border:1px solid #dce6f1;border-radius:9px;background:#fbfdff;color:#193654;font-size:12px;box-shadow:inset 0 1px 2px rgba(16,43,76,.025);transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}
+#complaintSection #complaintCreateForm input:focus,#complaintSection #complaintCreateForm select:focus,#complaintSection #complaintCreateForm textarea:focus{outline:0;border-color:#6c9bc5;background:#fff;box-shadow:0 0 0 3px rgba(65,128,184,.13)}
+#complaintSection #complaintBranch,#complaintSection #complaintCategory,#complaintSection #complaintDepartment,#complaintSection #complaintPriority{height:38px}
+#complaintSection #complaintSubject,#complaintSection #complaintDescription{display:block;width:100%;margin:0 0 10px}
+#complaintSection #complaintDescription{min-height:60px;resize:vertical}
+#complaintSection #complaintCreateForm>button{display:inline-flex;align-items:center;justify-self:start;min-height:38px;margin:0;padding:9px 16px;border:0;border-radius:10px;background:linear-gradient(135deg,#174b7a,#24699f);color:white;font-size:12px;font-weight:850;box-shadow:0 6px 14px rgba(23,75,122,.2);transition:transform .18s ease,box-shadow .18s ease}
+#complaintSection #complaintCreateForm>button:hover{transform:translateY(-1px);box-shadow:0 9px 20px rgba(23,75,122,.25)}
+#complaintSection #complaintCreateMsg{margin:0;font-size:12px}
+#complaintSection .analytics-controls{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin:0 0 10px;padding:11px 13px;border:1px solid #e3ebf4;border-radius:13px;background:#f8fbff}
+#complaintSection .analytics-controls>div{display:flex;align-items:center;gap:8px;min-width:0}
+#complaintSection .analytics-controls label{margin:0;color:#61758d;font-size:10px;font-weight:850;letter-spacing:.06em;text-transform:uppercase}
+#complaintSection .analytics-controls select{min-width:150px;min-height:34px;margin:0;padding:6px 28px 6px 9px;border:1px solid #dce6f1;border-radius:8px;background:#fff;color:#193654;font-size:11px}
+#complaintSection .scroll{overflow:auto;border:1px solid #e1e9f3;border-radius:13px;background:#fff}
+#complaintSection table{width:100%;min-width:940px;border-collapse:separate;border-spacing:0}
+#complaintSection thead th{position:sticky;top:0;z-index:1;padding:10px 11px;background:#f2f6fb;color:#61758d;border-bottom:1px solid #e0e8f2;font-size:9px;font-weight:900;letter-spacing:.09em;text-transform:uppercase;white-space:nowrap}
+#complaintSection tbody td{padding:10px 11px;border-bottom:1px solid #edf1f6;color:#314a65;font-size:11px;vertical-align:middle}
+#complaintSection tbody tr{transition:background .15s ease}#complaintSection tbody tr:hover{background:#f7faff}#complaintSection tbody tr:last-child td{border-bottom:0}
+#complaintSection #complaintRows td strong{color:#183a5d;font-weight:850}#complaintSection #complaintRows td small{color:#7a8ca2;font-size:10px}
+#complaintSection .complaint-priority{display:inline-flex;align-items:center;padding:4px 8px;border:1px solid #e6edf4;border-radius:99px;background:#f1f5f9;color:#536981;font-size:9px;font-weight:900;letter-spacing:.05em}
+#complaintSection .complaint-priority.high{border-color:#f4d9a7;background:#fff7e8;color:#9a5b00}#complaintSection .complaint-priority.critical{border-color:#f4c4cd;background:#fff0f2;color:#b21e3d}
+#complaintSection #complaintRows button{min-height:29px;padding:5px 10px;border:1px solid #d7e3f0;border-radius:8px;background:#fff;color:#1d527f;font-size:10px;font-weight:850}
+#complaintSection #complaintRows button:hover{border-color:#9bb9d8;background:#eef5fc}
+#complaintSection .complaint-action-panel{margin-top:14px;background:linear-gradient(145deg,#fff,#f8fbff)}
+#complaintSection .complaint-history{margin:0;padding-left:19px}#complaintSection .complaint-history li{padding:0 0 9px 3px;border-bottom:1px dashed #e3eaf2}#complaintSection .complaint-history li:last-child{border:0}
+@media(min-width:1800px){#complaintSection{max-width:none}#complaintSection #complaintCreateForm{gap:13px 16px}#complaintSection tbody td{padding:12px 14px;font-size:12px}}
+@media(max-width:900px){#complaintSection #complaintCreateForm .grid{grid-template-columns:repeat(2,minmax(0,1fr))}#complaintSection #complaintSummary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){#complaintSection{padding:14px;border-radius:16px}#complaintSection #complaintCreateForm .grid{grid-template-columns:1fr}#complaintSection #complaintSummary{gap:7px}#complaintSection #complaintSummary .stat{min-height:58px;padding:10px}#complaintSection .analytics-controls>div{width:100%;justify-content:space-between}#complaintSection .analytics-controls select{flex:1;max-width:68%}}
+@media(prefers-reduced-motion:reduce){#complaintSection *{transition:none!important;scroll-behavior:auto!important}}
