@@ -445,6 +445,11 @@ async function load(u) {
   refreshSidebarVisibility();
   if (p.role === 'admin') await loadPortalUsers();
   await loadEmployeeModule();
+  // Make the Complaints section visible for every authenticated portal role.
+  // It was previously left hidden, which also hid its sidebar navigation item.
+  show('complaintSection', true);
+  refreshSidebarVisibility();
+  void loadComplaints();
   if (p.role !== 'branch_staff') { await loadBranchAnalytics(); await loadTargetDashboard(); await loadManagementExecutiveDashboard(); }
 }
 
