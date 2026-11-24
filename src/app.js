@@ -128,7 +128,7 @@ function setPortalView(targetId) {
   });
   layout.dataset.activeView = targetId;
   content.scrollTop = 0;
-  if (window.matchMedia('(max-width: 760px)').matches) layout.classList.remove('sidebar-open');
+  if (window.matchMedia('(max-width: 760px)').matches) { layout.classList.remove('sidebar-open'); $('mobileNavToggle')?.setAttribute('aria-expanded','false'); const icon=$('mobileNavToggle')?.querySelector('.mobile-nav-trigger-icon'); if(icon) icon.textContent='☰'; }
 }
 document.querySelectorAll('.nav-button[data-target]').forEach(button => {
   button.addEventListener('click', () => {
@@ -141,13 +141,31 @@ document.querySelectorAll('.nav-button[data-target]').forEach(button => {
     if (button.dataset.target === 'complaintSection') void loadComplaints();
   });
 });
+function setMobileNavigation(open) {
+  const layout = document.querySelector('.app-layout');
+  const trigger = $('mobileNavToggle');
+  if (!layout) return;
+  layout.classList.toggle('sidebar-open', Boolean(open));
+  trigger?.setAttribute('aria-expanded', String(Boolean(open)));
+  trigger?.setAttribute('aria-label', open ? 'Close navigation menu' : 'Open navigation menu');
+  const icon = trigger?.querySelector('.mobile-nav-trigger-icon');
+  if (icon) icon.textContent = open ? '✕' : '☰';
+}
 $('sidebarToggle')?.addEventListener('click', () => {
   const layout = document.querySelector('.app-layout');
   if (window.matchMedia('(max-width: 760px)').matches) {
-    layout.classList.toggle('sidebar-open');
+    setMobileNavigation(!layout.classList.contains('sidebar-open'));
   } else {
     layout.classList.toggle('sidebar-collapsed');
   }
+});
+$('mobileNavToggle')?.addEventListener('click', () => {
+  const layout = document.querySelector('.app-layout');
+  setMobileNavigation(!layout?.classList.contains('sidebar-open'));
+});
+$('mobileNavBackdrop')?.addEventListener('click', () => setMobileNavigation(false));
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') setMobileNavigation(false);
 });
 document.querySelector('.nav-button[data-target="overviewTop"]')?.addEventListener('click',()=>{setTimeout(()=>void loadBroadcastDisplay(),100);});
 initPortalCommandBar();
