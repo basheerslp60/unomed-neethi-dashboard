@@ -1,0 +1,47 @@
+/* UNOMED + NEETHI — Employee module premium compact UI */
+#employeeSection{--emp-ink:#123254;--emp-muted:#6b8098;--emp-line:#e3ebf4;--emp-soft:#f5f8fc;position:relative;overflow:hidden;padding:clamp(16px,1.35vw,26px);border:1px solid #dfe8f2;border-radius:20px;background:linear-gradient(145deg,#fff 0%,#fbfdff 68%,#f5f9ff 100%);box-shadow:0 12px 36px rgba(25,55,88,.065)}
+#employeeSection:before{content:"";position:absolute;left:0;top:0;width:5px;height:100%;background:linear-gradient(180deg,#174d7a,#4d8ec0 58%,#c41e4a);opacity:.9}
+#employeeSection>.section-head{align-items:center;margin:0 0 16px;padding:0 0 14px;border-bottom:1px solid var(--emp-line)}
+#employeeSection .eyebrow{margin:0 0 5px;color:#c51f4a;font-size:10px;font-weight:950;letter-spacing:.15em}
+#employeeSection h2{margin:0;color:var(--emp-ink);font-size:clamp(20px,1.55vw,30px);font-weight:900;letter-spacing:-.035em;line-height:1.15}
+#employeeSection h3{margin:0 0 10px;color:#173a5d;font-size:clamp(14px,.95vw,18px);font-weight:850;letter-spacing:-.015em}
+#employeeSection p{color:var(--emp-muted)}
+#employeeSection .section-head>div>p:not(.eyebrow){margin:7px 0 0;font-size:12px;line-height:1.5}
+#employeeSection .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 16px}
+#employeeSection .stat{position:relative;display:flex;flex-direction:column;gap:6px;min-height:78px;padding:13px 15px;border:1px solid var(--emp-line);border-radius:14px;background:linear-gradient(145deg,#fff,#f7faff);box-shadow:0 4px 14px rgba(24,55,88,.035);transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+#employeeSection .stat:hover{transform:translateY(-2px);border-color:#b9cfe4;box-shadow:0 9px 20px rgba(24,55,88,.075)}
+#employeeSection .stat span{color:#71849a;font-size:10px;font-weight:850;letter-spacing:.07em;text-transform:uppercase}
+#employeeSection .stat strong{color:#153c62;font-size:clamp(21px,1.5vw,28px);font-weight:950;line-height:1;font-variant-numeric:tabular-nums}
+#employeeSection hr{height:1px;margin:17px 0;border:0;background:linear-gradient(90deg,#dce6f0,rgba(220,230,240,.15))}
+#employeeSection #employeeTasksPanel{margin:0;padding:15px;border:1px solid #e2eaf3;border-radius:16px;background:linear-gradient(145deg,#fbfdff,#f5f9fe)}
+#employeeSection #employeeTasksPanel>.section-head{margin:0 0 12px;align-items:center}
+#employeeSection #employeeTasksPanel .stats{grid-template-columns:repeat(4,minmax(0,1fr));margin:0 0 13px}
+#employeeSection #employeeTasksPanel .stat{min-height:66px;padding:10px 12px;background:#fff}
+#employeeSection #employeeTaskAdminPanel,#employeeSection #employeeAdminPanel,#employeeSection #employeeTargetPanel{margin:12px 0;padding:15px;border:1px solid var(--emp-line);border-radius:14px;background:#fff;box-shadow:0 4px 15px rgba(24,55,88,.035)}
+#employeeSection form .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px 12px;margin:0 0 10px}
+#employeeSection label{display:block;margin:0 0 5px;color:#5d728a;font-size:10px;font-weight:850;letter-spacing:.055em;text-transform:uppercase}
+#employeeSection input,#employeeSection select,#employeeSection textarea{width:100%;min-width:0;min-height:37px;margin:0;padding:8px 10px;border:1px solid #dce6f0;border-radius:9px;background:#fbfdff;color:#1b3b5b;font-size:12px;box-shadow:inset 0 1px 2px rgba(15,45,75,.025);transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}
+#employeeSection input:focus,#employeeSection select:focus,#employeeSection textarea:focus{outline:0;border-color:#6b9bc4;background:#fff;box-shadow:0 0 0 3px rgba(57,122,180,.13)}
+#employeeSection textarea{min-height:58px;resize:vertical}
+#employeeSection button{transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
+#employeeSection button:not(.link){min-height:35px;padding:8px 13px;border-radius:9px;font-size:11px;font-weight:850}
+#employeeSection button:not(.link):hover{transform:translateY(-1px)}
+#employeeSection button[type=submit]{border:0;background:linear-gradient(135deg,#174b78,#276b9f);color:#fff;box-shadow:0 5px 13px rgba(23,75,120,.18)}
+#employeeSection button.secondary{border:1px solid #d5e1ed;background:#fff;color:#1d4b73}
+#employeeSection .analytics-controls{display:flex;align-items:end;gap:10px;margin:0 0 10px;padding:10px 12px;border:1px solid var(--emp-line);border-radius:12px;background:#f8fbff}
+#employeeSection .analytics-controls>div{display:flex;align-items:center;gap:8px}
+#employeeSection .analytics-controls label{margin:0}
+#employeeSection .analytics-controls select{min-width:150px;min-height:33px}
+#employeeSection .scroll{overflow:auto;border:1px solid #e2eaf2;border-radius:13px;background:#fff;box-shadow:0 3px 12px rgba(24,55,88,.025)}
+#employeeSection table{width:100%;min-width:760px;border-collapse:separate;border-spacing:0}
+#employeeSection thead th{position:sticky;top:0;z-index:1;padding:10px 11px;border-bottom:1px solid #e0e8f1;background:#f1f6fb;color:#647991;font-size:9px;font-weight:950;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+#employeeSection tbody td{padding:10px 11px;border-bottom:1px solid #edf1f6;color:#314b66;font-size:11px;vertical-align:middle}
+#employeeSection tbody tr{transition:background .14s ease}
+#employeeSection tbody tr:hover{background:#f6faff}
+#employeeSection tbody tr:last-child td{border-bottom:0}
+#employeeSection small{color:#778ba1;font-size:10px;line-height:1.5}
+#employeeSection .msg{font-size:11px}
+@media(min-width:1800px){#employeeSection{max-width:none}#employeeSection .stats{gap:13px}#employeeSection .stat{min-height:88px;padding:16px 18px}#employeeSection form .grid{gap:13px 15px}#employeeSection tbody td{padding:12px 14px;font-size:12px}}
+@media(max-width:1050px){#employeeSection form .grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){#employeeSection{padding:14px;border-radius:15px}#employeeSection .stats,#employeeSection #employeeTasksPanel .stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#employeeSection #employeeTasksPanel{padding:11px}#employeeSection .section-head{align-items:flex-start;gap:10px;flex-wrap:wrap}#employeeSection form .grid{grid-template-columns:1fr}#employeeSection .analytics-controls{align-items:stretch;flex-wrap:wrap}#employeeSection .analytics-controls>div{width:100%;justify-content:space-between}#employeeSection .analytics-controls select{flex:1;max-width:65%}}
+@media(prefers-reduced-motion:reduce){#employeeSection *{transition:none!important}}
