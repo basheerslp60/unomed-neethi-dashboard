@@ -49,3 +49,8 @@
 @media(max-width:900px){#complaintSection #complaintCreateForm .grid{grid-template-columns:repeat(2,minmax(0,1fr))}#complaintSection #complaintSummary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){#complaintSection{padding:14px;border-radius:16px}#complaintSection #complaintCreateForm .grid{grid-template-columns:1fr}#complaintSection #complaintSummary{gap:7px}#complaintSection #complaintSummary .stat{min-height:58px;padding:10px}#complaintSection .analytics-controls>div{width:100%;justify-content:space-between}#complaintSection .analytics-controls select{flex:1;max-width:68%}}
 @media(prefers-reduced-motion:reduce){#complaintSection *{transition:none!important;scroll-behavior:auto!important}}
+
+/* Complaint activity history: actor attribution */
+.complaint-history-actor{margin:.35rem 0 .15rem;color:#173b63;font-size:.92rem}
+.complaint-history-assignment{margin:.2rem 0;color:#526b86;font-size:.88rem}
+.complaint-history-actor b{font-weight:750}
