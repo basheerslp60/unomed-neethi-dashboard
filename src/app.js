@@ -577,7 +577,7 @@ function b2bPopulateRegisterFilters(){
   if($('b2bRegisterDateFrom'))$('b2bRegisterDateFrom').value=b2bRegisterDateFrom;
   if($('b2bRegisterDateTo'))$('b2bRegisterDateTo').value=b2bRegisterDateTo;
 }
-function renderB2BRequests(){const host=$('b2bRequestRows');if(!host)return;const canReview=['admin','management'].includes(profile?.role)||b2bCentres.includes(Number(profile?.branch_id));const filtered=b2bRequestsCache.filter(r=>{const sender=branches.find(b=>Number(b.id)===Number(r.sender_branch_id));const tests=b2bRequestTestsCache.filter(t=>Number(t.request_id)===Number(r.id)).map(t=>t.test_name_snapshot).join(' ');const hay=[r.request_no,r.patient_name,r.patient_ref,sender?.branch_name,b2bCentreName(r.processing_centre_id),tests].join(' ').toLowerCase();const requestDate=String(r.request_date||'').slice(0,10);
+function renderB2BRequests(){const host=$('b2bRequestRows');if(!host)return;const canReview=['admin','management'].includes(profile?.role)||b2bCentres.includes(Number(profile?.branch_id));const filtered=b2bRequestsCache.filter(r=>{const sender=branches.find(b=>Number(b.id)===Number(r.sender_branch_id));const tests=b2bRequestTestsCache.filter(t=>Number(t.request_id)===Number(r.id)).map(t=>t.test_name_snapshot).join(' ');const hay=[r.request_no,r.request_date,r.patient_name,r.patient_ref,r.patient_age,r.patient_sex,sender?.branch_name,b2bCentreName(r.processing_centre_id),tests,r.status,r.rejection_reason].filter(v=>v!==null&&v!==undefined).join(' ').toLowerCase();const requestDate=String(r.request_date||'').slice(0,10);
 const matchesBranch=b2bRegisterBranchFilter==='all'||String(r.sender_branch_id)===b2bRegisterBranchFilter;
 const requestTests=b2bRequestTestsCache.filter(t=>Number(t.request_id)===Number(r.id));
 const matchesTest=b2bRegisterTestFilter==='all'||requestTests.some(t=>String(t.test_id)===b2bRegisterTestFilter);
@@ -643,6 +643,7 @@ $('b2bPricePageSize')?.addEventListener('change',e=>{b2bPricePageSize=Math.max(1
 $('b2bPricePrev')?.addEventListener('click',()=>{b2bPricePage=Math.max(1,b2bPricePage-1);renderB2BPrices();});
 $('b2bPriceNext')?.addEventListener('click',()=>{b2bPricePage+=1;renderB2BPrices();});
 $('b2bRegisterSearch')?.addEventListener('input',e=>{b2bSearchTerm=String(e.target.value||'').trim().toLowerCase();b2bRequestPage=1;renderB2BRequests();});
+$('b2bRegisterSearchClear')?.addEventListener('click',()=>{b2bSearchTerm='';if($('b2bRegisterSearch'))$('b2bRegisterSearch').value='';b2bRequestPage=1;renderB2BRequests();$('b2bRegisterSearch')?.focus();});
 $('b2bRegisterBranch')?.addEventListener('change',e=>{b2bRegisterBranchFilter=e.target.value||'all';b2bRequestPage=1;renderB2BRequests();});
 $('b2bRegisterTest')?.addEventListener('change',e=>{b2bRegisterTestFilter=e.target.value||'all';b2bRequestPage=1;renderB2BRequests();});
 $('b2bRegisterDateFrom')?.addEventListener('change',e=>{b2bRegisterDateFrom=e.target.value||'';b2bRequestPage=1;renderB2BRequests();});
