@@ -530,3 +530,20 @@
 #overviewDashboard{margin-top:0!important}
 @media(max-width:900px){.overview-header-controls{grid-template-columns:minmax(0,1fr);gap:6px}.overview-month-control{justify-content:flex-start;width:max-content;max-width:100%}}
 @media(max-width:560px){.portal-quick-links{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.portal-quick-links>span{flex:0 0 auto}.portal-quick-links button{flex:0 0 auto}.overview-header-controls .heading{align-items:flex-start}.overview-header-controls .heading h1{font-size:23px!important}.overview-month-control{flex-wrap:wrap}.overview-month-control label{width:100%}}
+
+
+/* Premium compact KPI row — additive styles, preserving existing dashboard components. */
+.overview-kpis{grid-template-columns:repeat(5,minmax(0,1fr));gap:9px}
+.overview-kpi{grid-template-columns:34px minmax(0,1fr);gap:3px 9px;padding:12px 11px;border-radius:13px;min-height:112px;overflow:hidden}
+.overview-kpi:focus-visible{outline:2px solid #4c8bd8;outline-offset:2px}
+.overview-kpi-icon{width:34px;height:34px;border-radius:10px;font-size:17px;grid-row:span 2}
+.overview-kpi-label{font-size:9px;letter-spacing:.045em;line-height:1.2}
+.overview-kpi strong{font-size:clamp(16px,1.45vw,22px);line-height:1.12;white-space:nowrap}
+.overview-kpi small{grid-column:2;font-size:9px;line-height:1.25;min-height:22px}
+.overview-kpi-delta{grid-column:2;display:inline-flex;align-items:center;width:max-content;max-width:100%;font-size:9px;font-weight:850;line-height:1.2;padding:4px 6px;border-radius:999px;white-space:nowrap}
+.overview-kpi-delta.positive{color:#087b54;background:#e8f7f0}
+.overview-kpi-delta.negative{color:#bd2946;background:#fff0f2}
+.overview-kpi-delta.neutral{color:#64748b;background:#f1f5f9}
+@media(max-width:1100px){.overview-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){.overview-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.overview-kpi{min-height:105px;padding:10px}}
+@media(max-width:390px){.overview-kpis{grid-template-columns:1fr}.overview-kpi{min-height:92px}}
