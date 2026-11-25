@@ -47,6 +47,7 @@ let complianceRowsCache = [], complianceNetworkFilter = 'ALL', complianceChecked
 let employeeTaskAlerts = [];
 let editingReportId = null;
 let overviewReports = [];
+let overviewPreviousReports = [];
 let overviewPeriod = '7';
 let overviewNetwork = 'ALL';
 let broadcastItemsCache = [], broadcastActiveIndex = 0, broadcastTimer = null, broadcastUploadBusy = false;
@@ -877,6 +878,19 @@ async function loadAllCurrentMonthReports() {
   return all;
 }
 
+async function loadAllReportsForMonthKey(monthKey) {
+  const [year,month]=monthKey.split('-').map(Number);
+  const start=`${year}-${String(month).padStart(2,'0')}-01`;
+  const nextMonth=month===12?`${year+1}-01-01`:`${year}-${String(month+1).padStart(2,'0')}-01`;
+  let all=[],from=0,pageSize=500;
+  while(true){
+    const {data,error}=await db.from('daily_reports').select('id,branch_id,report_date,total_sales,patient_count,status')
+      .gte('report_date',start).lt('report_date',nextMonth).order('report_date',{ascending:false}).range(from,from+pageSize-1);
+    if(error)throw error;all=all.concat(data||[]);if(!data||data.length<pageSize)break;from+=pageSize;
+  }
+  return all;
+}
+
 async function loadReports() {
   const {data:recent,error}=await db.from('daily_reports').select('id,branch_id,report_date,total_sales,patient_count,status').order('report_date',{ascending:false}).limit(500);
   if (error) { $('rows').innerHTML = '<tr><td colspan="7">' + esc(error.message) + '</td></tr>'; return; }
@@ -905,6 +919,12 @@ async function loadReports() {
   await renderTargets(monthReports);
   if(profile.role==='branch_staff') await loadStaffMonthComparison();
   overviewReports = monthReports || [];
+  try {
+    const selectedMonth=$('performanceMonth')?.value || today.slice(0,7);
+    const [py,pm]=selectedMonth.split('-').map(Number);
+    const prevMonth=pm===1?`${py-1}-12`:`${py}-${String(pm-1).padStart(2,'0')}`;
+    overviewPreviousReports=await loadAllReportsForMonthKey(prevMonth);
+  } catch(err) { overviewPreviousReports=[]; }
   renderOverview();
   refreshSidebarVisibility();
   await renderCompliance(reports);
@@ -1839,14 +1859,27 @@ function renderOverview() {
   $('overviewHeroTitle').textContent=staff?`Welcome, ${profile.full_name?.split(' ')[0]||'Team'}!`:'Business performance at a glance';
   $('overviewHeroSub').textContent=`${branchLabel} · ${monthKey} · Data visible to your signed-in account`;
   $('overviewRolePill').textContent=String(profile?.role||'portal').replaceAll('_',' ').toUpperCase();
+  const [yearN,monthN]=monthKey.split('-').map(Number);
+  const previousMonthKey=monthN===1?`${yearN-1}-12`:`${yearN}-${String(monthN-1).padStart(2,'0')}`;
+  const elapsedDays=monthKey===today.slice(0,7)?Number(today.slice(8,10)):new Date(yearN,monthN,0).getDate();
+  const previousCutoff=Math.min(elapsedDays,new Date(Number(previousMonthKey.slice(0,4)),Number(previousMonthKey.slice(5,7)),0).getDate());
+  const prevRows=(overviewPreviousReports||[]).filter(r=>r.report_date && r.report_date<=`${previousMonthKey}-${String(previousCutoff).padStart(2,'0')}` && (!staff||String(r.branch_id)===String(profile.branch_id)));
+  const prevSales=prevRows.reduce((a,r)=>a+Number(r.total_sales||0),0);
+  const prevPatients=prevRows.reduce((a,r)=>a+Number(r.patient_count||0),0);
+  const prevAvg=prevPatients?prevSales/prevPatients:0;
+  const yesterday=new Date(`${today}T12:00:00`);yesterday.setDate(yesterday.getDate()-1);
+  const yesterdayKey=`${yesterday.getFullYear()}-${String(yesterday.getMonth()+1).padStart(2,'0')}-${String(yesterday.getDate()).padStart(2,'0')}`;
+  const yesterdaySales=(overviewReports||[]).filter(r=>r.report_date===yesterdayKey&&(!staff||String(r.branch_id)===String(profile.branch_id))).reduce((a,r)=>a+Number(r.total_sales||0),0);
+  const delta=(current,previous)=>previous>0?((current-previous)/previous)*100:null;
+  const trend=(current,previous,unit='%')=>{const d=delta(current,previous);if(d===null)return `<span class="kpi-trend neutral">— No prior data</span>`;const up=d>=0;return `<span class="kpi-trend ${up?'up':'down'}"><b>${up?'↑':'↓'} ${Math.abs(d).toFixed(1)}${unit}</b><small>vs previous period</small></span>`;};
   const kpis=[
-    {label:'TODAY\'S SALES',value:money(todaySales),meta:'Sales recorded today',tone:'blue',icon:'₹'},
-    {label:'MONTH SALES',value:money(totalSales),meta:`${monthKey} month-to-date`,tone:'red',icon:'↗'},
-    {label:'PATIENTS SERVED',value:totalPatients.toLocaleString('en-IN'),meta:'Patients in selected month',tone:'teal',icon:'♙'},
-    {label:'TARGET ACHIEVEMENT',value:fmtPct(achievement),meta:totalTarget?`${money(Math.max(totalTarget-totalSales,0))} balance`:'Monthly target not set',tone:'gold',icon:'◎'},
-    {label:'AVERAGE BILL',value:money(avgBill),meta:'Sales divided by patients',tone:'violet',icon:'⌁'}
+    {label:'TODAY'S SALES',value:money(todaySales),meta:`Yesterday ${money(yesterdaySales)}`,trend:trend(todaySales,yesterdaySales),tone:'blue',icon:'₹'},
+    {label:'MONTH SALES',value:money(totalSales),meta:`${previousMonthKey} comparable MTD ${money(prevSales)}`,trend:trend(totalSales,prevSales),tone:'red',icon:'↗'},
+    {label:'PATIENTS SERVED',value:totalPatients.toLocaleString('en-IN'),meta:`Previous comparable MTD ${prevPatients.toLocaleString('en-IN')}`,trend:trend(totalPatients,prevPatients),tone:'teal',icon:'♙'},
+    {label:'TARGET ACHIEVEMENT',value:fmtPct(achievement),meta:totalTarget?`${money(Math.max(totalTarget-totalSales,0))} balance`:'Monthly target not set',trend:`<span class="kpi-trend ${achievement>=(elapsedDays/(new Date(yearN,monthN,0).getDate())*100)?'up':'down'}"><b>${achievement>=(elapsedDays/(new Date(yearN,monthN,0).getDate())*100)?'↑ Ahead of pace':'↓ Behind pace'}</b><small>month elapsed ${Math.round(elapsedDays/(new Date(yearN,monthN,0).getDate())*100)}%</small></span>`,tone:'gold',icon:'◎'},
+    {label:'AVERAGE BILL',value:money(avgBill),meta:`Previous comparable MTD ${money(prevAvg)}`,trend:trend(avgBill,prevAvg),tone:'violet',icon:'⌁'}
   ];
-  $('overviewKpis').innerHTML=kpis.map(k=>`<article class="overview-kpi ${k.tone}"><span class="overview-kpi-icon">${k.icon}</span><span class="overview-kpi-label">${k.label}</span><strong>${k.value}</strong><small>${k.meta}</small></article>`).join('');
+  $('overviewKpis').innerHTML=kpis.map(k=>`<article class="overview-kpi ${k.tone}"><span class="overview-kpi-icon">${k.icon}</span><span class="overview-kpi-label">${k.label}</span><strong>${k.value}</strong>${k.trend}<small>${k.meta}</small><span class="kpi-shine" aria-hidden="true"></span></article>`).join('');
   const nets=['UNOMED','NEETHI'].map(n=>{const arr=branchRows.filter(b=>String(b.network).toUpperCase()===n);return {name:n,sales:arr.reduce((a,b)=>a+b.sales,0),target:arr.reduce((a,b)=>a+b.target,0),patients:arr.reduce((a,b)=>a+b.patients,0),count:arr.length};});
   $('overviewNetworkGrid').innerHTML=staff?`<article class="overview-network-card own"><span class="overview-label">YOUR BRANCH</span><strong>${esc(branchLabel)}</strong><div class="overview-network-numbers"><b>${money(totalSales)}</b><span>${fmtPct(achievement)} achieved</span></div><div class="overview-progress"><i style="width:${Math.min(100,achievement)}%"></i></div><small>${money(totalTarget)} monthly target · ${totalPatients.toLocaleString('en-IN')} patients</small></article>`:nets.map(n=>`<article class="overview-network-card ${n.name.toLowerCase()}"><div class="overview-network-head"><span class="overview-label">${n.name} NETWORK</span><span>${n.count} branches</span></div><strong>${money(n.sales)}</strong><div class="overview-progress"><i style="width:${Math.min(100,n.target?n.sales/n.target*100:0)}%"></i></div><div class="overview-network-numbers"><span>${fmtPct(n.target?n.sales/n.target*100:0)} achieved</span><span>Target ${money(n.target)}</span></div><small>${n.patients.toLocaleString('en-IN')} patients</small></article>`).join('');
   const dates=[];const nowDate=new Date();const [yy,mm]=monthKey.split('-').map(Number);const lastDay=new Date(yy,mm,0).getDate();
