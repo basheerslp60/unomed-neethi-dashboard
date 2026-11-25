@@ -139,3 +139,13 @@
 #b2bInvoicePager button{padding:7px 12px!important;min-height:32px!important;font-size:11px!important;border-radius:9px!important}
 #b2bInvoicePager button:disabled{opacity:.4;cursor:not-allowed}
 #b2bInvoiceRows>tr:not(.b2b-invoice-total-row) td{padding:10px 12px!important}
+
+/* B2B register quick search enhancement */
+#b2bSection .b2b-search-clear{min-height:39px;padding:0 13px;white-space:nowrap;border-radius:10px;font-size:11px;font-weight:800}
+#b2bSection .b2b-search-hint{margin:-5px 0 10px;color:#8093a8;font-size:10px}
+#b2bSection .b2b-register-tools{align-items:center}
+@media(max-width:760px){
+ #b2bSection .b2b-register-tools{align-items:stretch;flex-direction:column}
+ #b2bSection .b2b-searchbox{min-width:0;width:100%}
+ #b2bSection .b2b-search-clear{align-self:flex-start}
+}
