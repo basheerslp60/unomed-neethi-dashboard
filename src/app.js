@@ -49,6 +49,7 @@ let editingReportId = null;
 let overviewReports = [];
 let overviewPreviousReports = [];
 let overviewPeriod = '7';
+let overviewChartVisible = { group:true, unomed:true, neethi:true };
 let overviewNetwork = 'ALL';
 let broadcastItemsCache = [], broadcastActiveIndex = 0, broadcastTimer = null, broadcastUploadBusy = false;
 const now = new Date();
@@ -271,8 +272,10 @@ if (!ready) {
     const period=event.target.closest('[data-overview-period]');
     const network=event.target.closest('[data-overview-network]');
     const action=event.target.closest('[data-overview-target]');
+    const series=event.target.closest('[data-overview-series]');
     if(period){overviewPeriod=period.dataset.overviewPeriod;$('overviewDashboard').querySelectorAll('[data-overview-period]').forEach(b=>b.classList.toggle('active',b===period));renderOverview();}
     if(network){overviewNetwork=network.dataset.overviewNetwork;$('overviewDashboard').querySelectorAll('[data-overview-network]').forEach(b=>b.classList.toggle('active',b===network));renderOverview();}
+    if(series){const key=series.dataset.overviewSeries;overviewChartVisible[key]=!overviewChartVisible[key];renderOverview();}
     if(action){const target=$(action.dataset.overviewTarget);if(target&&!target.classList.contains('hidden')){target.scrollIntoView({behavior:'smooth',block:'start'});}}
   });
   $('financialUploadBtn').onclick = uploadFinancialPdf;
@@ -1839,6 +1842,35 @@ function initBroadcastModule(){
   broadcastUpdatePreview();
 }
 
+function renderOverviewSalesChart(rows, staff=false){
+  const host=$('overviewTrend');if(!host)return;
+  const width=920,height=270,left=66,right=22,top=22,bottom=42,plotW=width-left-right,plotH=height-top-bottom;
+  const series=staff?[{key:'group',name:'Your branch',color:'#16a085'}]:[
+    {key:'group',name:'Group total',color:'#163b67'},
+    {key:'unomed',name:'UNOMED',color:'#2877c7'},
+    {key:'neethi',name:'NEETHI',color:'#d12c59'}
+  ];
+  const maxValue=Math.max(0,...rows.flatMap(r=>staff?[r.total]:[r.total,r.unomed,r.neethi]));
+  const ceiling=maxValue>0?Math.ceil(maxValue/10000)*10000:10000;
+  const x=i=>left+(rows.length<=1?plotW/2:i*plotW/(rows.length-1));
+  const y=v=>top+plotH-(Math.max(0,v)/ceiling)*plotH;
+  const compact=v=>v>=100000?`₹${(v/100000).toFixed(v>=1000000?0:1)}L`:v>=1000?`₹${(v/1000).toFixed(0)}k`:`₹${Math.round(v)}`;
+  const grid=[0,.25,.5,.75,1].map(f=>{const val=ceiling*f,yy=top+plotH-f*plotH;return `<g class="ov-chart-grid"><line x1="${left}" y1="${yy}" x2="${width-right}" y2="${yy}"/><text x="${left-10}" y="${yy+4}" text-anchor="end">${compact(val)}</text></g>`;}).join('');
+  const xLabels=rows.map((r,i)=>{const showLabel=rows.length<=14||i===0||i===rows.length-1||i%Math.ceil(rows.length/7)===0;return showLabel?`<text class="ov-chart-xlabel" x="${x(i)}" y="${height-13}" text-anchor="middle">${r.key.slice(8)}</text>`:'';}).join('');
+  const lines=series.map(s=>{
+    const visible=overviewChartVisible[s.key]!==false;
+    if(!visible)return '';
+    const vals=rows.map(r=>s.key==='group'?(staff?r.total:r.total):r[s.key]);
+    const path=vals.map((v,i)=>`${i?'L':'M'} ${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
+    const area=`${path} L ${x(rows.length-1)} ${top+plotH} L ${x(0)} ${top+plotH} Z`;
+    const dots=vals.map((v,i)=>`<circle class="ov-chart-point" cx="${x(i)}" cy="${y(v)}" r="4" fill="${s.color}"><title>${rows[i].key} · ${s.name}: ${money(v)}</title></circle>`).join('');
+    return `<g class="ov-chart-series ov-${s.key}"><path class="ov-chart-area" d="${area}" fill="${s.color}"/><path class="ov-chart-line" d="${path}" stroke="${s.color}"/>${dots}</g>`;
+  }).join('');
+  const legend=series.map(s=>{const active=overviewChartVisible[s.key]!==false;return `<button type="button" class="ov-chart-legend ${active?'is-active':'is-muted'}" data-overview-series="${s.key}" aria-pressed="${active}"><i style="--series-color:${s.color}"></i>${s.name}</button>`;}).join('');
+  const noData=maxValue===0?'<div class="ov-chart-empty">No sales recorded in this period yet</div>':'';
+  host.innerHTML=`<div class="ov-chart-shell"><div class="ov-chart-topline"><div class="ov-chart-legend-wrap">${legend}</div><span class="ov-chart-hint">INTERACTIVE · HOVER FOR DETAILS</span></div><div class="ov-chart-canvas"><svg class="ov-sales-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Daily sales trend chart">${grid}${lines}${xLabels}</svg>${noData}</div></div>`;
+}
+
 function renderOverview() {
   const staff=profile?.role==='branch_staff';
   const monthKey=$('performanceMonth')?.value || today.slice(0,7);
@@ -1894,10 +1926,10 @@ function renderOverview() {
   const dates=[];const nowDate=new Date();const [yy,mm]=monthKey.split('-').map(Number);const lastDay=new Date(yy,mm,0).getDate();
   let count=overviewPeriod==='month'?lastDay:Number(overviewPeriod);let startDay=overviewPeriod==='month'?1:Math.max(1,nowDate.getDate()-count+1);if(monthKey!==today.slice(0,7)&&overviewPeriod!=='month')startDay=Math.max(1,lastDay-count+1);const endDay=overviewPeriod==='month'?lastDay:Math.min(lastDay,startDay+count-1);
   for(let d=startDay;d<=endDay;d++){const key=`${monthKey}-${String(d).padStart(2,'0')}`;dates.push({key,sales:source.filter(r=>r.report_date===key).filter(r=>!staff||String(r.branch_id)===String(profile.branch_id)).reduce((a,r)=>a+Number(r.total_sales||0),0)});}
-  const max=Math.max(1,...dates.map(x=>x.sales));
   $('overviewChartTitle').textContent=overviewPeriod==='month'?'Daily sales · full month':`Daily sales · last ${overviewPeriod} days`;
-  $('overviewTrend').innerHTML=dates.map(x=>`<div class="overview-trend-day" title="${x.key}: ${money(x.sales)}"><div class="overview-trend-bar-wrap"><i style="height:${x.sales?Math.max(3,x.sales/max*100):1}%"></i></div><small>${x.key.slice(8)}</small></div>`).join('');
-  const periodTotal=dates.reduce((a,x)=>a+x.sales,0);$('overviewTrendFoot').textContent=`Period sales: ${money(periodTotal)} · ${dates.filter(x=>x.sales>0).length} reporting days`;
+  const chartRows=dates.map(d=>{const dayRows=source.filter(r=>r.report_date===d.key).filter(r=>!staff||String(r.branch_id)===String(profile.branch_id));const unomed=dayRows.filter(r=>[1,2,3,4,5].includes(Number(r.branch_id))).reduce((a,r)=>a+Number(r.total_sales||0),0);const neethi=dayRows.filter(r=>[6,7,8,9,10,11,12,13].includes(Number(r.branch_id))).reduce((a,r)=>a+Number(r.total_sales||0),0);const total=dayRows.reduce((a,r)=>a+Number(r.total_sales||0),0);return {...d,unomed,neethi,total};});
+  renderOverviewSalesChart(chartRows,staff);
+  const periodTotal=chartRows.reduce((a,x)=>a+x.total,0);$('overviewTrendFoot').textContent=`Period sales: ${money(periodTotal)} · ${chartRows.filter(x=>x.total>0).length} reporting days · Hover a point for exact sales`;
   show('overviewBranchPanel',!staff);
   const filtered=branchRows.filter(r=>overviewNetwork==='ALL'||String(r.network).toUpperCase()===overviewNetwork);
   $('overviewBranchRows').innerHTML=filtered.map((r,i)=>`<div class="overview-branch-row"><span class="overview-rank">${i+1}</span><div class="overview-branch-name"><strong>${esc(r.branch_name)}</strong><small>${esc(r.network)} · ${r.patients.toLocaleString('en-IN')} patients</small></div><div class="overview-branch-progress"><div><i style="width:${Math.min(100,r.achievement)}%"></i></div><small>${fmtPct(r.achievement)} of ${money(r.target)}</small></div><strong class="overview-branch-sales">${money(r.sales)}</strong></div>`).join('')||'<p>No branch results for this filter.</p>';
