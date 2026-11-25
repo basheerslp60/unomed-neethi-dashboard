@@ -547,3 +547,25 @@
 @media(max-width:1100px){.overview-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:700px){.overview-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.overview-kpi{min-height:105px;padding:10px}}
 @media(max-width:390px){.overview-kpis{grid-template-columns:1fr}.overview-kpi{min-height:92px}}
+
+/* Premium interactive SVG sales trend — self-contained, no CDN dependency */
+#overviewTrend{display:block!important;height:auto!important;min-height:0!important;padding:0!important;border:0!important;overflow:visible!important}
+.ov-chart-shell{width:100%;padding:4px 0 0}
+.ov-chart-topline{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 8px}
+.ov-chart-legend-wrap{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.ov-chart-legend{display:inline-flex;align-items:center;gap:6px;padding:6px 9px!important;margin:0!important;border:1px solid #e4eaf2!important;border-radius:999px!important;background:#fff!important;color:#53657d!important;font-size:10px!important;font-weight:800;cursor:pointer;transition:all .18s ease}
+.ov-chart-legend i{width:8px;height:8px;border-radius:50%;background:var(--series-color);box-shadow:0 0 0 3px color-mix(in srgb,var(--series-color) 13%,transparent)}
+.ov-chart-legend.is-active{border-color:#cbd8e8!important;color:#172f4f!important;background:#f7faff!important}
+.ov-chart-legend.is-muted{opacity:.48;text-decoration:line-through}
+.ov-chart-hint{color:#9aa8b9;font-size:9px;font-weight:900;letter-spacing:.1em}
+.ov-chart-canvas{position:relative;width:100%;min-height:215px;border-radius:13px;background:linear-gradient(180deg,#fbfdff 0%,#fff 100%);overflow:hidden}
+.ov-sales-svg{display:block;width:100%;height:auto;min-height:205px;max-height:280px;overflow:visible}
+.ov-chart-grid line{stroke:#e8eef5;stroke-width:1;stroke-dasharray:3 5}
+.ov-chart-grid text,.ov-chart-xlabel{fill:#8291a5;font-size:10px;font-weight:650}
+.ov-chart-line{fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke;filter:drop-shadow(0 2px 3px #163b671c)}
+.ov-chart-area{opacity:.055;stroke:none}
+.ov-chart-point{stroke:#fff;stroke-width:2;vector-effect:non-scaling-stroke;cursor:crosshair;transition:r .15s ease,filter .15s ease}
+.ov-chart-point:hover{r:7;filter:drop-shadow(0 2px 5px #173b6540)}
+.ov-chart-empty{position:absolute;inset:0;display:grid;place-items:center;color:#8997a9;font-size:12px;font-weight:700;pointer-events:none}
+#overviewTrendFoot{margin-top:8px}
+@media(max-width:700px){.ov-chart-canvas{min-height:180px}.ov-sales-svg{min-height:180px}.ov-chart-hint{display:none}.ov-chart-legend{padding:5px 7px!important}}
