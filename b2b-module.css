@@ -163,3 +163,19 @@
 #b2bSection .b2b-quick-view:hover{background:#e1effb;border-color:#9dbbd8}
 @media(max-width:900px){#b2bSection .b2b-quick-search{grid-template-columns:1fr;gap:7px}#b2bSection .b2b-quick-search-side{justify-content:space-between}}
 @media(max-width:560px){#b2bSection .b2b-quick-search{top:4px;padding:8px;border-radius:12px}#b2bSection .b2b-quick-search-main{gap:6px}#b2bSection .b2b-quick-search-main input{font-size:12px;height:40px}#b2bSection .b2b-quick-search-side{gap:7px}#b2bSection #b2bQuickSearchInfo{font-size:9px;white-space:normal}}
+
+/* Compact, collapsed B2B history: keep the operational workspace short until records are requested. */
+#b2bSection .b2b-history-details{margin-top:14px;border:1px solid #dce7f2;border-radius:16px;background:#fbfdff;overflow:hidden}
+#b2bSection .b2b-history-details>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 16px;cursor:pointer;user-select:none;background:linear-gradient(110deg,#f8fbff,#eef5fb);color:#15345a}
+#b2bSection .b2b-history-details>summary::-webkit-details-marker{display:none}
+#b2bSection .b2b-history-details>summary>span:first-child{display:flex;flex-direction:column;gap:3px}
+#b2bSection .b2b-history-details>summary small{font-size:11px;font-weight:600;color:#71849c}
+#b2bSection .b2b-history-summary-action{font-size:12px;font-weight:800;color:#0c647b;white-space:nowrap}
+#b2bSection .b2b-history-summary-action b{display:inline-grid;place-items:center;margin-left:6px;width:22px;height:22px;border-radius:50%;background:#dff3f4;font-size:16px}
+#b2bSection .b2b-history-details[open]>summary{border-bottom:1px solid #dce7f2}
+#b2bSection .b2b-history-details[open] .b2b-history-summary-action b{transform:rotate(45deg)}
+#b2bSection .b2b-history-content{padding:12px}
+#b2bSection .b2b-history-content .b2b-register-filters{margin-top:0}
+#b2bSection .b2b-history-content .b2b-table-wrap{max-height: min(62vh,680px);overflow:auto}
+#b2bSection .b2b-history-content .b2b-table thead{position:sticky;top:0;z-index:2}
+@media(max-width:620px){#b2bSection .b2b-history-details>summary{align-items:flex-start}#b2bSection .b2b-history-content{padding:8px}}
