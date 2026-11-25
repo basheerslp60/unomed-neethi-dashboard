@@ -54,3 +54,12 @@
 .complaint-history-actor{margin:.35rem 0 .15rem;color:#173b63;font-size:.92rem}
 .complaint-history-assignment{margin:.2rem 0;color:#526b86;font-size:.88rem}
 .complaint-history-actor b{font-weight:750}
+
+/* Complaint evidence attachments */
+.complaint-panel input[type="file"],
+#complaintActionBody input[type="file"]{display:block;width:100%;max-width:100%;margin:7px 0 5px;padding:10px;border:1px dashed var(--line,#cbd5e1);border-radius:10px;background:var(--surface-soft,#f8fafc);font:inherit}
+.complaint-panel form>small,
+#complaintActionBody small{display:block;margin:3px 0 10px;color:var(--muted,#64748b);font-size:.78rem}
+.complaint-attachments{display:grid;gap:7px;padding-left:20px;margin:8px 0 18px}
+.complaint-attachments li{padding:7px 10px;border:1px solid var(--line,#e2e8f0);border-radius:9px;overflow-wrap:anywhere}
+.complaint-attachments a{font-weight:650;text-decoration:underline}
