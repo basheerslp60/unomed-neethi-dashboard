@@ -1889,6 +1889,20 @@ function renderOverview() {
   const totalPatients=branchRows.reduce((a,r)=>a+r.patients,0);
   const totalTarget=branchRows.reduce((a,r)=>a+r.target,0);
   const achievement=totalTarget?totalSales/totalTarget*100:0;
+  // Build network totals before rendering the Overview network cards.
+  // The previous chart update referenced `nets` without defining it, which
+  // stopped renderOverview before the sales chart could be drawn.
+  const networkTotals=new Map();
+  branchRows.forEach(b=>{
+    const name=String(b.network||'Other').trim().toUpperCase();
+    if(!networkTotals.has(name))networkTotals.set(name,{name,count:0,sales:0,target:0,patients:0});
+    const n=networkTotals.get(name);
+    n.count+=1;
+    n.sales+=Number(b.sales||0);
+    n.target+=Number(b.target||0);
+    n.patients+=Number(b.patients||0);
+  });
+  const nets=Array.from(networkTotals.values()).sort((a,b)=>a.name.localeCompare(b.name));
   const todaySales=(overviewReports||[]).filter(r=>r.report_date===today && (staff?String(r.branch_id)===String(profile.branch_id):true)).reduce((a,r)=>a+Number(r.total_sales||0),0);
   const avgBill=totalPatients?totalSales/totalPatients:0;
   const branchLabel=staff?(branchRows[0]?.branch_name||'Your branch'):'UNOMED + NEETHI Group';
