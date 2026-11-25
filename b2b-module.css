@@ -149,3 +149,17 @@
  #b2bSection .b2b-searchbox{min-width:0;width:100%}
  #b2bSection .b2b-search-clear{align-self:flex-start}
 }
+
+/* B2B global quick search: fixed in the reading flow directly below the command banner */
+#b2bSection .b2b-quick-search{position:sticky;top:8px;z-index:35;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;margin:12px 0 14px;padding:10px 12px;border:1px solid #cddded;border-radius:15px;background:rgba(255,255,255,.97);box-shadow:0 8px 24px rgba(17,48,82,.12);backdrop-filter:blur(12px)}
+#b2bSection .b2b-quick-search-main{display:flex;align-items:center;gap:9px;min-width:0}
+#b2bSection .b2b-quick-search-icon{font-size:25px;line-height:1;color:#39749f}
+#b2bSection .b2b-quick-search-main input{width:100%;min-width:0;height:42px;padding:9px 12px;border:1px solid #d6e2ef;border-radius:10px;background:#f8fbff;color:#15375b;font:600 13px inherit;outline:none}
+#b2bSection .b2b-quick-search-main input:focus{border-color:#4b8ec7;box-shadow:0 0 0 3px rgba(55,132,197,.13);background:#fff}
+#b2bSection .b2b-quick-search-main button{min-height:38px;padding:7px 13px;white-space:nowrap;font-size:11px}
+#b2bSection .b2b-quick-search-side{display:flex;align-items:center;justify-content:flex-end;gap:12px;white-space:nowrap}
+#b2bSection #b2bQuickSearchInfo{font-size:10px;font-weight:750;color:#71849a}
+#b2bSection .b2b-quick-view{min-height:36px;padding:7px 12px;border:1px solid #cbdbea;border-radius:9px;background:#edf5fc;color:#17436a;font-size:10px;font-weight:850;cursor:pointer}
+#b2bSection .b2b-quick-view:hover{background:#e1effb;border-color:#9dbbd8}
+@media(max-width:900px){#b2bSection .b2b-quick-search{grid-template-columns:1fr;gap:7px}#b2bSection .b2b-quick-search-side{justify-content:space-between}}
+@media(max-width:560px){#b2bSection .b2b-quick-search{top:4px;padding:8px;border-radius:12px}#b2bSection .b2b-quick-search-main{gap:6px}#b2bSection .b2b-quick-search-main input{font-size:12px;height:40px}#b2bSection .b2b-quick-search-side{gap:7px}#b2bSection #b2bQuickSearchInfo{font-size:9px;white-space:normal}}
