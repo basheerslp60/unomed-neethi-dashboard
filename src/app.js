@@ -51,6 +51,7 @@ let overviewPreviousReports = [];
 let overviewPeriod = '7';
 let overviewChartVisible = { group:true, unomed:true, neethi:true };
 let overviewNetwork = 'ALL';
+let overviewBranchesExpanded = false;
 let broadcastItemsCache = [], broadcastActiveIndex = 0, broadcastTimer = null, broadcastUploadBusy = false;
 const now = new Date();
 const today = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0,10);
@@ -271,10 +272,12 @@ if (!ready) {
   $('overviewDashboard').addEventListener('click', event => {
     const period=event.target.closest('[data-overview-period]');
     const network=event.target.closest('[data-overview-network]');
+    const branchExpand=event.target.closest('[data-overview-branch-expand]');
     const action=event.target.closest('[data-overview-target]');
     const series=event.target.closest('[data-overview-series]');
     if(period){overviewPeriod=period.dataset.overviewPeriod;$('overviewDashboard').querySelectorAll('[data-overview-period]').forEach(b=>b.classList.toggle('active',b===period));renderOverview();}
     if(network){overviewNetwork=network.dataset.overviewNetwork;$('overviewDashboard').querySelectorAll('[data-overview-network]').forEach(b=>b.classList.toggle('active',b===network));renderOverview();}
+    if(branchExpand){overviewBranchesExpanded=!overviewBranchesExpanded;renderOverview();}
     if(series){const key=series.dataset.overviewSeries;overviewChartVisible[key]=!overviewChartVisible[key];renderOverview();}
     if(action){const target=$(action.dataset.overviewTarget);if(target&&!target.classList.contains('hidden')){target.scrollIntoView({behavior:'smooth',block:'start'});}}
   });
@@ -1980,7 +1983,12 @@ function renderOverview() {
   const periodTotal=chartRows.reduce((a,x)=>a+x.total,0);$('overviewTrendFoot').textContent=`Period sales: ${money(periodTotal)} · ${chartRows.filter(x=>x.total>0).length} reporting days · Hover a point for exact sales`;
   show('overviewBranchPanel',!staff);
   const filtered=branchRows.filter(r=>overviewNetwork==='ALL'||String(r.network).toUpperCase()===overviewNetwork);
-  $('overviewBranchRows').innerHTML=filtered.map((r,i)=>`<div class="overview-branch-row"><span class="overview-rank">${i+1}</span><div class="overview-branch-name"><strong>${esc(r.branch_name)}</strong><small>${esc(r.network)} · ${r.patients.toLocaleString('en-IN')} patients</small></div><div class="overview-branch-progress"><div><i style="width:${Math.min(100,r.achievement)}%"></i></div><small>${fmtPct(r.achievement)} of ${money(r.target)}</small></div><strong class="overview-branch-sales">${money(r.sales)}</strong></div>`).join('')||'<p>No branch results for this filter.</p>';
+  const branchRowsToShow=overviewBranchesExpanded?filtered:filtered.slice(0,5);
+  $('overviewBranchRows').innerHTML=branchRowsToShow.map((r,i)=>`<div class="overview-branch-row"><span class="overview-rank">${i+1}</span><div class="overview-branch-name"><strong>${esc(r.branch_name)}</strong><small>${esc(r.network)} · ${r.patients.toLocaleString('en-IN')} patients</small></div><div class="overview-branch-progress"><div><i style="width:${Math.min(100,r.achievement)}%"></i></div><small>${fmtPct(r.achievement)} of ${money(r.target)}</small></div><strong class="overview-branch-sales">${money(r.sales)}</strong></div>`).join('')||'<p>No branch results for this filter.</p>';
+  const branchExpandButton=$('overviewDashboard').querySelector('[data-overview-branch-expand]');
+  if(branchExpandButton){branchExpandButton.hidden=filtered.length<=5;branchExpandButton.textContent=overviewBranchesExpanded?'Show top 5 ↑':`View all ${filtered.length} branches ↓`;branchExpandButton.setAttribute('aria-expanded',String(overviewBranchesExpanded));}
+  const branchFoot=$('overviewBranchFoot');
+  if(branchFoot)branchFoot.textContent=filtered.length?(overviewBranchesExpanded?`Showing all ${filtered.length} branches`:`Showing top ${Math.min(5,filtered.length)} of ${filtered.length} branches`):'';
   const reportToday=(overviewReports||[]).filter(r=>r.report_date===today);const reported=new Set(reportToday.map(r=>String(r.branch_id)));const compliant=visibleBranches.filter(b=>reported.has(String(b.id))).length;
   $('overviewCompliance').innerHTML=`<div class="overview-compliance-count"><strong>${compliant}/${visibleBranches.length}</strong><span>branches submitted today</span></div><div class="overview-progress"><i style="width:${visibleBranches.length?compliant/visibleBranches.length*100:0}%"></i></div><small>${visibleBranches.length-compliant} branch(es) without a visible report today</small>`;
   const recent=(reports||[]).filter(r=>staff?String(r.branch_id)===String(profile.branch_id):true).slice(0,5);
