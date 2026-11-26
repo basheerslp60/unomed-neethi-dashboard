@@ -27,3 +27,5 @@
 
 /* Compact branch assignment register */
 .inventory-register-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0 12px}.inventory-register-toolbar input{flex:1;min-width:220px}.inventory-register-toolbar select{min-width:135px}.inventory-register-table th,.inventory-register-table td{padding:10px 12px}.inventory-register-table td strong{display:block}.inventory-register-sub{display:block;margin-top:3px;color:#71839b;font-size:11px}.inventory-register-table td{vertical-align:middle}
+
+.inventory-test-mapping-panel{margin:18px 0}.inventory-test-count-row{grid-template-columns:minmax(180px,1fr) minmax(170px,220px) minmax(150px,220px)}.inventory-test-capacity{font-size:12px;font-weight:800;padding:7px 9px;border-radius:9px;background:#e8f7ef;color:#087c45}.inventory-test-capacity.low{background:#fff4db;color:#9a6500}.inventory-test-capacity.critical{background:#fde8e8;color:#b42318}.inventory-test-count-row input:disabled{background:#f4f6f8;color:#667085}.inventory-test-mapping-panel input[readonly]{background:#f4f6f8}
