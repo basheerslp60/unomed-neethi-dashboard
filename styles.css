@@ -1164,3 +1164,23 @@ html, body { min-height:100%; }
   #branchDailyTargetSection .rank-number,
   #branchDailyTargetSection .rank-details-toggle{transition:none}
 }
+
+/* Historical monthly report: compact 12-month archive view */
+#targetDashboardSection .historical-monthly-panel{margin:18px 0 20px;padding:18px;border:1px solid #dce7f5;border-radius:18px;background:linear-gradient(145deg,#fff,#f8fbff);box-shadow:0 8px 22px rgba(16,43,76,.045)}
+#targetDashboardSection .historical-monthly-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+#targetDashboardSection .historical-monthly-heading h3{margin:3px 0 5px;color:#102e53;font-size:18px}
+#targetDashboardSection .historical-monthly-heading p:not(.eyebrow){margin:0;color:#71849d;font-size:12px}
+#targetDashboardSection .historical-range-label{flex:0 0 auto;padding:7px 10px;border-radius:9px;background:#edf4fc;color:#355b81;font-size:11px;font-weight:800}
+#targetDashboardSection .historical-monthly-chart{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:8px;align-items:end;min-height:190px;padding:14px 8px 8px;border:1px solid #e6edf6;border-radius:13px;background:repeating-linear-gradient(to top,#fff 0,#fff 46px,#eef3f8 47px,#fff 48px)}
+#targetDashboardSection .historical-month-column{display:flex;min-width:0;height:160px;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px}
+#targetDashboardSection .historical-month-total{height:16px;max-width:100%;overflow:hidden;color:#647991;font-size:9px;font-weight:750;white-space:nowrap}
+#targetDashboardSection .historical-month-bars{display:flex;align-items:flex-end;justify-content:center;gap:3px;width:100%;height:112px}
+#targetDashboardSection .historical-month-bars span{display:block;width:min(35%,18px);min-height:0;border-radius:5px 5px 0 0}
+#targetDashboardSection .historical-bar-unomed{background:#1c4772}
+#targetDashboardSection .historical-bar-neethi{background:#cf2455}
+#targetDashboardSection .historical-month-column>strong{color:#526b86;font-size:10px;white-space:nowrap}
+#targetDashboardSection .historical-monthly-table-wrap{margin-top:14px;border:1px solid #e3ebf4;border-radius:12px}
+#targetDashboardSection .historical-monthly-table{min-width:650px;width:100%}
+#targetDashboardSection .historical-monthly-table th{background:#edf3fa;color:#294867;font-size:11px;white-space:nowrap}
+#targetDashboardSection .historical-monthly-table td{font-size:12px;white-space:nowrap}
+@media(max-width:700px){#targetDashboardSection .historical-monthly-panel{padding:13px}#targetDashboardSection .historical-monthly-chart{gap:3px;padding-inline:3px;min-height:160px}#targetDashboardSection .historical-month-column{height:138px}#targetDashboardSection .historical-month-bars{height:92px}#targetDashboardSection .historical-month-total{font-size:7px}#targetDashboardSection .historical-month-column>strong{font-size:8px}#targetDashboardSection .historical-monthly-heading{flex-direction:column}}
