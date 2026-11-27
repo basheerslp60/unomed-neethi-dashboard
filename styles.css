@@ -1184,3 +1184,11 @@ html, body { min-height:100%; }
 #targetDashboardSection .historical-monthly-table th{background:#edf3fa;color:#294867;font-size:11px;white-space:nowrap}
 #targetDashboardSection .historical-monthly-table td{font-size:12px;white-space:nowrap}
 @media(max-width:700px){#targetDashboardSection .historical-monthly-panel{padding:13px}#targetDashboardSection .historical-monthly-chart{gap:3px;padding-inline:3px;min-height:160px}#targetDashboardSection .historical-month-column{height:138px}#targetDashboardSection .historical-month-bars{height:92px}#targetDashboardSection .historical-month-total{font-size:7px}#targetDashboardSection .historical-month-column>strong{font-size:8px}#targetDashboardSection .historical-monthly-heading{flex-direction:column}}
+
+/* Historical branch comparison */
+.historical-branch-panel{margin-top:22px;padding:18px;border:1px solid #dbe5f1;border-radius:14px;background:#fff}
+.historical-branch-panel .section-head{margin-bottom:12px}
+.historical-branch-controls{margin:10px 0 14px}
+.historical-branch-panel .target-dashboard-scroll{margin-top:8px}
+.historical-branch-panel #historicalBranchMsg{margin:10px 0 0;color:#64748b;font-size:12px}
+@media(max-width:700px){.historical-branch-panel{padding:12px}.historical-branch-controls{grid-template-columns:1fr}}
