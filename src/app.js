@@ -1194,12 +1194,15 @@ async function loadTargetDashboard() {
     const lastDay=new Date(year,mon,0).getDate();
     const currentMonth=month===today.slice(0,7);
     const end=currentMonth?today:`${month}-${String(lastDay).padStart(2,'0')}`;
-    const [{data:targetData,error:targetError},monthReports]=await Promise.all([
-      db.from('branch_monthly_targets').select('branch_id,target_amount,target_month').eq('target_month',start),
-      fetchTargetDashboardReports(start,end)
+    const historyStartDate=new Date(year,mon-1-11,1);
+    const historyStart=`${historyStartDate.getFullYear()}-${String(historyStartDate.getMonth()+1).padStart(2,'0')}-01`;
+    const [{data:targetData,error:targetError},monthReports,historyReportsResult]=await Promise.all([
+      db.from('branch_monthly_targets').select('branch_id,target_amount,target_month').gte('target_month',historyStart).lte('target_month',start),
+      fetchTargetDashboardReports(start,end),
+      fetchTargetDashboardReports(historyStart,end)
     ]);
     if(targetError) throw targetError;
-    window.__targetDashboardData={month,start,end,lastDay,currentMonth,targets:targetData||[],reports:monthReports||[]};
+    window.__targetDashboardData={month,start,end,lastDay,currentMonth,targets:targetData||[],reports:monthReports||[],historyStart,historyReports:historyReportsResult||[]};
     renderTargetDashboard();
   } catch(err) {
     $('targetDashboardRows').innerHTML='<tr><td colspan="11">Could not load target dashboard.</td></tr>';
@@ -1207,12 +1210,50 @@ async function loadTargetDashboard() {
     $('targetDashboardMsg').textContent=(err.message||'Dashboard query failed.')+' Check branch_monthly_targets and daily_reports permissions.';
   }
 }
+function renderHistoricalMonthlyTrend(data) {
+  const monthKeys=[];
+  const [sy,sm]=data.historyStart.split('-').map(Number);
+  for(let i=0;i<12;i++) {
+    const d=new Date(sy,sm-1+i,1);
+    monthKeys.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+  }
+  const monthMap=new Map(monthKeys.map(m=>[m,{month:m,unomed:0,neethi:0,target:0,patients:0}]));
+  const branchNetwork=new Map(branches.map(b=>[String(b.id),String(b.network||'').toUpperCase()]));
+  (data.historyReports||[]).forEach(r=>{
+    const key=String(r.report_date||'').slice(0,7), row=monthMap.get(key);
+    if(!row)return;
+    const network=branchNetwork.get(String(r.branch_id));
+    if(network==='UNOMED')row.unomed+=Number(r.total_sales||0);
+    else if(network==='NEETHI')row.neethi+=Number(r.total_sales||0);
+    row.patients+=Number(r.patient_count||0);
+  });
+  (data.targets||[]).forEach(t=>{
+    const key=String(t.target_month||'').slice(0,7),row=monthMap.get(key);
+    if(row)row.target+=Number(t.target_amount||0);
+  });
+  const rows=monthKeys.map(m=>{
+    const r=monthMap.get(m);r.group=r.unomed+r.neethi;r.achievement=r.target?r.group/r.target*100:0;return r;
+  });
+  const max=Math.max(1,...rows.map(r=>r.group));
+  const fmtMonth=m=>new Date(Number(m.slice(0,4)),Number(m.slice(5,7))-1,1).toLocaleDateString('en-IN',{month:'short',year:'2-digit'});
+  const chart=$('historicalMonthlyChart');
+  if(chart) chart.innerHTML=rows.map(r=>{
+    const unH=r.unomed/max*100, neH=r.neethi/max*100;
+    return `<div class="historical-month-column" title="${esc(fmtMonth(r.month))}: UNOMED ${money(r.unomed)}, NEETHI ${money(r.neethi)}, Group ${money(r.group)}"><div class="historical-month-total">${r.group?money(r.group):'—'}</div><div class="historical-month-bars"><span class="historical-bar-unomed" style="height:${Math.max(0,unH)}%"></span><span class="historical-bar-neethi" style="height:${Math.max(0,neH)}%"></span></div><strong>${esc(fmtMonth(r.month))}</strong></div>`;
+  }).join('');
+  const body=$('historicalMonthlyRows');
+  if(body) body.innerHTML=rows.slice().reverse().map(r=>`<tr><td><strong>${esc(fmtMonth(r.month))}</strong></td><td>${money(r.unomed)}</td><td>${money(r.neethi)}</td><td><strong>${money(r.group)}</strong></td><td>${r.target?money(r.target):'—'}</td><td>${r.target?`${r.achievement.toFixed(1)}%`:'—'}</td></tr>`).join('');
+  const range=$('historicalMonthlyRange');
+  if(range)range.textContent=`${fmtMonth(monthKeys[0])} – ${fmtMonth(monthKeys[11])}`;
+}
+
 function renderTargetDashboard() {
   const data=window.__targetDashboardData;
   if(!data || !profile || profile.role==='branch_staff') return;
   const network=$('targetDashboardNetwork').value;
   const visible=branches.filter(b=>network==='ALL'||String(b.network).toUpperCase()===network);
-  const targetMap=new Map(data.targets.map(t=>[String(t.branch_id),Number(t.target_amount||0)]));
+  renderHistoricalMonthlyTrend(data);
+  const targetMap=new Map(data.targets.filter(t=>t.target_month===data.start).map(t=>[String(t.branch_id),Number(t.target_amount||0)]));
   const salesMap=new Map(),patientMap=new Map();
   data.reports.forEach(r=>{
     const id=String(r.branch_id);
