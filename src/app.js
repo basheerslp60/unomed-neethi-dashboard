@@ -980,7 +980,6 @@ async function loadReports() {
   renderOverview();
   refreshSidebarVisibility();
   await renderCompliance(reports);
-  renderDailyTrend(monthReports);
   const ids=reports.slice(0,100).map(r=>r.id);
   if(!ids.length) { $('packageSummary').textContent='No package data yet.'; return; }
   const {data:ps,error:pe}=await db.from('package_sales').select('package_name,quantity').in('report_id',ids);
