@@ -366,6 +366,8 @@ if (!ready) {
   $('targetDashboardMonth').value = today.slice(0,7);
   $('targetDashboardRefresh').onclick = loadTargetDashboard;
   $('targetDashboardMonth').addEventListener('change', loadTargetDashboard);
+  $('historicalBranchMonth')?.addEventListener('change', renderHistoricalBranchComparison);
+  $('historicalBranchNetwork')?.addEventListener('change', renderHistoricalBranchComparison);
   $('targetDashboardNetwork').addEventListener('change', renderTargetDashboard);
   $('monthlyTargetNetwork').addEventListener('change', renderMonthlyTargetRows);
   $('monthlyTargetSort').addEventListener('change', renderMonthlyTargetRows);
@@ -1245,6 +1247,51 @@ function renderHistoricalMonthlyTrend(data) {
   if(body) body.innerHTML=rows.slice().reverse().map(r=>`<tr><td><strong>${esc(fmtMonth(r.month))}</strong></td><td>${money(r.unomed)}</td><td>${money(r.neethi)}</td><td><strong>${money(r.group)}</strong></td><td>${r.target?money(r.target):'—'}</td><td>${r.target?`${r.achievement.toFixed(1)}%`:'—'}</td></tr>`).join('');
   const range=$('historicalMonthlyRange');
   if(range)range.textContent=`${fmtMonth(monthKeys[0])} – ${fmtMonth(monthKeys[11])}`;
+  const historySelect=$('historicalBranchMonth');
+  if(historySelect){
+    const selected=historySelect.value;
+    historySelect.innerHTML=monthKeys.slice().reverse().map(m=>`<option value="${m}">${esc(fmtMonth(m))}</option>`).join('');
+    historySelect.value=monthKeys.includes(selected)?selected:data.month;
+  }
+  renderHistoricalBranchComparison();
+}
+
+function renderHistoricalBranchComparison() {
+  const data=window.__targetDashboardData;
+  const body=$('historicalBranchRows');
+  if(!data||!body)return;
+  const selected=$('historicalBranchMonth')?.value||data.month;
+  const network=$('historicalBranchNetwork')?.value||'ALL';
+  const [yy,mm]=selected.split('-').map(Number);
+  const prevDate=new Date(yy,mm-2,1);
+  const previous=`${prevDate.getFullYear()}-${String(prevDate.getMonth()+1).padStart(2,'0')}`;
+  const branchById=new Map(branches.map(b=>[String(b.id),b]));
+  const makeRows=month=>{
+    const sales=new Map();
+    (data.historyReports||[]).forEach(r=>{
+      if(String(r.report_date||'').slice(0,7)!==month)return;
+      const id=String(r.branch_id);
+      sales.set(id,(sales.get(id)||0)+Number(r.total_sales||0));
+    });
+    const targets=new Map((data.targets||[]).filter(t=>String(t.target_month||'').slice(0,7)===month).map(t=>[String(t.branch_id),Number(t.target_amount||0)]));
+    return branches.filter(b=>network==='ALL'||String(b.network||'').toUpperCase()===network).map(branch=>{
+      const actual=sales.get(String(branch.id))||0;
+      const target=targets.get(String(branch.id))||0;
+      return {branch,sales:actual,target,achievement:target?actual/target*100:0};
+    }).sort((a,b)=>b.achievement-a.achievement||b.sales-a.sales);
+  };
+  const currentRows=makeRows(selected);
+  const priorRows=makeRows(previous);
+  const priorRank=new Map(priorRows.map((r,i)=>[String(r.branch.id),i+1]));
+  body.innerHTML=currentRows.map((r,i)=>{
+    const old=priorRank.get(String(r.branch.id));
+    const rankChange=old?`#${old}`:'—';
+    return `<tr><td><strong>${i+1}</strong></td><td><strong>${esc(r.branch.branch_name)}</strong></td><td>${esc(r.branch.network||'—')}</td><td>${money(r.sales)}</td><td>${r.target?money(r.target):'—'}</td><td>${r.target?`${r.achievement.toFixed(1)}%`:'—'}</td><td>${rankChange}</td></tr>`;
+  }).join('')||'<tr><td colspan="7">No branches found for this selection.</td></tr>';
+  const monthLabel=new Date(yy,mm-1,1).toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  const prevLabel=prevDate.toLocaleDateString('en-IN',{month:'short',year:'numeric'});
+  const targetMissing=currentRows.filter(r=>!r.target).length;
+  $('historicalBranchMsg').textContent=`${monthLabel} · ${currentRows.length} branches · Previous month rank shown for ${prevLabel}. ${targetMissing} branch(es) have no target; those branches are ranked by sales only when achievement ties.`;
 }
 
 function renderTargetDashboard() {
