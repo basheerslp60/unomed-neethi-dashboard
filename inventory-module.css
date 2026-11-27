@@ -35,3 +35,8 @@
 
 /* Compact searchable and paginated daily test count list */
 .inventory-test-count-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px;flex-wrap:wrap}.inventory-test-count-toolbar input{flex:1;min-width:220px;max-width:460px;padding:11px 13px;border:1px solid #cbd9eb;border-radius:10px;font:inherit}.inventory-test-count-toolbar span,.inventory-test-count-pagination span{color:#647b98;font-size:13px}.inventory-test-count-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 2px 2px}.inventory-test-count-pagination>div{display:flex;gap:8px}.inventory-test-count-pagination button:disabled{opacity:.45;cursor:not-allowed}
+/* Supplier invoice entry rows */
+#inventoryInvoiceLines .inventory-map-reagent-row{padding:10px;border:1px solid #e3e8ef;border-radius:9px;background:#fbfcfe}
+#inventoryInvoiceLines .inventory-map-reagent-row label{display:block;font-size:11px;font-weight:700;color:#596579;margin-bottom:4px}
+#inventoryInvoiceLines .inventory-map-reagent-row input,#inventoryInvoiceLines .inventory-map-reagent-row select{width:100%;min-width:0;box-sizing:border-box;border:1px solid #d8dfE9;border-radius:7px;padding:8px;background:#fff}
+@media(max-width:760px){#inventoryInvoiceLines .inventory-map-reagent-row{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
