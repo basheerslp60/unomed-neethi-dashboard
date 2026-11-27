@@ -1192,3 +1192,8 @@ html, body { min-height:100%; }
 .historical-branch-panel .target-dashboard-scroll{margin-top:8px}
 .historical-branch-panel #historicalBranchMsg{margin:10px 0 0;color:#64748b;font-size:12px}
 @media(max-width:700px){.historical-branch-panel{padding:12px}.historical-branch-controls{grid-template-columns:1fr}}
+
+/* Historical branch rank movement */
+.historical-branch-panel .rank-movement-up{color:#15803d;font-weight:700;white-space:nowrap}
+.historical-branch-panel .rank-movement-down{color:#dc2626;font-weight:700;white-space:nowrap}
+.historical-branch-panel .rank-movement-neutral{color:#64748b;font-weight:600;white-space:nowrap}
