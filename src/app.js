@@ -1429,10 +1429,14 @@ msgEl.textContent = 'Daily sales for ' + date + '. Branches without a report are
 async function renderCompliance(fallbackReports=[]) {
   if (!profile || profile.role==='branch_staff' || !db) return;
   const date=$('complianceDate')?.value || today;
-  $('complianceRows').innerHTML='<tr><td colspan="7">Checking submitted reports…</td></tr>';
-  const {data,error}=await db.from('daily_reports').select('id,branch_id,report_date,total_sales,patient_count,status').eq('report_date',date);
-  if(error) {
-    $('complianceRows').innerHTML = '<tr><td colspan="7">' + esc(error.message) + '</td></tr>';
+  $('complianceRows').innerHTML='<tr><td colspan="8">Checking submitted reports…</td></tr>';
+  const [{data,error},{data:testCountData,error:testCountError}]=await Promise.all([
+    db.from('daily_reports').select('id,branch_id,report_date,total_sales,patient_count,status').eq('report_date',date),
+    db.from('inventory_daily_test_counts').select('id,branch_id,count_date').eq('count_date',date)
+  ]);
+  if(error || testCountError) {
+    const issue=error||testCountError;
+    $('complianceRows').innerHTML = '<tr><td colspan="8">' + esc(issue.message) + '</td></tr>';
     $('complianceMsg').textContent='Compliance could not be verified. Check account permissions and try Refresh data.';
     return;
   }
@@ -1445,7 +1449,11 @@ async function renderCompliance(fallbackReports=[]) {
     const status=submitted?'Submitted':matches.length?'Needs review':'Missing';
     const cls=submitted?'alert-green':matches.length?'alert-yellow':'alert-red';
     const action=submitted?(matches.length>1?'Check multiple reports for duplicates':'No follow-up required'):matches.length?'Verify report status and correct it if needed':'Contact branch and request report submission';
-    return {...b,matches:matches.length,submitted,sales,patients,status,cls,action};
+    const testCountMatches=(testCountData||[]).filter(r=>String(r.branch_id)===String(b.id));
+    const testCountSubmitted=testCountMatches.length>0;
+    const testCountStatus=testCountSubmitted?'Submitted':'Missing';
+    const testCountAction=testCountSubmitted?'Daily test counts received':'Request daily test-count submission';
+    return {...b,matches:matches.length,submitted,sales,patients,status,cls,action,testCountMatches:testCountMatches.length,testCountSubmitted,testCountStatus,testCountAction};
   });
   complianceRowsCache=rows;
   complianceChecked=true;
@@ -1459,8 +1467,9 @@ async function renderCompliance(fallbackReports=[]) {
   ].map(k=>'<article class="compliance-kpi '+k[0]+'"><span>'+k[1]+'</span><strong>'+k[2]+'</strong><small>'+k[3]+'</small></article>').join('');
   window.__complianceReportText = [
     'DAILY REPORTING COMPLIANCE - ' + date,
-    'Submitted: ' + submitted + '/' + rows.length + ' | Missing: ' + missing + ' | Needs review: ' + review,
-    ...rows.map(r => (r.branch_name || 'Branch') + ' (' + r.network + '): ' + r.status + ' | Reports: ' + r.matches + ' | Sales: ' + money(r.sales) + ' | Patients: ' + r.patients + ' | ' + r.action)
+    'Sales reports submitted: ' + submitted + '/' + rows.length + ' | Missing: ' + missing + ' | Needs review: ' + review,
+    'Daily test consumption submitted: ' + rows.filter(r=>r.testCountSubmitted).length + '/' + rows.length + ' | Missing: ' + rows.filter(r=>!r.testCountSubmitted).length,
+    ...rows.map(r => (r.branch_name || 'Branch') + ' (' + r.network + '): Sales ' + r.status + ' | Test consumption ' + r.testCountStatus + ' | Reports: ' + r.matches + ' | Sales: ' + money(r.sales) + ' | Patients: ' + r.patients + ' | ' + r.action + '; ' + r.testCountAction)
   ].join('\n');
   renderComplianceTable();
   $('complianceMsg').textContent = 'Compliance checked for ' + date + '. Status is based on records visible to your signed-in account.';
@@ -1476,7 +1485,7 @@ function renderComplianceTable() {
   });
   $('complianceVisibleCount').textContent='Showing '+rows.length+' of '+complianceRowsCache.length+' branches';
   $('complianceRows').innerHTML=rows.map(r=>'<tr class="compliance-row '+(r.status==='Submitted'?'is-submitted':r.status==='Missing'?'is-missing':'is-review')+'">'+
-    '<td><strong>'+esc(r.branch_name||'Branch')+'</strong></td>'+ '<td><span class="compliance-network '+(String(r.network||'').toUpperCase()==='NEETHI'?'neethi':'unomed')+'">'+esc(r.network||'')+'</span></td>'+ '<td><span class="compliance-status '+(r.status==='Submitted'?'good':r.status==='Missing'?'bad':'warn')+'"><i></i>'+esc(r.status)+'</span></td>'+ '<td>'+r.matches+'</td>'+ '<td>'+money(r.sales)+'</td>'+ '<td>'+Number(r.patients||0).toLocaleString('en-IN')+'</td>'+ '<td class="compliance-action">'+esc(r.action)+'</td></tr>').join('')||'<tr><td colspan="7" class="compliance-empty">No branches match these filters.</td></tr>';
+    '<td><strong>'+esc(r.branch_name||'Branch')+'</strong></td>'+ '<td><span class="compliance-network '+(String(r.network||'').toUpperCase()==='NEETHI'?'neethi':'unomed')+'">'+esc(r.network||'')+'</span></td>'+ '<td><span class="compliance-status '+(r.status==='Submitted'?'good':r.status==='Missing'?'bad':'warn')+'"><i></i>'+esc(r.status)+'</span></td>'+ '<td>'+r.matches+'</td>'+ '<td>'+money(r.sales)+'</td>'+ '<td>'+Number(r.patients||0).toLocaleString('en-IN')+'</td>'+ '<td><span class="compliance-status '+(r.testCountSubmitted?'good':'bad')+'"><i></i>'+esc(r.testCountStatus)+'</span></td>'+ '<td class="compliance-action">'+esc(r.action)+'<br><small>'+esc(r.testCountAction)+'</small></td></tr>').join('')||'<tr><td colspan="8" class="compliance-empty">No branches match these filters.</td></tr>';
 }
 function copyComplianceSummary() {
   const text=window.__complianceReportText||'';
