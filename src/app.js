@@ -1284,14 +1284,23 @@ function renderHistoricalBranchComparison() {
   const priorRows=makeRows(previous);
   const priorRank=new Map(priorRows.map((r,i)=>[String(r.branch.id),i+1]));
   body.innerHTML=currentRows.map((r,i)=>{
+    const currentRank=i+1;
     const old=priorRank.get(String(r.branch.id));
-    const rankChange=old?`#${old}`:'—';
-    return `<tr><td><strong>${i+1}</strong></td><td><strong>${esc(r.branch.branch_name)}</strong></td><td>${esc(r.branch.network||'—')}</td><td>${money(r.sales)}</td><td>${r.target?money(r.target):'—'}</td><td>${r.target?`${r.achievement.toFixed(1)}%`:'—'}</td><td>${rankChange}</td></tr>`;
-  }).join('')||'<tr><td colspan="7">No branches found for this selection.</td></tr>';
+    const previousRank=old?`#${old}`:'—';
+    let movement='—';
+    let movementClass='rank-movement-neutral';
+    if(old){
+      const delta=old-currentRank;
+      if(delta>0){movement=`↑ ${delta} ${delta===1?'place':'places'}`;movementClass='rank-movement-up';}
+      else if(delta<0){movement=`↓ ${Math.abs(delta)} ${Math.abs(delta)===1?'place':'places'}`;movementClass='rank-movement-down';}
+      else movement='→ No change';
+    }
+    return `<tr><td><strong>#${currentRank}</strong></td><td><strong>${esc(r.branch.branch_name)}</strong></td><td>${esc(r.branch.network||'—')}</td><td>${money(r.sales)}</td><td>${r.target?money(r.target):'—'}</td><td>${r.target?`${r.achievement.toFixed(1)}%`:'—'}</td><td>${previousRank}</td><td><span class="${movementClass}">${movement}</span></td></tr>`;
+  }).join('')||'<tr><td colspan="8">No branches found for this selection.</td></tr>';
   const monthLabel=new Date(yy,mm-1,1).toLocaleDateString('en-IN',{month:'long',year:'numeric'});
   const prevLabel=prevDate.toLocaleDateString('en-IN',{month:'short',year:'numeric'});
   const targetMissing=currentRows.filter(r=>!r.target).length;
-  $('historicalBranchMsg').textContent=`${monthLabel} · ${currentRows.length} branches · Previous month rank shown for ${prevLabel}. ${targetMissing} branch(es) have no target; those branches are ranked by sales only when achievement ties.`;
+  $('historicalBranchMsg').textContent=`${monthLabel} · ${currentRows.length} branches · Current rank compared with ${prevLabel}. Up arrow means improved position; down arrow means dropped position. ${targetMissing} branch(es) have no target; those branches are ranked by sales only when achievement ties.`;
 }
 
 function renderTargetDashboard() {
