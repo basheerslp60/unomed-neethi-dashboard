@@ -560,14 +560,6 @@ async function loadCollectionStaffPortal(){
   const {data,error}=await db.rpc('b2b_collection_staff_dashboard');
   if(error){host.innerHTML='';$('collectionStaffMessage').textContent=error.message||'Unable to load collection samples.';return;}
   const rows=data||[];
-  // Fetch branch names specifically for the sample cards; do not rely on an
-  // earlier module having populated the shared branch cache.
-  const branchIds=[...new Set(rows.flatMap(r=>[Number(r.sender_branch_id),Number(r.processing_centre_id)]).filter(Boolean))];
-  let branchNameById=new Map((branches||[]).map(b=>[Number(b.id),b.branch_name]));
-  if(branchIds.some(id=>!branchNameById.get(id))){
-    const {data:branchRows}=await db.from('branches').select('id,branch_name').in('id',branchIds);
-    (branchRows||[]).forEach(b=>branchNameById.set(Number(b.id),b.branch_name));
-  }
   const available=rows.filter(r=>r.lifecycle_stage==='awaiting_collection');
   const assigned=rows.filter(r=>r.lifecycle_stage==='assigned');
   const transit=rows.filter(r=>r.lifecycle_stage==='in_transit');
@@ -576,13 +568,13 @@ async function loadCollectionStaffPortal(){
   $('collectionStaffKpis').innerHTML=[[available.length,'Available to collect'],[assigned.length,'Claimed by me'],[transit.length,'In transit'],[delayed.length,'Delayed transit']].map(([n,l])=>`<article><strong>${n}</strong><span>${l}</span></article>`).join('');
   if(!rows.length){host.innerHTML='<div class="b2b-collection-card"><h3>No samples available</h3><p>There are currently no uncollected samples from your allocated branches, and no samples are claimed by you.</p></div>';return;}
   host.innerHTML=rows.map(r=>{
-    const sender=branchNameById.get(Number(r.sender_branch_id))||`Branch #${r.sender_branch_id}`;
-    const centre=branchNameById.get(Number(r.processing_centre_id))||`Centre #${r.processing_centre_id}`;
+    const sender=branches.find(b=>Number(b.id)===Number(r.sender_branch_id))?.branch_name||'Sending branch';
+    const centre=branches.find(b=>Number(b.id)===Number(r.processing_centre_id))?.branch_name||'Processing centre';
     const isAvailable=r.lifecycle_stage==='awaiting_collection';
     const isAssigned=r.lifecycle_stage==='assigned';
     const delay=Number(r.transit_delay_minutes||0);
     const status=isAvailable?'Available to collect':isAssigned?'Claimed by you':'In transit';
-    return `<article class="b2b-collection-card"><div class="b2b-collection-meta"><span class="b2b-collection-chip ${delay>0?'delayed':''}">${status}</span>${delay>0?`<span class="b2b-collection-chip delayed">${delay} min delayed</span>`:''}</div><h3>${esc(r.patient_name||'Patient')}</h3><p><strong>${esc(r.request_no||('#'+r.id))}</strong> · ${esc(r.request_date||'')}</p><div class="b2b-collection-route"><div class="b2b-collection-route-item sending"><span>SENDING BRANCH</span><strong>${esc(sender)}</strong></div><div class="b2b-collection-route-arrow" aria-hidden="true">→</div><div class="b2b-collection-route-item processing"><span>PROCESSING CENTRE</span><strong>${esc(centre)}</strong></div></div><p>Registered: ${r.created_at?new Date(r.created_at).toLocaleString('en-IN',{dateStyle:'short',timeStyle:'short'}):'—'}</p>${r.collected_at?`<p>Collected: ${new Date(r.collected_at).toLocaleString('en-IN',{dateStyle:'short',timeStyle:'short'})}</p>`:''}${isAvailable?`<button type="button" data-collection-claim="${r.id}">Claim this sample</button>`:isAssigned?`<button type="button" data-collection-mark="${r.id}">Mark as collected</button>`:'<span class="b2b-collection-chip">Collection completed</span>'}</article>`;
+    return `<article class="b2b-collection-card"><div class="b2b-collection-meta"><span class="b2b-collection-chip ${delay>0?'delayed':''}">${status}</span>${delay>0?`<span class="b2b-collection-chip delayed">${delay} min delayed</span>`:''}</div><h3>${esc(r.patient_name||'Patient')}</h3><p><strong>${esc(r.request_no||('#'+r.id))}</strong> · ${esc(r.request_date||'')}</p><p>From: ${esc(sender)} → ${esc(centre)}</p><p>Registered: ${r.created_at?new Date(r.created_at).toLocaleString('en-IN',{dateStyle:'short',timeStyle:'short'}):'—'}</p>${r.collected_at?`<p>Collected: ${new Date(r.collected_at).toLocaleString('en-IN',{dateStyle:'short',timeStyle:'short'})}</p>`:''}${isAvailable?`<button type="button" data-collection-claim="${r.id}">Claim this sample</button>`:isAssigned?`<button type="button" data-collection-mark="${r.id}">Mark as collected</button>`:'<span class="b2b-collection-chip">Collection completed</span>'}</article>`;
   }).join('');
 }
 $('collectionStaffRefresh')?.addEventListener('click',()=>void loadCollectionStaffPortal());
@@ -2762,61 +2754,36 @@ async function loadEmployeeModule() {
   }
 }
 
-// ---------------- Collection staff multi-branch allocation ----------------
-function collectionAllocationMessage(text, ok=false) {
-  const el=$('collectionAllocationMessage');
-  if(el){el.textContent=text;el.style.color=ok?'#16764a':'#a21d37';}
+// ---------------- Collection staff route allocation ----------------
+const COLLECTION_PROCESSING_CENTRE_IDS=[1,2,3];
+function collectionAllocationMessage(text, ok=false){const el=$('collectionAllocationMessage');if(el){el.textContent=text;el.style.color=ok?'#16764a':'#a21d37';}}
+function collectionRouteCentres(){return COLLECTION_PROCESSING_CENTRE_IDS.map(id=>({id,name:branches.find(b=>Number(b.id)===id)?.branch_name||({1:'UNOMED Kannur',2:'UNOMED Payyanur',3:'UNOMED Cherupuzha'}[id])}));}
+function renderCollectionRouteMatrix(selectedRoutes=[]){
+ const host=$('collectionAllocationBranches');if(!host)return;
+ const selected=new Set((selectedRoutes||[]).map(x=>`${Number(x.sender_branch_id)}:${Number(x.processing_centre_id)}`));
+ const senders=(branches||[]).filter(b=>b.active!==false&&!COLLECTION_PROCESSING_CENTRE_IDS.includes(Number(b.id)));
+ const centres=collectionRouteCentres();
+ host.innerHTML=`<div class="collection-route-head"><span>Sending branch</span>${centres.map(c=>`<span>${esc(c.name)}</span>`).join('')}</div>`+senders.map(b=>`<div class="collection-route-row"><strong>${esc(b.branch_name)}<small>${esc(b.network||'')}</small></strong>${centres.map(c=>{const key=`${Number(b.id)}:${c.id}`;return `<label class="collection-route-check"><input type="checkbox" class="collection-route-option" data-sender="${b.id}" data-centre="${c.id}" ${selected.has(key)?'checked':''}><span>Allow</span></label>`;}).join('')}</div>`).join('')||'<p>No active sending branches found.</p>';
+ updateCollectionAllocationCount();
 }
-function renderCollectionAllocationBranches(selectedIds=[]) {
-  const host=$('collectionAllocationBranches');
-  if(!host) return;
-  const selected=new Set((selectedIds||[]).map(String));
-  const available=(branches||[]).filter(b=>b.active!==false);
-  host.innerHTML=available.map(b=>`<label class="collection-allocation-option"><input type="checkbox" class="collection-allocation-branch" value="${b.id}" ${selected.has(String(b.id))?'checked':''}><span><strong>${esc(b.branch_name)}</strong><small>${esc(b.network||'')}</small></span></label>`).join('')||'<p>No active branches found.</p>';
-  updateCollectionAllocationCount();
-}
-function updateCollectionAllocationCount(){
-  const n=document.querySelectorAll('.collection-allocation-branch:checked').length;
-  const el=$('collectionAllocationCount'); if(el) el.textContent=`${n} branch${n===1?'':'es'} selected`;
-}
+function updateCollectionAllocationCount(){const n=document.querySelectorAll('.collection-route-option:checked').length;const el=$('collectionAllocationCount');if(el)el.textContent=`${n} route${n===1?'':'s'} selected`;}
 async function loadCollectionBranchAllocation(){
-  const panel=$('collectionBranchAllocationPanel');
-  if(!panel) return;
-  const allowed=['admin','management'].includes(String(profile?.role||'').toLowerCase());
-  show('collectionBranchAllocationPanel',allowed);
-  if(!allowed) return;
-  const staff=employeeRecords.filter(e=>e.active && /collection/i.test(e.designation||''));
-  const select=$('collectionAllocationEmployee');
-  const previous=select.value;
-  select.innerHTML='<option value="">Select collection staff</option>'+staff.map(e=>`<option value="${e.id}">${esc(e.full_name)} — ${esc(e.branch_id?((branches.find(b=>String(b.id)===String(e.branch_id))||{}).branch_name||''):'')} ${e.auth_user_id?'(Login active)':'(No login)'}</option>`).join('');
-  if(previous && staff.some(e=>String(e.id)===previous)) select.value=previous;
-  if(select.value) await refreshCollectionAllocationSelection();
-  else renderCollectionAllocationBranches([]);
+ const panel=$('collectionBranchAllocationPanel');if(!panel)return;const allowed=['admin','management'].includes(String(profile?.role||'').toLowerCase());show('collectionBranchAllocationPanel',allowed);if(!allowed)return;
+ const staff=employeeRecords.filter(e=>e.active&&/collection/i.test(e.designation||''));const select=$('collectionAllocationEmployee');const previous=select.value;
+ select.innerHTML='<option value="">Select collection staff</option>'+staff.map(e=>`<option value="${e.id}">${esc(e.full_name)} ${e.auth_user_id?'(Login active)':'(No login)'}</option>`).join('');
+ if(previous&&staff.some(e=>String(e.id)===previous))select.value=previous;if(select.value)await refreshCollectionAllocationSelection();else renderCollectionRouteMatrix([]);
 }
-async function refreshCollectionAllocationSelection(){
-  const id=$('collectionAllocationEmployee')?.value;
-  collectionAllocationMessage('');
-  if(!id){renderCollectionAllocationBranches([]);return;}
-  const {data,error}=await db.from('b2b_collection_staff_branches').select('branch_id,active').eq('employee_id',Number(id));
-  if(error){collectionAllocationMessage(error.message||'Unable to load current branch allocations.');renderCollectionAllocationBranches([]);return;}
-  renderCollectionAllocationBranches((data||[]).filter(x=>x.active).map(x=>x.branch_id));
-}
+async function refreshCollectionAllocationSelection(){const id=$('collectionAllocationEmployee')?.value;collectionAllocationMessage('');if(!id){renderCollectionRouteMatrix([]);return;}
+ const {data,error}=await db.from('b2b_collection_staff_routes').select('sender_branch_id,processing_centre_id,active').eq('employee_id',Number(id));
+ if(error){collectionAllocationMessage(error.message||'Unable to load route allocations. Run the route allocation SQL migration first.');renderCollectionRouteMatrix([]);return;}renderCollectionRouteMatrix((data||[]).filter(x=>x.active));}
 $('collectionAllocationEmployee')?.addEventListener('change',()=>void refreshCollectionAllocationSelection());
-$('collectionAllocationBranches')?.addEventListener('change',e=>{if(e.target.matches('.collection-allocation-branch'))updateCollectionAllocationCount();});
-$('collectionAllocationSelectAll')?.addEventListener('click',()=>{document.querySelectorAll('.collection-allocation-branch').forEach(x=>x.checked=true);updateCollectionAllocationCount();});
-$('collectionAllocationClear')?.addEventListener('click',()=>{document.querySelectorAll('.collection-allocation-branch').forEach(x=>x.checked=false);updateCollectionAllocationCount();});
-$('saveCollectionBranchAllocation')?.addEventListener('click',async()=>{
-  const employeeId=Number($('collectionAllocationEmployee')?.value);
-  const branchIds=[...document.querySelectorAll('.collection-allocation-branch:checked')].map(x=>Number(x.value));
-  if(!employeeId){collectionAllocationMessage('Select a collection staff member first.');return;}
-  if(!branchIds.length){collectionAllocationMessage('Select at least one branch.');return;}
-  const btn=$('saveCollectionBranchAllocation');btn.disabled=true;
-  const {error}=await db.rpc('b2b_collection_set_staff_branches',{p_employee_id:employeeId,p_branch_ids:branchIds});
-  btn.disabled=false;
-  if(error){collectionAllocationMessage(error.message||'Could not save branch allocation.');return;}
-  collectionAllocationMessage(`Saved successfully. ${branchIds.length} branch${branchIds.length===1?'':'es'} allocated.`,true);
-  await refreshCollectionAllocationSelection();
-});
+$('collectionAllocationBranches')?.addEventListener('change',e=>{if(e.target.matches('.collection-route-option'))updateCollectionAllocationCount();});
+$('collectionAllocationSelectAll')?.addEventListener('click',()=>{document.querySelectorAll('.collection-route-option').forEach(x=>x.checked=true);updateCollectionAllocationCount();});
+$('collectionAllocationClear')?.addEventListener('click',()=>{document.querySelectorAll('.collection-route-option').forEach(x=>x.checked=false);updateCollectionAllocationCount();});
+$('saveCollectionBranchAllocation')?.addEventListener('click',async()=>{const employeeId=Number($('collectionAllocationEmployee')?.value);const routes=[...document.querySelectorAll('.collection-route-option:checked')].map(x=>({sender_branch_id:Number(x.dataset.sender),processing_centre_id:Number(x.dataset.centre)}));
+ if(!employeeId){collectionAllocationMessage('Select a collection staff member first.');return;}if(!routes.length){collectionAllocationMessage('Select at least one sending-branch / processing-centre route.');return;}
+ const btn=$('saveCollectionBranchAllocation');btn.disabled=true;const {error}=await db.rpc('b2b_collection_set_staff_routes',{p_employee_id:employeeId,p_routes:routes});btn.disabled=false;
+ if(error){collectionAllocationMessage(error.message||'Could not save route allocation.');return;}collectionAllocationMessage(`Saved successfully. ${routes.length} route${routes.length===1?'':'s'} allocated.`,true);await refreshCollectionAllocationSelection();});
 
 async function addEmployee(e) {
   e.preventDefault();
