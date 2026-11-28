@@ -2726,6 +2726,7 @@ async function loadEmployeeModule() {
     show('employeeTaskAdminPanel',canManageEmployees());
     $('taskDueDate').value=today;
     await loadEmployeeTargets();
+    await loadCollectionBranchAllocation();
     const active=employeeRecords.filter(e=>e.active).length;
     $('employeeSummary').innerHTML=`<article class="stat"><span>Employees visible</span><strong>${employeeRecords.length}</strong></article><article class="stat"><span>Active employees</span><strong>${active}</strong></article><article class="stat"><span>Branches represented</span><strong>${new Set(employeeRecords.map(e=>e.branch_id)).size}</strong></article>`;
     await loadEmployeeActivities();
@@ -2736,6 +2737,63 @@ async function loadEmployeeModule() {
     employeeMessage('employeeMsg','Database setup required. Run employee_module_schema.sql in Supabase, then refresh.');
   }
 }
+
+// ---------------- Collection staff multi-branch allocation ----------------
+function collectionAllocationMessage(text, ok=false) {
+  const el=$('collectionAllocationMessage');
+  if(el){el.textContent=text;el.style.color=ok?'#16764a':'#a21d37';}
+}
+function renderCollectionAllocationBranches(selectedIds=[]) {
+  const host=$('collectionAllocationBranches');
+  if(!host) return;
+  const selected=new Set((selectedIds||[]).map(String));
+  const available=(branches||[]).filter(b=>b.active!==false);
+  host.innerHTML=available.map(b=>`<label class="collection-allocation-option"><input type="checkbox" class="collection-allocation-branch" value="${b.id}" ${selected.has(String(b.id))?'checked':''}><span><strong>${esc(b.branch_name)}</strong><small>${esc(b.network||'')}</small></span></label>`).join('')||'<p>No active branches found.</p>';
+  updateCollectionAllocationCount();
+}
+function updateCollectionAllocationCount(){
+  const n=document.querySelectorAll('.collection-allocation-branch:checked').length;
+  const el=$('collectionAllocationCount'); if(el) el.textContent=`${n} branch${n===1?'':'es'} selected`;
+}
+async function loadCollectionBranchAllocation(){
+  const panel=$('collectionBranchAllocationPanel');
+  if(!panel) return;
+  const allowed=['admin','management'].includes(String(profile?.role||'').toLowerCase());
+  show('collectionBranchAllocationPanel',allowed);
+  if(!allowed) return;
+  const staff=employeeRecords.filter(e=>e.active && /collection/i.test(e.designation||''));
+  const select=$('collectionAllocationEmployee');
+  const previous=select.value;
+  select.innerHTML='<option value="">Select collection staff</option>'+staff.map(e=>`<option value="${e.id}">${esc(e.full_name)} — ${esc(e.branch_id?((branches.find(b=>String(b.id)===String(e.branch_id))||{}).branch_name||''):'')} ${e.auth_user_id?'(Login active)':'(No login)'}</option>`).join('');
+  if(previous && staff.some(e=>String(e.id)===previous)) select.value=previous;
+  if(select.value) await refreshCollectionAllocationSelection();
+  else renderCollectionAllocationBranches([]);
+}
+async function refreshCollectionAllocationSelection(){
+  const id=$('collectionAllocationEmployee')?.value;
+  collectionAllocationMessage('');
+  if(!id){renderCollectionAllocationBranches([]);return;}
+  const {data,error}=await db.from('b2b_collection_staff_branches').select('branch_id,active').eq('employee_id',Number(id));
+  if(error){collectionAllocationMessage(error.message||'Unable to load current branch allocations.');renderCollectionAllocationBranches([]);return;}
+  renderCollectionAllocationBranches((data||[]).filter(x=>x.active).map(x=>x.branch_id));
+}
+$('collectionAllocationEmployee')?.addEventListener('change',()=>void refreshCollectionAllocationSelection());
+$('collectionAllocationBranches')?.addEventListener('change',e=>{if(e.target.matches('.collection-allocation-branch'))updateCollectionAllocationCount();});
+$('collectionAllocationSelectAll')?.addEventListener('click',()=>{document.querySelectorAll('.collection-allocation-branch').forEach(x=>x.checked=true);updateCollectionAllocationCount();});
+$('collectionAllocationClear')?.addEventListener('click',()=>{document.querySelectorAll('.collection-allocation-branch').forEach(x=>x.checked=false);updateCollectionAllocationCount();});
+$('saveCollectionBranchAllocation')?.addEventListener('click',async()=>{
+  const employeeId=Number($('collectionAllocationEmployee')?.value);
+  const branchIds=[...document.querySelectorAll('.collection-allocation-branch:checked')].map(x=>Number(x.value));
+  if(!employeeId){collectionAllocationMessage('Select a collection staff member first.');return;}
+  if(!branchIds.length){collectionAllocationMessage('Select at least one branch.');return;}
+  const btn=$('saveCollectionBranchAllocation');btn.disabled=true;
+  const {error}=await db.rpc('b2b_collection_set_staff_branches',{p_employee_id:employeeId,p_branch_ids:branchIds});
+  btn.disabled=false;
+  if(error){collectionAllocationMessage(error.message||'Could not save branch allocation.');return;}
+  collectionAllocationMessage(`Saved successfully. ${branchIds.length} branch${branchIds.length===1?'':'es'} allocated.`,true);
+  await refreshCollectionAllocationSelection();
+});
+
 async function addEmployee(e) {
   e.preventDefault();
   if(!['admin','management'].includes(String(profile?.role||'').toLowerCase())){employeeMessage('employeeMsg','Only Admin or Management can manage employee records.');return;}
