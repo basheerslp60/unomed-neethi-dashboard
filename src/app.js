@@ -560,6 +560,14 @@ async function loadCollectionStaffPortal(){
   const {data,error}=await db.rpc('b2b_collection_staff_dashboard');
   if(error){host.innerHTML='';$('collectionStaffMessage').textContent=error.message||'Unable to load collection samples.';return;}
   const rows=data||[];
+  // Fetch branch names specifically for the sample cards; do not rely on an
+  // earlier module having populated the shared branch cache.
+  const branchIds=[...new Set(rows.flatMap(r=>[Number(r.sender_branch_id),Number(r.processing_centre_id)]).filter(Boolean))];
+  let branchNameById=new Map((branches||[]).map(b=>[Number(b.id),b.branch_name]));
+  if(branchIds.some(id=>!branchNameById.get(id))){
+    const {data:branchRows}=await db.from('branches').select('id,branch_name').in('id',branchIds);
+    (branchRows||[]).forEach(b=>branchNameById.set(Number(b.id),b.branch_name));
+  }
   const available=rows.filter(r=>r.lifecycle_stage==='awaiting_collection');
   const assigned=rows.filter(r=>r.lifecycle_stage==='assigned');
   const transit=rows.filter(r=>r.lifecycle_stage==='in_transit');
@@ -568,13 +576,13 @@ async function loadCollectionStaffPortal(){
   $('collectionStaffKpis').innerHTML=[[available.length,'Available to collect'],[assigned.length,'Claimed by me'],[transit.length,'In transit'],[delayed.length,'Delayed transit']].map(([n,l])=>`<article><strong>${n}</strong><span>${l}</span></article>`).join('');
   if(!rows.length){host.innerHTML='<div class="b2b-collection-card"><h3>No samples available</h3><p>There are currently no uncollected samples from your allocated branches, and no samples are claimed by you.</p></div>';return;}
   host.innerHTML=rows.map(r=>{
-    const sender=branches.find(b=>Number(b.id)===Number(r.sender_branch_id))?.branch_name||'Sending branch';
-    const centre=branches.find(b=>Number(b.id)===Number(r.processing_centre_id))?.branch_name||'Processing centre';
+    const sender=branchNameById.get(Number(r.sender_branch_id))||`Branch #${r.sender_branch_id}`;
+    const centre=branchNameById.get(Number(r.processing_centre_id))||`Centre #${r.processing_centre_id}`;
     const isAvailable=r.lifecycle_stage==='awaiting_collection';
     const isAssigned=r.lifecycle_stage==='assigned';
     const delay=Number(r.transit_delay_minutes||0);
     const status=isAvailable?'Available to collect':isAssigned?'Claimed by you':'In transit';
-    return `<article class="b2b-collection-card"><div class="b2b-collection-meta"><span class="b2b-collection-chip ${delay>0?'delayed':''}">${status}</span>${delay>0?`<span class="b2b-collection-chip delayed">${delay} min delayed</span>`:''}</div><h3>${esc(r.patient_name||'Patient')}</h3><p><strong>${esc(r.request_no||('#'+r.id))}</strong> · ${esc(r.request_date||'')}</p><p>From: ${esc(sender)} → ${esc(centre)}</p><p>Registered: ${r.created_at?new Date(r.created_at).toLocaleString('en-IN',{dateStyle:'short',timeStyle:'short'}):'—'}</p>${r.collected_at?`<p>Collected: ${new Date(r.collected_at).toLocaleString('en-IN',{dateStyle:'short',timeStyle:'short'})}</p>`:''}${isAvailable?`<button type="button" data-collection-claim="${r.id}">Claim this sample</button>`:isAssigned?`<button type="button" data-collection-mark="${r.id}">Mark as collected</button>`:'<span class="b2b-collection-chip">Collection completed</span>'}</article>`;
+    return `<article class="b2b-collection-card"><div class="b2b-collection-meta"><span class="b2b-collection-chip ${delay>0?'delayed':''}">${status}</span>${delay>0?`<span class="b2b-collection-chip delayed">${delay} min delayed</span>`:''}</div><h3>${esc(r.patient_name||'Patient')}</h3><p><strong>${esc(r.request_no||('#'+r.id))}</strong> · ${esc(r.request_date||'')}</p><div class="b2b-collection-route"><div class="b2b-collection-route-item sending"><span>SENDING BRANCH</span><strong>${esc(sender)}</strong></div><div class="b2b-collection-route-arrow" aria-hidden="true">→</div><div class="b2b-collection-route-item processing"><span>PROCESSING CENTRE</span><strong>${esc(centre)}</strong></div></div><p>Registered: ${r.created_at?new Date(r.created_at).toLocaleString('en-IN',{dateStyle:'short',timeStyle:'short'}):'—'}</p>${r.collected_at?`<p>Collected: ${new Date(r.collected_at).toLocaleString('en-IN',{dateStyle:'short',timeStyle:'short'})}</p>`:''}${isAvailable?`<button type="button" data-collection-claim="${r.id}">Claim this sample</button>`:isAssigned?`<button type="button" data-collection-mark="${r.id}">Mark as collected</button>`:'<span class="b2b-collection-chip">Collection completed</span>'}</article>`;
   }).join('');
 }
 $('collectionStaffRefresh')?.addEventListener('click',()=>void loadCollectionStaffPortal());
