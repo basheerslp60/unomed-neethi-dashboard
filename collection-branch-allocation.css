@@ -1,0 +1,13 @@
+
+/* Collection staff multi-branch allocation */
+.collection-allocation-panel{margin-top:20px;padding:18px;border:1px solid #dce5ee;border-radius:16px;background:#f8fbff}
+.collection-allocation-controls{display:grid;grid-template-columns:minmax(220px,1fr) auto;gap:14px;align-items:end;margin:14px 0}
+.collection-allocation-actions{display:flex;gap:8px;flex-wrap:wrap}
+.collection-allocation-branches{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:9px;margin:14px 0}
+.collection-allocation-option{display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid #dce5ee;border-radius:11px;background:#fff;cursor:pointer}
+.collection-allocation-option input{width:18px;height:18px;accent-color:#0d7180;flex:0 0 auto}
+.collection-allocation-option span{display:flex;flex-direction:column;gap:2px}
+.collection-allocation-option small{color:#738194;font-size:11px}
+.collection-allocation-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:12px}
+#collectionAllocationCount{font-weight:700;color:#31465f}
+@media(max-width:650px){.collection-allocation-controls{grid-template-columns:1fr}.collection-allocation-actions button{flex:1}.collection-allocation-footer button{width:100%}.collection-allocation-branches{grid-template-columns:1fr 1fr}}
