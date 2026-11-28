@@ -26,7 +26,10 @@
 <section id="collectionStaffSection" class="card hidden b2b-collection-mobile">
   <div class="b2b-collection-welcome"><div><p class="eyebrow">COLLECTION STAFF PORTAL</p><h2 id="collectionStaffGreeting">My collection work</h2><p>Only samples assigned to your account are shown here.</p></div><button type="button" class="secondary" id="collectionStaffRefresh">Refresh</button></div>
   <div class="b2b-collection-kpis" id="collectionStaffKpis"><article><strong>—</strong><span>Available to collect</span></article><article><strong>—</strong><span>Claimed by me</span></article><article><strong>—</strong><span>In transit</span></article><article><strong>—</strong><span>Delayed transit</span></article></div>
-  <h3>Available &amp; my collection samples</h3><div id="collectionStaffCards" class="b2b-collection-cards"><p>Loading assigned samples…</p></div><p id="collectionStaffMessage" class="b2b-message" role="status"></p>
+  <div class="collection-work-heading"><div><p class="eyebrow">SMART WORKLIST</p><h3>Samples by sending branch</h3><p class="collection-work-hint">Choose a branch to work through its samples. Processing centre is shown on every sample.</p></div><span id="collectionStaffResultCount" class="collection-result-count">Loading…</span></div>
+  <div class="collection-work-tools"><label class="collection-search"><span aria-hidden="true">⌕</span><input id="collectionStaffSearch" type="search" placeholder="Search patient or request number…" autocomplete="off"></label><select id="collectionStaffBranchFilter" aria-label="Filter by sending branch"><option value="all">All sending branches</option></select><select id="collectionStaffStageFilter" aria-label="Filter by collection status"><option value="all">All statuses</option><option value="awaiting_collection">Available to collect</option><option value="assigned">Claimed by me</option><option value="in_transit">In transit</option></select></div>
+  <div class="collection-branch-summary" id="collectionStaffBranchSummary" aria-live="polite"></div>
+  <div id="collectionStaffCards" class="b2b-collection-branch-groups"><p>Loading assigned samples…</p></div><p id="collectionStaffMessage" class="b2b-message" role="status"></p>
 </section>
 <div id="portalCommandBar" class="portal-command-bar">
   <div class="portal-global-search-wrap">
