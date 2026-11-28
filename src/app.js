@@ -554,29 +554,76 @@ async function load(u) {
 
 
 // ---------------- Collection staff mobile portal ----------------
+let collectionStaffRows=[];
+let collectionStaffSearchTerm='';
+let collectionStaffBranchValue='all';
+let collectionStaffStageValue='all';
+function renderCollectionStaffGroups(){
+  const host=$('collectionStaffCards'); if(!host)return;
+  const q=collectionStaffSearchTerm.trim().toLowerCase();
+  const filtered=collectionStaffRows.filter(r=>{
+    const sender=branches.find(b=>Number(b.id)===Number(r.sender_branch_id))?.branch_name||'Sending branch';
+    const matchesBranch=collectionStaffBranchValue==='all'||String(r.sender_branch_id)===collectionStaffBranchValue;
+    const matchesStage=collectionStaffStageValue==='all'||r.lifecycle_stage===collectionStaffStageValue;
+    const hay=[r.patient_name,r.request_no,r.request_date,sender].join(' ').toLowerCase();
+    return matchesBranch&&matchesStage&&(!q||hay.includes(q));
+  });
+  const groups=new Map();
+  filtered.forEach(r=>{const key=String(r.sender_branch_id);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(r);});
+  const branchEntries=[...groups.entries()].sort((a,b)=>{
+    const an=branches.find(x=>String(x.id)===a[0])?.branch_name||'ZZZ';
+    const bn=branches.find(x=>String(x.id)===b[0])?.branch_name||'ZZZ';
+    return an.localeCompare(bn);
+  });
+  const count=$('collectionStaffResultCount');if(count)count.textContent=`${filtered.length} sample${filtered.length===1?'':'s'} shown`;
+  const summary=$('collectionStaffBranchSummary');
+  if(summary){
+    const available=filtered.filter(r=>r.lifecycle_stage==='awaiting_collection').length;
+    const claimed=filtered.filter(r=>r.lifecycle_stage==='assigned').length;
+    const transit=filtered.filter(r=>r.lifecycle_stage==='in_transit').length;
+    summary.innerHTML=`<span><strong>${branchEntries.length}</strong> branches</span><span><strong>${available}</strong> to collect</span><span><strong>${claimed}</strong> claimed</span><span><strong>${transit}</strong> in transit</span>`;
+  }
+  if(!filtered.length){host.innerHTML='<div class="collection-empty-state"><strong>No matching samples</strong><span>Try another branch, status or search term.</span></div>';return;}
+  host.innerHTML=branchEntries.map(([branchId,items],groupIndex)=>{
+    const branch=branches.find(b=>String(b.id)===branchId);
+    const branchName=branch?.branch_name||'Sending branch';
+    const network=branch?.network||'';
+    const available=items.filter(r=>r.lifecycle_stage==='awaiting_collection').length;
+    const claimed=items.filter(r=>r.lifecycle_stage==='assigned').length;
+    const transit=items.filter(r=>r.lifecycle_stage==='in_transit').length;
+    const cards=items.map(r=>{
+      const sender=branchName;
+      const centre=branches.find(b=>Number(b.id)===Number(r.processing_centre_id))?.branch_name||'Processing centre';
+      const isAvailable=r.lifecycle_stage==='awaiting_collection';
+      const isAssigned=r.lifecycle_stage==='assigned';
+      const delay=Number(r.transit_delay_minutes||0);
+      const status=isAvailable?'Available to collect':isAssigned?'Claimed by you':'In transit';
+      const registered=r.created_at?new Date(r.created_at).toLocaleString('en-IN',{dateStyle:'short',timeStyle:'short'}):'—';
+      const collected=r.collected_at?new Date(r.collected_at).toLocaleString('en-IN',{dateStyle:'short',timeStyle:'short'}):'';
+      return `<article class="collection-compact-card"><div class="collection-card-topline"><span class="b2b-collection-chip ${delay>0?'delayed':''}">${status}</span>${delay>0?`<span class="b2b-collection-chip delayed">${delay} min delayed</span>`:''}</div><div class="collection-patient-line"><h4>${esc(r.patient_name||'Patient')}</h4><span class="collection-request-id">${esc(r.request_no||('#'+r.id))}</span></div><div class="collection-route-line"><span><small>SENDING BRANCH</small><strong>${esc(sender)}</strong></span><b aria-hidden="true">→</b><span><small>PROCESSING CENTRE</small><strong>${esc(centre)}</strong></span></div><div class="collection-time-line"><span>Registered ${esc(registered)}</span>${collected?`<span>Collected ${esc(collected)}</span>`:''}</div>${isAvailable?`<button type="button" class="collection-action-primary" data-collection-claim="${r.id}">Claim sample <span aria-hidden="true">→</span></button>`:isAssigned?`<button type="button" class="collection-action-primary" data-collection-mark="${r.id}">Mark as collected <span aria-hidden="true">✓</span></button>`:'<span class="collection-complete-label">Collection completed · In transit</span>'}</article>`;
+    }).join('');
+    return `<details class="collection-branch-group" ${groupIndex===0?'open':''}><summary><span class="collection-branch-name"><strong>${esc(branchName)}</strong><small>${esc(network)} · ${items.length} sample${items.length===1?'':'s'}</small></span><span class="collection-branch-counts">${available?`<i class="available">${available} to collect</i>`:''}${claimed?`<i class="claimed">${claimed} claimed</i>`:''}${transit?`<i class="transit">${transit} transit</i>`:''}</span><span class="collection-chevron" aria-hidden="true">⌄</span></summary><div class="collection-branch-cards">${cards}</div></details>`;
+  }).join('');
+}
 async function loadCollectionStaffPortal(){
-  const host=$('collectionStaffCards'); if(!host) return;
-  host.innerHTML='<p>Loading available samples from your allocated branches…</p>';
+  const host=$('collectionStaffCards'); if(!host)return;
+  host.innerHTML='<p class="collection-loading">Loading samples from your allocated routes…</p>';
   const {data,error}=await db.rpc('b2b_collection_staff_dashboard');
   if(error){host.innerHTML='';$('collectionStaffMessage').textContent=error.message||'Unable to load collection samples.';return;}
-  const rows=data||[];
+  const rows=data||[];collectionStaffRows=rows;
   const available=rows.filter(r=>r.lifecycle_stage==='awaiting_collection');
   const assigned=rows.filter(r=>r.lifecycle_stage==='assigned');
   const transit=rows.filter(r=>r.lifecycle_stage==='in_transit');
   const delayed=transit.filter(r=>Number(r.transit_delay_minutes||0)>0);
   $('collectionStaffGreeting').textContent=`Hello, ${profile?.full_name||'Collection Staff'}`;
   $('collectionStaffKpis').innerHTML=[[available.length,'Available to collect'],[assigned.length,'Claimed by me'],[transit.length,'In transit'],[delayed.length,'Delayed transit']].map(([n,l])=>`<article><strong>${n}</strong><span>${l}</span></article>`).join('');
-  if(!rows.length){host.innerHTML='<div class="b2b-collection-card"><h3>No samples available</h3><p>There are currently no uncollected samples from your allocated branches, and no samples are claimed by you.</p></div>';return;}
-  host.innerHTML=rows.map(r=>{
-    const sender=branches.find(b=>Number(b.id)===Number(r.sender_branch_id))?.branch_name||'Sending branch';
-    const centre=branches.find(b=>Number(b.id)===Number(r.processing_centre_id))?.branch_name||'Processing centre';
-    const isAvailable=r.lifecycle_stage==='awaiting_collection';
-    const isAssigned=r.lifecycle_stage==='assigned';
-    const delay=Number(r.transit_delay_minutes||0);
-    const status=isAvailable?'Available to collect':isAssigned?'Claimed by you':'In transit';
-    return `<article class="b2b-collection-card"><div class="b2b-collection-meta"><span class="b2b-collection-chip ${delay>0?'delayed':''}">${status}</span>${delay>0?`<span class="b2b-collection-chip delayed">${delay} min delayed</span>`:''}</div><h3>${esc(r.patient_name||'Patient')}</h3><p><strong>${esc(r.request_no||('#'+r.id))}</strong> · ${esc(r.request_date||'')}</p><p>From: ${esc(sender)} → ${esc(centre)}</p><p>Registered: ${r.created_at?new Date(r.created_at).toLocaleString('en-IN',{dateStyle:'short',timeStyle:'short'}):'—'}</p>${r.collected_at?`<p>Collected: ${new Date(r.collected_at).toLocaleString('en-IN',{dateStyle:'short',timeStyle:'short'})}</p>`:''}${isAvailable?`<button type="button" data-collection-claim="${r.id}">Claim this sample</button>`:isAssigned?`<button type="button" data-collection-mark="${r.id}">Mark as collected</button>`:'<span class="b2b-collection-chip">Collection completed</span>'}</article>`;
-  }).join('');
+  const branchFilter=$('collectionStaffBranchFilter');
+  if(branchFilter){const previous=collectionStaffBranchValue;const ids=[...new Set(rows.map(r=>String(r.sender_branch_id)))];branchFilter.innerHTML='<option value="all">All sending branches</option>'+ids.map(id=>{const b=branches.find(x=>String(x.id)===id);return `<option value="${esc(id)}">${esc(b?.branch_name||'Sending branch')}</option>`;}).join('');branchFilter.value=ids.includes(previous)?previous:'all';collectionStaffBranchValue=branchFilter.value;}
+  renderCollectionStaffGroups();
 }
+$('collectionStaffSearch')?.addEventListener('input',e=>{collectionStaffSearchTerm=e.target.value||'';renderCollectionStaffGroups();});
+$('collectionStaffBranchFilter')?.addEventListener('change',e=>{collectionStaffBranchValue=e.target.value||'all';renderCollectionStaffGroups();});
+$('collectionStaffStageFilter')?.addEventListener('change',e=>{collectionStaffStageValue=e.target.value||'all';renderCollectionStaffGroups();});
 $('collectionStaffRefresh')?.addEventListener('click',()=>void loadCollectionStaffPortal());
 $('collectionStaffCards')?.addEventListener('click',async e=>{
   const claim=e.target.closest('[data-collection-claim]');
