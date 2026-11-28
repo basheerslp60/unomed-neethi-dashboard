@@ -2761,7 +2761,7 @@ function collectionRouteCentres(){return COLLECTION_PROCESSING_CENTRE_IDS.map(id
 function renderCollectionRouteMatrix(selectedRoutes=[]){
  const host=$('collectionAllocationBranches');if(!host)return;
  const selected=new Set((selectedRoutes||[]).map(x=>`${Number(x.sender_branch_id)}:${Number(x.processing_centre_id)}`));
- const senders=(branches||[]).filter(b=>b.active!==false&&!COLLECTION_PROCESSING_CENTRE_IDS.includes(Number(b.id)));
+ const senders=(branches||[]).filter(b=>b.active!==false);
  const centres=collectionRouteCentres();
  host.innerHTML=`<div class="collection-route-head"><span>Sending branch</span>${centres.map(c=>`<span>${esc(c.name)}</span>`).join('')}</div>`+senders.map(b=>`<div class="collection-route-row"><strong>${esc(b.branch_name)}<small>${esc(b.network||'')}</small></strong>${centres.map(c=>{const key=`${Number(b.id)}:${c.id}`;return `<label class="collection-route-check"><input type="checkbox" class="collection-route-option" data-sender="${b.id}" data-centre="${c.id}" ${selected.has(key)?'checked':''}><span>Allow</span></label>`;}).join('')}</div>`).join('')||'<p>No active sending branches found.</p>';
  updateCollectionAllocationCount();
