@@ -556,20 +556,36 @@ async function load(u) {
 // ---------------- Collection staff mobile portal ----------------
 async function loadCollectionStaffPortal(){
   const host=$('collectionStaffCards'); if(!host) return;
-  host.innerHTML='<p>Loading your assigned samples…</p>';
+  host.innerHTML='<p>Loading available samples from your allocated branches…</p>';
   const {data,error}=await db.rpc('b2b_collection_staff_dashboard');
-  if(error){host.innerHTML='';$('collectionStaffMessage').textContent=error.message||'Unable to load assigned samples.';return;}
+  if(error){host.innerHTML='';$('collectionStaffMessage').textContent=error.message||'Unable to load collection samples.';return;}
   const rows=data||[];
+  const available=rows.filter(r=>r.lifecycle_stage==='awaiting_collection');
   const assigned=rows.filter(r=>r.lifecycle_stage==='assigned');
   const transit=rows.filter(r=>r.lifecycle_stage==='in_transit');
   const delayed=transit.filter(r=>Number(r.transit_delay_minutes||0)>0);
   $('collectionStaffGreeting').textContent=`Hello, ${profile?.full_name||'Collection Staff'}`;
-  $('collectionStaffKpis').innerHTML=[[assigned.length,'Pending collection'],[transit.length,'In transit'],[delayed.length,'Delayed transit']].map(([n,l])=>`<article><strong>${n}</strong><span>${l}</span></article>`).join('');
-  if(!rows.length){host.innerHTML='<div class="b2b-collection-card"><h3>No assigned samples</h3><p>New samples assigned to you will appear here.</p></div>';return;}
-  host.innerHTML=rows.map(r=>{const sender=branches.find(b=>Number(b.id)===Number(r.sender_branch_id))?.branch_name||'Sending branch';const centre=branches.find(b=>Number(b.id)===Number(r.processing_centre_id))?.branch_name||'Processing centre';const isAssigned=r.lifecycle_stage==='assigned';return `<article class="b2b-collection-card"><div class="b2b-collection-meta"><span class="b2b-collection-chip ${Number(r.transit_delay_minutes||0)>0?'delayed':''}">${isAssigned?'Awaiting collection':'In transit'}</span>${Number(r.transit_delay_minutes||0)>0?`<span class="b2b-collection-chip delayed">${Number(r.transit_delay_minutes)} min delayed</span>`:''}</div><h3>${esc(r.patient_name||'Patient')}</h3><p><strong>${esc(r.request_no||('#'+r.id))}</strong> · ${esc(r.request_date||'')}</p><p>From: ${esc(sender)} → ${esc(centre)}</p><p>Registered: ${r.created_at?new Date(r.created_at).toLocaleString('en-IN',{dateStyle:'short',timeStyle:'short'}):'—'}</p>${r.collected_at?`<p>Collected: ${new Date(r.collected_at).toLocaleString('en-IN',{dateStyle:'short',timeStyle:'short'})}</p>`:''}${isAssigned?`<button type="button" data-collection-mark="${r.id}">Mark as collected</button>`:'<span class="b2b-collection-chip">Handover completed</span>'}</article>`;}).join('');
+  $('collectionStaffKpis').innerHTML=[[available.length,'Available to collect'],[assigned.length,'Claimed by me'],[transit.length,'In transit'],[delayed.length,'Delayed transit']].map(([n,l])=>`<article><strong>${n}</strong><span>${l}</span></article>`).join('');
+  if(!rows.length){host.innerHTML='<div class="b2b-collection-card"><h3>No samples available</h3><p>There are currently no uncollected samples from your allocated branches, and no samples are claimed by you.</p></div>';return;}
+  host.innerHTML=rows.map(r=>{
+    const sender=branches.find(b=>Number(b.id)===Number(r.sender_branch_id))?.branch_name||'Sending branch';
+    const centre=branches.find(b=>Number(b.id)===Number(r.processing_centre_id))?.branch_name||'Processing centre';
+    const isAvailable=r.lifecycle_stage==='awaiting_collection';
+    const isAssigned=r.lifecycle_stage==='assigned';
+    const delay=Number(r.transit_delay_minutes||0);
+    const status=isAvailable?'Available to collect':isAssigned?'Claimed by you':'In transit';
+    return `<article class="b2b-collection-card"><div class="b2b-collection-meta"><span class="b2b-collection-chip ${delay>0?'delayed':''}">${status}</span>${delay>0?`<span class="b2b-collection-chip delayed">${delay} min delayed</span>`:''}</div><h3>${esc(r.patient_name||'Patient')}</h3><p><strong>${esc(r.request_no||('#'+r.id))}</strong> · ${esc(r.request_date||'')}</p><p>From: ${esc(sender)} → ${esc(centre)}</p><p>Registered: ${r.created_at?new Date(r.created_at).toLocaleString('en-IN',{dateStyle:'short',timeStyle:'short'}):'—'}</p>${r.collected_at?`<p>Collected: ${new Date(r.collected_at).toLocaleString('en-IN',{dateStyle:'short',timeStyle:'short'})}</p>`:''}${isAvailable?`<button type="button" data-collection-claim="${r.id}">Claim this sample</button>`:isAssigned?`<button type="button" data-collection-mark="${r.id}">Mark as collected</button>`:'<span class="b2b-collection-chip">Collection completed</span>'}</article>`;
+  }).join('');
 }
 $('collectionStaffRefresh')?.addEventListener('click',()=>void loadCollectionStaffPortal());
-$('collectionStaffCards')?.addEventListener('click',async e=>{const btn=e.target.closest('[data-collection-mark]');if(!btn)return;btn.disabled=true;const {error}=await db.rpc('b2b_collection_mark_collected',{p_request_id:Number(btn.dataset.collectionMark),p_notes:null});if(error){$('collectionStaffMessage').textContent=error.message||'Could not mark sample collected.';btn.disabled=false;return;}$('collectionStaffMessage').textContent='Sample marked collected. Transit time has been recorded.';await loadCollectionStaffPortal();});
+$('collectionStaffCards')?.addEventListener('click',async e=>{
+  const claim=e.target.closest('[data-collection-claim]');
+  if(claim){claim.disabled=true;const {error}=await db.rpc('b2b_collection_claim_sample',{p_request_id:Number(claim.dataset.collectionClaim)});if(error){$('collectionStaffMessage').textContent=error.message||'This sample may already have been claimed. Refresh and try another.';claim.disabled=false;await loadCollectionStaffPortal();return;}$('collectionStaffMessage').textContent='Sample claimed successfully. You can now mark it collected.';await loadCollectionStaffPortal();return;}
+  const btn=e.target.closest('[data-collection-mark]');if(!btn)return;btn.disabled=true;
+  const {error}=await db.rpc('b2b_collection_mark_collected',{p_request_id:Number(btn.dataset.collectionMark),p_notes:null});
+  if(error){$('collectionStaffMessage').textContent=error.message||'Could not mark sample collected.';btn.disabled=false;return;}
+  $('collectionStaffMessage').textContent='Sample marked collected. Transit time has been recorded.';await loadCollectionStaffPortal();
+});
 
 // ---------------- B2B Sample Processing & Billing ----------------
 const b2bCentres=[1,2,3];
