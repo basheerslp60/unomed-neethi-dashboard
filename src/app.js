@@ -491,7 +491,18 @@ async function load(u) {
   $('portalBranch').innerHTML = branches.map(b => '<option value="' + b.id + '">' + esc(b.network) + ' - ' + esc(b.branch_name) + '</option>').join('');
     updatePortalBranchVisibility();
   }
-  show('login',false); show('app',true); show('userTools',true); setPortalView('overviewTop'); show('entry',p.role==='branch_staff');
+  show('login',false); show('app',true); show('userTools',true);
+  if (String(p.role||'').toLowerCase()==='collection_staff') {
+    document.querySelectorAll('.nav-button[data-target]').forEach(btn=>btn.classList.toggle('hidden',btn.dataset.target!=='collectionStaffSection'));
+    document.querySelector('.collection-staff-nav')?.classList.remove('hidden');
+    document.querySelectorAll('.app-content > section, .app-content > div').forEach(el=>{ if(el.id!=='collectionStaffSection' && el.id!=='portalCommandBar') el.classList.add('portal-view-hidden'); });
+    show('collectionStaffSection',true); setPortalView('collectionStaffSection');
+    $('title').textContent='My collection work'; $('subtitle').textContent='Assigned samples and collection updates';
+    await loadCollectionStaffPortal();
+    return;
+  }
+  document.querySelector('.collection-staff-nav')?.classList.add('hidden');
+  setPortalView('overviewTop'); show('entry',p.role==='branch_staff');
   if(p.role==='employee'){ document.querySelectorAll('.nav-button').forEach(btn=>{const target=btn.dataset.target;btn.classList.toggle('hidden',!['employeeSection','complaintSection'].includes(target));}); document.querySelectorAll('main > section.card').forEach(sec=>{if(!['employeeSection','complaintSection'].includes(sec.id))sec.classList.add('hidden');}); show('employeeSection',true); show('complaintSection',true); }
   show('correctionBranchWrap',p.role!=='branch_staff');
   if(p.role==='branch_staff') $('correctionBranch').innerHTML='';
@@ -541,6 +552,24 @@ async function load(u) {
 }
 
 
+
+// ---------------- Collection staff mobile portal ----------------
+async function loadCollectionStaffPortal(){
+  const host=$('collectionStaffCards'); if(!host) return;
+  host.innerHTML='<p>Loading your assigned samples…</p>';
+  const {data,error}=await db.rpc('b2b_collection_staff_dashboard');
+  if(error){host.innerHTML='';$('collectionStaffMessage').textContent=error.message||'Unable to load assigned samples.';return;}
+  const rows=data||[];
+  const assigned=rows.filter(r=>r.lifecycle_stage==='assigned');
+  const transit=rows.filter(r=>r.lifecycle_stage==='in_transit');
+  const delayed=transit.filter(r=>Number(r.transit_delay_minutes||0)>0);
+  $('collectionStaffGreeting').textContent=`Hello, ${profile?.full_name||'Collection Staff'}`;
+  $('collectionStaffKpis').innerHTML=[[assigned.length,'Pending collection'],[transit.length,'In transit'],[delayed.length,'Delayed transit']].map(([n,l])=>`<article><strong>${n}</strong><span>${l}</span></article>`).join('');
+  if(!rows.length){host.innerHTML='<div class="b2b-collection-card"><h3>No assigned samples</h3><p>New samples assigned to you will appear here.</p></div>';return;}
+  host.innerHTML=rows.map(r=>{const sender=branches.find(b=>Number(b.id)===Number(r.sender_branch_id))?.branch_name||'Sending branch';const centre=branches.find(b=>Number(b.id)===Number(r.processing_centre_id))?.branch_name||'Processing centre';const isAssigned=r.lifecycle_stage==='assigned';return `<article class="b2b-collection-card"><div class="b2b-collection-meta"><span class="b2b-collection-chip ${Number(r.transit_delay_minutes||0)>0?'delayed':''}">${isAssigned?'Awaiting collection':'In transit'}</span>${Number(r.transit_delay_minutes||0)>0?`<span class="b2b-collection-chip delayed">${Number(r.transit_delay_minutes)} min delayed</span>`:''}</div><h3>${esc(r.patient_name||'Patient')}</h3><p><strong>${esc(r.request_no||('#'+r.id))}</strong> · ${esc(r.request_date||'')}</p><p>From: ${esc(sender)} → ${esc(centre)}</p><p>Registered: ${r.created_at?new Date(r.created_at).toLocaleString('en-IN',{dateStyle:'short',timeStyle:'short'}):'—'}</p>${r.collected_at?`<p>Collected: ${new Date(r.collected_at).toLocaleString('en-IN',{dateStyle:'short',timeStyle:'short'})}</p>`:''}${isAssigned?`<button type="button" data-collection-mark="${r.id}">Mark as collected</button>`:'<span class="b2b-collection-chip">Handover completed</span>'}</article>`;}).join('');
+}
+$('collectionStaffRefresh')?.addEventListener('click',()=>void loadCollectionStaffPortal());
+$('collectionStaffCards')?.addEventListener('click',async e=>{const btn=e.target.closest('[data-collection-mark]');if(!btn)return;btn.disabled=true;const {error}=await db.rpc('b2b_collection_mark_collected',{p_request_id:Number(btn.dataset.collectionMark),p_notes:null});if(error){$('collectionStaffMessage').textContent=error.message||'Could not mark sample collected.';btn.disabled=false;return;}$('collectionStaffMessage').textContent='Sample marked collected. Transit time has been recorded.';await loadCollectionStaffPortal();});
 
 // ---------------- B2B Sample Processing & Billing ----------------
 const b2bCentres=[1,2,3];
